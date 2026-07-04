@@ -890,6 +890,13 @@ window.addEventListener("message", function(e){
     localStorage.setItem("role", d.role || "");
     localStorage.setItem("loginDate", d.loginDate || "");
 
+    if(typeof loadQuestions === "function"){
+      loadQuestions();
+    }
+
+    if(typeof loadCourses === "function"){
+      loadCourses();
+    }
   }
 
 });
