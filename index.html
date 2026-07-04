@@ -36,8 +36,14 @@
 
 <script>
 function logout(){
-  localStorage.removeItem("username");
-  location.href="https://www.prudle-education.com/log-in-out";
+  localStorage.clear();
+  sessionStorage.clear();
+
+  if(window.parent && window.parent !== window){
+    window.parent.postMessage("PRUDLE_LOGOUT", "*");
+  }
+
+  location.replace("https://www.prudle-education.com/log-in-out");
 }
 </script>
 
@@ -874,6 +880,19 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
+window.addEventListener("message", function(e){
+
+  const d = e.data || {};
+
+  if(d.type === "PRUDLE_AUTH"){
+
+    localStorage.setItem("username", d.username || "");
+    localStorage.setItem("role", d.role || "");
+    localStorage.setItem("loginDate", d.loginDate || "");
+
+  }
+
+});
 async function allowStudentRetake(examId, courseId, studentId, iqama){
 
   const docId = `${examId}__${courseId}__${studentId}`;
@@ -6617,4 +6636,3 @@ function filterModalQuestions(value){
   });
 }
 </script>
-
