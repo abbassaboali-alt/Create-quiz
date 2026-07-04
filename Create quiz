@@ -1,0 +1,6620 @@
+<!-- □ زر Logout جاهز — كود واحد فقط -->
+
+<!-- أيقونات FontAwesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+.logout-badge{
+  background:#164478;
+  color:#fff;
+  padding:7px 20px;
+  border-radius:30px;
+  border:none;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.18);
+  transition:.25s;
+}
+.logout-badge i{
+  font-size:15px;
+}
+.logout-badge:hover{
+  background:#1e5799;
+  transform:translateY(-2px);
+}
+</style>
+
+<!-- زر تسجيل الخروج -->
+<button class="logout-badge" onclick="logout()">
+  <i class="fa-solid fa-right-from-bracket"></i>
+  Logout
+</button>
+
+<script>
+function logout(){
+  localStorage.removeItem("username");
+  location.href="https://www.prudle-education.com/log-in-out";
+}
+</script>
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>□ إدارة اختبارات Prudle</title>
+
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:'Tajawal',sans-serif;
+  background:#f4f6fb;
+  color:#1f2937;
+}
+.page{
+  max-width:1100px;
+  margin:auto;
+  padding:15px;
+}
+header{
+  background:#164478;
+  color:#fff;
+  padding:18px;
+  border-radius:18px;
+  text-align:center;
+  font-weight:900;
+  font-size:24px;
+  box-shadow:0 8px 24px rgba(22,68,120,.15);
+}
+.box{
+  background:#fff;
+  padding:18px;
+  border-radius:18px;
+  margin-top:15px;
+  box-shadow:0 6px 20px rgba(0,0,0,.06);
+}
+h3{
+  margin:0 0 10px;
+  color:#164478;
+}
+input,select,textarea{
+  width:100%;
+  padding:15px;
+  margin-top:10px;
+  border-radius:12px;
+  border:1px solid #d8dfec;
+  outline:none;
+  font-family:'Tajawal',sans-serif;
+  font-size:15px;
+  background:#fff;
+}
+textarea{
+  min-height:110px;
+  resize:vertical;
+}
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:12px;
+  background:#164478;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+  font-family:'Tajawal',sans-serif;
+  font-size:15px;
+}
+button:hover{opacity:.96}
+.row{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.row > *{
+  flex:1;
+  min-width:120px;
+}
+.hidden{display:none}
+.note{
+  background:#eef5ff;
+  border:1px solid #d7e6ff;
+  color:#164478;
+  padding:10px 12px;
+  border-radius:12px;
+  margin-top:10px;
+  font-weight:700;
+}
+.q-preview{
+  background:#f8fbff;
+  border:1px solid #d9e6fb;
+  padding:12px;
+  border-radius:14px;
+  margin-top:12px;
+}
+.badge{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:900;
+  margin:4px 4px 0 0;
+}
+.badge.type{background:#eef5ff;color:#164478}
+.badge.degree{background:#ecfdf5;color:#047857}
+.badge.used{background:#fff7ed;color:#c2410c}
+.media-box{
+  margin-top:10px;
+}
+.media-box img,
+.media-box video{
+  max-width:100%;
+  width:100%;
+  border-radius:12px;
+  border:1px solid #e5e7eb;
+}
+.media-box audio{
+  width:100%;
+}
+.list-options{
+  margin-top:8px;
+  padding-right:18px;
+}
+.list-options li{
+  margin-top:4px;
+}
+.small{
+  font-size:13px;
+  color:#6b7280;
+}
+.actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.actions button{
+  flex:1;
+  min-width:150px;
+}
+.empty{
+  margin-top:10px;
+  padding:12px;
+  border-radius:12px;
+  background:#f9fafb;
+  border:1px dashed #d1d5db;
+  color:#6b7280;
+}
+.meta{
+  line-height:1.9;
+  margin-top:8px;
+}
+.used-item{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:10px;
+  padding:8px 10px;
+  margin-top:8px;
+}
+@media (max-width:700px){
+  .row{flex-direction:column}
+  .actions{flex-direction:column}
+}
+/* □ جعل الكتابة الإنجليزية من اليسار */
+input, textarea{
+  direction: ltr;
+  text-align: left;
+}
+
+/* □ إبقاء select عربي */
+select{
+  direction: rtl;
+  text-align: right;
+}
+.q-card{
+  transition:.25s;
+}
+
+.q-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 14px 30px rgba(0,0,0,.12);
+}
+.exam-card{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  transition:
+    transform .35s ease,
+    box-shadow .35s ease,
+    border-color .35s ease,
+    background .35s ease;
+}
+
+.exam-card::before{
+  content:"";
+  position:absolute;
+  inset:-60%;
+  background:linear-gradient(
+    120deg,
+    transparent 35%,
+    rgba(255,255,255,.75) 50%,
+    transparent 65%
+  );
+  transform:translateX(-120%) rotate(15deg);
+  transition:.7s ease;
+  z-index:0;
+}
+
+.exam-card::after{
+  content:"□ Preview";
+  position:absolute;
+  bottom:14px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:#164478;
+  color:#fff;
+  padding:8px 18px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:900;
+  opacity:0;
+  transition:.35s ease;
+  box-shadow:0 10px 24px rgba(22,68,120,.25);
+  z-index:3;
+}
+
+.exam-card > *{
+  position:relative;
+  z-index:2;
+}
+
+.exam-card:hover{
+  transform:translateY(-10px) scale(1.025);
+  box-shadow:
+    0 22px 45px rgba(22,68,120,.20),
+    0 0 0 5px rgba(14,165,233,.10);
+  border-color:#0ea5e9 !important;
+  background:linear-gradient(180deg,#ffffff,#f0f9ff) !important;
+}
+
+.exam-card:hover::before{
+  transform:translateX(120%) rotate(15deg);
+}
+
+.exam-card:hover::after{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+.exam-card input{
+  transition:.3s ease;
+}
+
+.exam-card:hover input{
+  transform:scale(1.03);
+  background:#fff;
+  box-shadow:0 8px 20px rgba(14,165,233,.12);
+}
+
+.exam-card:active{
+  transform:translateY(-4px) scale(.98);
+}
+@media (max-width:700px){
+  .exam-card:hover{
+    transform:translateY(-6px) scale(1.01);
+  }
+
+  .exam-card::after{
+    font-size:12px;
+    padding:7px 14px;
+  }
+}
+.skill-box{
+  background:#fff;
+  border:2px solid #dbeafe;
+  border-radius:14px;
+  padding:12px;
+  text-align:center;
+  font-weight:900;
+  color:#164478;
+  line-height:1.8;
+}
+.pro-questions-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+  gap:18px;
+  margin-top:18px;
+}
+
+.pro-question-card{
+  background:#fff;
+  border:1px solid #dbeafe;
+  border-radius:22px;
+  padding:0;
+  overflow:hidden;
+  box-shadow:0 10px 28px rgba(22,68,120,.08);
+}
+
+.pro-question-head{
+  background:linear-gradient(135deg,#164478,#2563eb);
+  color:#fff;
+  padding:14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.pro-question-body{
+  padding:16px;
+}
+
+.pro-chip{
+  display:inline-block;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  background:#eef5ff;
+  color:#164478;
+  margin:3px;
+}
+
+.pro-actions{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  margin-top:12px;
+}
+
+.pro-actions button{
+  margin:0;
+  padding:10px;
+  font-size:13px;
+}
+
+.pro-edit-input{
+  width:100%;
+  margin-top:8px;
+  border:1px solid #dbeafe;
+  border-radius:12px;
+  padding:10px;
+  font-weight:700;
+}
+.exam-card{
+    position:relative;
+    overflow:hidden;
+    border-radius:24px;
+}
+
+.exam-actions{
+  position:absolute;
+  left:14px;
+  right:14px;
+  bottom:14px;
+  top:auto !important;
+  height:auto !important;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  background:rgba(22,68,120,.92);
+  backdrop-filter:blur(8px);
+  padding:10px;
+  border-radius:18px;
+  opacity:0;
+  transform:translateY(18px);
+  transition:.35s;
+  z-index:5;
+  pointer-events:none;
+}
+
+.exam-card:hover .exam-actions{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.exam-actions button{
+  pointer-events:auto;
+}
+
+.preview-btn{
+  background:#fff !important;
+  color:#164478 !important;
+  border:none;
+  padding:9px 18px;
+  border-radius:40px;
+  font-weight:900;
+  cursor:pointer;
+  width:auto !important;
+  margin:0 !important;
+  font-size:13px;
+}
+
+.preview-btn:hover{
+  transform:scale(1.05);
+  background:#0ea5e9 !important;
+  color:#fff !important;
+}
+.modal{
+
+    position:fixed;
+    inset:0;
+
+    background:rgba(0,0,0,.65);
+
+    display:none;
+
+    justify-content:center;
+    align-items:center;
+
+    z-index:99999;
+
+}
+
+.modal-box{
+
+    width:min(1100px,95vw);
+    height:85vh;
+
+    background:#fff;
+
+    border-radius:24px;
+
+    overflow:auto;
+
+    padding:25px;
+
+    animation:zoomIn .35s;
+
+}
+
+@keyframes zoomIn{
+
+from{
+
+opacity:0;
+transform:scale(.85);
+
+}
+
+to{
+
+opacity:1;
+transform:scale(1);
+
+}
+
+}
+.modal-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:20px;
+
+    font-size:24px;
+
+    font-weight:900;
+
+    color:#164478;
+
+}
+
+.modal-header button{
+
+    width:auto;
+
+    background:#ef4444;
+
+    padding:10px 18px;
+
+    border-radius:12px;
+
+    font-size:16px;
+
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>□ Exams and Quizzes - Prudle</header>
+<!-- □ Previews questions -->
+<div class="box">
+
+  <h3>□ Previews questions</h3>
+
+  <!-- □ البحث + الفرز -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+
+    <input id="previewExamSearch" placeholder="□ Search exam..."
+      oninput="filterExamDropdown(this.value)"
+      style="flex:1">
+
+    <select id="examFilterSort" onchange="filterExamDropdown()"
+      style="width:180px">
+      <option value="new">Newest</option>
+      <option value="old">Oldest</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+    </select>
+</div> <!-- □ هذا كان ناقص -->
+<!-- □ قائمة الاختبارات -->
+<div id="examPreviewBox" style="
+  margin-top:12px;
+  height:420px;
+  overflow:auto;
+  border:2px solid #dbeafe;
+  border-radius:22px;
+  padding:20px;
+  background:#fafcff;
+  resize:vertical;
+  min-height:250px;
+  max-height:900px;
+">
+  جاري تحميل الاختبارات...
+</div>
+
+<!-- □ أزرار التحكم -->
+<div style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+">
+
+  <!-- □ زر الخلط -->
+  <button onclick="toggleShuffle()" style="
+    flex:1;
+    background:#8b5cf6;
+    color:#fff;
+    padding:12px;
+    border:none;
+    border-radius:12px;
+    font-weight:900;
+    cursor:pointer;
+  ">
+    □ Shuffle Questions
+  </button>
+
+  <!-- □ زر عرض كل الأسئلة -->
+  <button onclick="toggleOnePageMode()" style="
+    flex:1;
+    background:#0ea5e9;
+    color:#fff;
+    padding:12px;
+    border:none;
+    border-radius:12px;
+    font-weight:900;
+    cursor:pointer;
+  ">
+    □ One Page Questions
+  </button>
+
+  <!-- ❌ حذف الاختبار -->
+<button
+  id="deleteExamBtn"
+  onclick="deleteExam()"
+  style="
+    flex:1;
+    background:#e74c3c;
+    color:#fff;
+    padding:12px;
+    border:none;
+    border-radius:12px;
+    font-weight:900;
+    cursor:pointer;
+  "
+>
+  □ Delete the exam
+</button>
+
+</div>
+  <!-- تعديل الوقت -->
+  <div class="actions">
+
+    <div class="row">
+      <input id="editH" type="number" min="0" placeholder="Hour">
+      <input id="editM" type="number" min="0" placeholder="Minutes">
+    </div>
+
+    <button onclick="editExamTime()">⏱ Save the timer</button>
+
+    <button onclick="loadQuestions()">□ Update Page</button>
+
+  </div>
+
+  <!-- □ هذا أهم عنصر (عرض الأسئلة) -->
+<div id="courseTabs" style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:15px;
+"></div>  <div id="questionsList" style="margin-top:15px"></div>
+
+</div>
+
+<div class="box">
+  <h3>Quizzes</h3>
+
+  <input type="file"
+         id="wordFile"
+         accept=".doc,.docx,.txt"
+         style="margin-top:10px">
+
+  <input type="file"
+         id="pdfFile"
+         accept=".pdf"
+         style="margin-top:10px">
+
+  <button onclick="importWord()"
+          style="background:#16a34a">
+    □ Upload Word
+  </button>
+
+  <button onclick="importPDF()"
+          style="background:#dc2626">
+    □ Upload PDF
+  </button>
+
+</div>
+
+<!-- □ الفلاتر -->  <select id="branchFilter" onchange="loadCourses()"></select>
+  <select id="sectionFilter" onchange="loadCourses()"></select>
+
+  <select id="typeFilter" onchange="loadCourses()">
+    <option value="">Type of course</option>
+    <option value="online"> online </option>
+    <option value="offline"> in person </option>
+  </select>
+<!-- ✅ البحث + الفرز للدورات -->
+<div style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+">
+
+  <input
+    id="courseSearch"
+    placeholder="□ Search course..."
+    oninput="loadCourses()"
+    style="flex:1"
+  >
+
+  <select
+    id="courseSort"
+    onchange="loadCourses()"
+    style="width:180px"
+  >
+
+    <option value="az">
+      A → Z
+    </option>
+
+    <option value="za">
+      Z → A
+    </option>
+
+    <option value="trainer">
+      Trainer
+    </option>
+
+  </select>
+
+</div>
+<!-- □ الدورات -->
+<div style="margin-top:12px;font-weight:900;color:#164478">
+  □ Choose Courses
+</div>
+
+
+<div id="coursesBox" style="
+  margin-top:6px;
+  max-height:180px;
+  overflow:auto;
+  border:1px solid #ddd;
+  padding:10px;
+  border-radius:12px;
+  background:#fafafa;
+">
+  جاري تحميل الدورات...
+</div>
+<!-- □ البحث + الفرز (فوق) -->
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+
+  <input id="examSearchTop" placeholder="□ Search exam..."
+    oninput="filterExamBank()"
+    style="flex:1">
+
+  <select id="examSortTop" onchange="filterExamBank()"
+    style="width:180px">
+    <option value="new">Newest</option>
+    <option value="old">Oldest</option>
+    <option value="az">A → Z</option>
+    <option value="za">Z → A</option>
+  </select>
+<!-- □ بنك الاختبارات للنسخ -->
+<div id="examBank" style="
+  margin-top:6px;
+  border:1px solid #ddd;
+  border-radius:12px;
+  padding:10px;
+  max-height:220px;
+  overflow:auto;
+  background:#fafafa;
+">
+  Loading exams...
+</div>
+</div>
+  <input id="examTitle" placeholder="Quiz name">
+<select id="examCategory">
+  <option value="">Select Exam Type</option>
+  <option value="midterm">Midterm</option>
+  <option value="finalExam">Final Exam</option>
+  <option value="listening">Listening</option>
+  <option value="speaking">Speaking</option>
+  <option value="quizEvaluation">Quiz and Evaluation</option>
+</select>
+  <div class="row">
+    <input id="h" type="number" min="0" placeholder="Hour">
+    <input id="m" type="number" min="0" placeholder="Minutes">
+    <input id="s" type="number" min="0" placeholder="Seconds">
+  </div>
+	
+  <!-- □ زر الإنشاء -->
+  <button onclick="createExam()">➕ Create a test</button>
+</div>
+  <!--  Edit /Add -->
+  <div class="box">
+    <h3> Add / Edit </h3>
+
+    <select id="examSelect"></select>
+<select id="qType" onchange="toggleQuestionType()">
+  <option value="mcq">Multible Choice</option>
+  <option value="order">Rearrange</option>
+  <option value="text">Text Answer</option>
+  <option value="match">Matching</option>
+<option value="voice">Voice Recording</option>
+</select>
+<!-- □ هنا تحطه منفصل -->
+<select id="groupSelect">
+
+  <option value="General">General</option>
+  <option value="Group A">Group A</option>
+  <option value="Group B">Group B</option>
+  <option value="Group C">Group C</option>
+</select>
+
+    <textarea id="question" placeholder="Write the question here"></textarea>
+<button onclick="addPassage()" style="background:#0ea5e9">
+  □ Add Reading Passage
+</button>
+
+<div id="optionsBox">
+  <input id="opt1" placeholder="Option 1">
+  <input id="opt2" placeholder="Option 2">
+  <input id="opt3" placeholder="Option 3">
+  <input id="opt4" placeholder="Option 4">
+</div>
+    <div id="correctBox">
+      <input id="correct" type="number" min="0" placeholder="The Correct answer No. (0-3)">
+    </div>
+
+    <div id="orderNote" class="note hidden">
+      ✳️ In the ordering question: write the options in the correct order; they will be shuffled for the student later.
+    </div>
+
+    <div id="orderPreview" class="note hidden"></div>
+
+    <input id="degree" type="number" min="1" placeholder="out of">
+
+    <select id="mediaType">
+      <option value="none">No file</option>
+      <option value="image">Picture</option>
+      <option value="video">Video</option>
+      <option value="audio">Audio</option>
+    </select>
+
+   <input type="file" id="file" accept="image/*,video/*,audio/*">
+<div class="actions">
+
+  <button onclick="saveQuestion()">
+    □ Save / Update
+  </button>
+
+  <button onclick="clearForm()">
+    □ Cancel
+  </button>
+
+</div>  </div>
+</div>
+<div id="questionsModal" class="modal">
+
+    <div class="modal-box">
+
+        <div class="modal-header">
+
+            <span id="modalTitle"></span>
+
+            <button onclick="closeQuestionsModal()">
+                ✕
+
+            </button>
+
+        </div>
+
+        <div id="modalQuestions"></div>
+
+    </div>
+
+</div>
+
+<script>
+firebase.initializeApp({
+   apiKey:"AIzaSyCCFBvZosI8dwShZjxvZzI-SU5igEbcOKk",
+  authDomain:"prudle-system.firebaseapp.com",
+  projectId:"prudle-system"
+});
+
+const db = firebase.firestore();
+async function allowStudentRetake(examId, courseId, studentId, iqama){
+
+  const docId = `${examId}__${courseId}__${studentId}`;
+
+  await db.collection("examRetakes")
+    .doc(docId)
+    .set({
+      examId,
+      courseId,
+      studentId,
+      iqama: iqama || "",
+      allowRetake: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true });
+
+}
+let SELECTED_QUESTION_COURSE = "";
+
+let EDIT_QUESTION_ID = null;
+
+let CURRENT_PREVIEW_EXAM = "";
+let CURRENT_COURSE_ID = "";
+let CURRENT_COURSE_NAME = "";
+let CURRENT_TRAINER = "";
+let CURRENT_PERIOD = "";
+let CURRENT_PASSAGE = ""; // □ الحل هنا
+
+const CURRENT_USER = (localStorage.getItem("username") || "")
+.replace(/\s/g,'')
+.trim()
+.toLowerCase();
+/* ================= أدوات ================= */
+function norm(v){
+  return String(v || "").trim().toLowerCase();
+}
+function normalizeTextAnswer(val){
+  return String(val || "")
+    .replace(/[^\w\s\u0600-\u06FF]/g, "") // حذف الرموز
+    .replace(/\s+/g, " ")                 // توحيد المسافات
+    .trim()
+    .toLowerCase();
+}
+function sameType(courseType, filterType){
+  const c = norm(courseType);
+  const f = norm(filterType);
+
+  if(!f) return true;
+
+  const onlineAliases = ["online","اونلاين","أونلاين","online course","remote"];
+  const offlineAliases = ["offline","حضوري","in person","onsite"];
+
+  if(f === "online" && onlineAliases.includes(c)) return true;
+  if(f === "offline" && offlineAliases.includes(c)) return true;
+
+  return false;
+}
+
+function esc(str){
+
+  return String(str || "")
+
+    // تنظيف الرموز الغريبة فقط
+    .replace(/□/g, "")
+    .replace(/�/g, "")
+
+    // حماية HTML
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+
+}
+function getDuration(){
+  const hh = Math.max(Number(h.value || 0), 0);
+  const mm = Math.max(Number(m.value || 0), 0);
+  const ss = Math.max(Number(s.value || 0), 0);
+  return (hh * 3600) + (mm * 60) + ss;
+}
+
+function secondsToHMS(total){
+  total = Number(total || 0);
+  const hh = Math.floor(total / 3600);
+  const mm = Math.floor((total % 3600) / 60);
+  const ss = total % 60;
+  return `${hh}س ${mm}د ${ss}ث`;
+}
+
+function getOptions(){
+  return [opt1.value, opt2.value, opt3.value, opt4.value]
+    .map(v => String(v || "").trim())
+    .filter(v => v);
+}
+
+function renderMedia(mediaType, mediaUrl){
+  if(!mediaUrl || mediaType === "none") return "";
+
+  if(mediaType === "image"){
+    return `<div class="media-box"><img src="${mediaUrl}" alt="image"></div>`;
+  }
+
+  if(mediaType === "video"){
+    return `<div class="media-box"><video controls src="${mediaUrl}"></video></div>`;
+  }
+
+  if(mediaType === "audio"){
+    return `<div class="media-box"><audio controls src="${mediaUrl}"></audio></div>`;
+  }
+
+  return "";
+}
+
+function clearForm(){
+  EDIT_QUESTION_ID = null;
+  question.value = "";
+  opt1.value = "";
+  opt2.value = "";
+  opt3.value = "";
+  opt4.value = "";
+  correct.value = "";
+  degree.value = "";
+  mediaType.value = "none";
+  file.value = "";
+  qType.value = "mcq";
+  toggleQuestionType();
+}
+function toggleCourseBtn(btn){
+
+  const selected =
+    btn.dataset.selected === "true";
+
+  if(selected){
+
+    btn.dataset.selected = "false";
+    btn.classList.remove("on");
+    btn.classList.add("off");
+    btn.innerHTML = "Not selected";
+
+  }else{
+
+    btn.dataset.selected = "true";
+    btn.classList.remove("off");
+    btn.classList.add("on");
+    btn.innerHTML = "Selected";
+
+  }
+
+}
+function dedupeCoursesUsed(list){
+  const seen = new Set();
+  const out = [];
+
+  (list || []).forEach(item=>{
+    const key = `${item.courseId || ""}__${item.TrainingCourse || ""}__${item.Trainer || ""}`;
+    if(!seen.has(key)){
+      seen.add(key);
+      out.push(item);
+    }
+  });
+
+  return out;
+}
+async function toggleShuffle(){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId){
+    alert("اختر الاختبار أولاً");
+    return;
+  }
+
+  const ref = db.collection("exams").doc(examId);
+  const docSnap = await ref.get();
+
+  const current = docSnap.data().shuffleQuestions === true;
+
+  await ref.update({
+    shuffleQuestions: !current
+  });
+
+  alert(current ? "تم إيقاف الخلط" : "تم تفعيل الخلط");
+
+  // □ التحديث الفوري (هذا المهم)
+  await loadQuestions();
+}
+async function toggleOnePageMode(){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId){
+    alert("اختر الاختبار أولاً");
+    return;
+  }
+
+  const ref = db.collection("exams").doc(examId);
+  const docSnap = await ref.get();
+
+  if(!docSnap.exists){
+    alert("الاختبار غير موجود");
+    return;
+  }
+
+  const current = docSnap.data().onePageQuestions === true;
+
+  await ref.update({
+    onePageQuestions: !current
+  });
+
+  alert(current ? "تم إيقاف عرض كل الأسئلة في صفحة واحدة" : "تم تفعيل عرض كل الأسئلة في صفحة واحدة");
+
+  await loadQuestions();
+}
+/* ================= الفلاتر ================= */
+async function loadFilters(){
+  const snap = await db.collection("Courses").get();
+
+  const branches = new Set();
+  const sections = new Set();
+
+  snap.forEach(doc=>{
+    const c = doc.data();
+    if(c.Branch) branches.add(c.Branch);
+    if(c.Section) sections.add(c.Section);
+  });
+
+  branchFilter.innerHTML = `<option value="">All Branch</option>`;
+  [...branches].sort().forEach(v=>{
+    branchFilter.innerHTML += `<option value="${esc(v)}">${esc(v)}</option>`;
+  });
+
+  sectionFilter.innerHTML = `<option value="">All Section</option>`;
+  [...sections].sort().forEach(v=>{
+    sectionFilter.innerHTML += `<option value="${esc(v)}">${esc(v)}</option>`;
+  });
+}
+
+async function loadCourses(){
+
+  const box = document.getElementById("coursesBox");
+
+  const search = (
+    document.getElementById("courseSearch")?.value || ""
+  ).toLowerCase().trim();
+
+  const sort =
+    document.getElementById("courseSort")?.value || "az";
+
+  const snap = await db.collection("Courses").get();
+
+  if(snap.empty){
+    box.innerHTML = "لا توجد دورات";
+    return;
+  }
+
+  let courses = [];
+
+  snap.forEach(doc=>{
+
+    const c = doc.data();
+
+    const status = norm(c.status);
+
+    const openStatuses = ["open", "مفتوح"];
+
+    // ✅ فقط الدورات المفتوحة
+    if(!openStatuses.includes(status)) return;
+
+    // ✅ الفلاتر
+    if(branchFilter.value && c.Branch !== branchFilter.value) return;
+
+    if(sectionFilter.value && c.Section !== sectionFilter.value) return;
+
+    const typeValue =
+      document.getElementById("typeFilter")?.value || "";
+
+    if(!sameType(c.CourseType, typeValue)) return;
+
+    const courseName = String(c.TrainingCourse || "");
+    const trainerName = String(c.Trainer || "");
+
+    // ✅ البحث
+    if(search){
+
+      const txt = `
+        ${courseName}
+        ${trainerName}
+        ${c.Branch || ""}
+        ${c.Section || ""}
+      `.toLowerCase();
+
+      if(!txt.includes(search)) return;
+    }
+
+    // ==================================================
+    // ✅ فلترة حسب المدرب
+    // ==================================================
+
+    const role = (
+      localStorage.getItem("role") || ""
+    ).trim().toLowerCase();
+
+    const cleanTrainer = String(trainerName || "")
+      .replace(/\s/g,'')
+      .trim()
+      .toLowerCase();
+
+    const cleanUser = String(CURRENT_USER || "")
+      .replace(/\s/g,'')
+      .trim()
+      .toLowerCase();
+
+    // ✅ الأدمن يرى الجميع
+    // ✅ المدرب يرى دوراته فقط
+    if(role !== "admin"){
+
+      if(cleanTrainer !== cleanUser){
+        return;
+      }
+
+    }
+
+    // ==================================================
+
+courses.push({
+  id: doc.id,
+  TrainingCourse: courseName,
+  Trainer: trainerName,
+  Period: c.Period || ""
+});
+  });
+
+  // ================= الفرز =================
+
+  if(sort === "az"){
+    courses.sort((a,b)=>
+      a.TrainingCourse.localeCompare(b.TrainingCourse)
+    );
+  }
+
+  if(sort === "za"){
+    courses.sort((a,b)=>
+      b.TrainingCourse.localeCompare(a.TrainingCourse)
+    );
+  }
+
+  if(sort === "trainer"){
+    courses.sort((a,b)=>
+      a.Trainer.localeCompare(b.Trainer)
+    );
+  }
+
+  // ================= العرض =================
+
+  let html = "";
+
+  courses.forEach(c=>{
+
+    html += `
+      <label style="
+        display:block;
+        padding:8px;
+        border-radius:10px;
+        margin-bottom:6px;
+        background:#fff;
+        border:1px solid #eee;
+        cursor:pointer;
+      ">
+
+  <button
+  type="button"
+  class="course-select-btn off"
+  data-id="${c.id}"
+  data-selected="false"
+  onclick="toggleCourseBtn(this)"
+>
+  Not selected
+</button>
+
+${esc(c.TrainingCourse || "-")}
+|
+${esc(c.Trainer || "-")}
+${c.Period ? ` | ${esc(c.Period)}` : ""}
+      </label>
+    `;
+  });
+
+  box.innerHTML = html || "لا توجد دورات مطابقة";
+}
+/* ================= الاختبارات ================= */
+async function createExam(){
+
+  const title = String(examTitle.value || "").trim();
+  const duration = getDuration();
+const examCategory =
+  document.getElementById("examCategory").value;
+
+if(!examCategory){
+  return alert("اختر نوع الاختبار");
+}
+  // □ جمع الدورات المختارة
+  const selectedCourses = [];
+ document.querySelectorAll(".course-select-btn").forEach(btn=>{
+
+  if(btn.dataset.selected === "true"){
+    selectedCourses.push(btn.dataset.id);
+  }
+
+});
+
+  if(selectedCourses.length === 0){
+    return alert("اختر دورة واحدة على الأقل");
+  }
+
+  if(!title) return alert("name of the quiz");
+  if(duration <= 0) return alert("time for the exam");
+
+  // □ جلب بيانات الدورات
+  const coursesData = [];
+
+  for(const id of selectedCourses){
+    const doc = await db.collection("Courses").doc(id).get();
+
+    if(doc.exists){
+      const c = doc.data();
+
+coursesData.push({
+  courseId: id,
+  TrainingCourse: c.TrainingCourse || "",
+  Trainer: c.Trainer || "",
+  Period: c.Period || ""
+});}
+  }
+// ✅ جمع الاختبارات المختارة للنسخ منها
+const selectedExamIds = [];
+
+document.querySelectorAll(".examCheck:checked").forEach(cb => {
+  selectedExamIds.push(cb.value);
+});
+
+const newExamRef = await db.collection("exams").add({
+
+  isHomework: false,
+
+  title: title,
+examCategory: examCategory,
+  duration: duration,
+
+  courseIds: selectedCourses,
+
+  coursesData: coursesData,
+
+  // ✅ الاختبارات التي سيتم النسخ منها
+  linkedExams: selectedExamIds,
+
+  createdAt: new Date()
+
+});  const newExamId = newExamRef.id;
+// ✅ نسخ الأسئلة من الاختبارات المختارة
+for(const oldExamId of selectedExamIds){
+
+  const qSnap = await db.collection("questions")
+    .where("examId","==",oldExamId)
+    .get();
+
+  for(const doc of qSnap.docs){
+
+    const q = doc.data();
+
+await db.collection("questions").add({
+
+  examId: newExamId,
+
+  question: q.question || "",
+
+  passage: q.passage || "",
+
+  // ✅ نسخ حالة القفل
+  locked:
+    q.locked === true,
+
+  options: q.options || [],
+
+  correct: q.correct ?? "",
+
+  degree: q.degree || 1,
+
+  type: q.type || "mcq",
+
+  mediaType: q.mediaType || "none",
+
+  mediaUrl: q.mediaUrl || "",
+
+  group: q.group || "General",
+
+  showMedia: q.showMedia !== false,
+
+  order: q.order || 0,
+
+  isMain: q.isMain || false,
+
+  coursesUsed: (coursesData || []).map(c => ({
+
+    courseId: c.courseId,
+
+    TrainingCourse: c.TrainingCourse,
+
+    Trainer: c.Trainer,
+
+    Period: c.Period || ""
+
+  })),
+
+  linkedExams: selectedExamIds,
+
+  createdAt: new Date()
+
+});
+  }
+
+}
+  // □ نسخ الأسئلة من الاختبارات المختارة
+
+  // □ عرض الاختبار الجديد مباشرة بدون تحديث الصفحة
+selectPreviewExam(newExamId);
+  // □ عرض الأسئلة فورًا
+  await loadQuestions();
+
+  alert("✅ تم إنشاء الاختبار ونسخ الأسئلة بنجاح");
+
+  // □ تفريغ الحقول
+examTitle.value = "";
+h.value = "";
+m.value = "";
+s.value = "";
+
+document.getElementById("examCategory").value = "";
+
+ document.querySelectorAll(".course-select-btn").forEach(btn=>{
+
+  btn.dataset.selected = "false";
+  btn.classList.remove("on");
+  btn.classList.add("off");
+  btn.innerHTML = "Not selected";
+
+});
+  document.querySelectorAll(".examCheck").forEach(cb=> cb.checked = false);
+
+  // □ تحديث قائمة الاختبارات فقط
+  await loadExams();
+} let EXAMS_DROPDOWN = [];
+
+async function loadExams(){
+
+  const examSelect = document.getElementById("examSelect");
+
+  try{
+
+    const snap = await db.collection("exams")
+      .orderBy("createdAt","desc")
+      .get();
+
+    // □ إعادة تعيين القائمة
+    examSelect.innerHTML = `<option value="">choose the exam</option>`;
+
+    EXAMS_DROPDOWN = [];
+
+    // ❌ لا توجد اختبارات
+    if(snap.empty){
+      examSelect.innerHTML = `<option value="">No exams</option>`;
+
+      const previewBox = document.getElementById("examPreviewBox");
+      if(previewBox){
+        previewBox.innerHTML = "لا توجد اختبارات";
+      }
+
+      return;
+    }
+
+    // □ تعبئة البيانات
+    snap.forEach(d=>{
+      const e = d.data();
+
+const coursesText = Array.isArray(e.coursesData)
+  ? e.coursesData.map(c => c.TrainingCourse || "").filter(Boolean).join(" / ")
+  : (e.TrainingCourse || "");
+
+const trainersText = Array.isArray(e.coursesData)
+  ? e.coursesData.map(c => c.Trainer || "").filter(Boolean).join(" / ")
+  : (e.Trainer || "");
+
+const periodsText = Array.isArray(e.coursesData)
+  ? e.coursesData.map(c => c.Period || "").filter(Boolean).join(" / ")
+  : "";
+
+const item = {
+  id: d.id,
+  title: String(e.title || ""),
+  examCategory: e.examCategory || "",
+  course: String(coursesText || ""),
+  trainer: String(trainersText || ""),
+  period: String(periodsText || ""),
+  createdAt: e.createdAt?.seconds || 0
+};
+      // □ تخزين للكاش (للبحث)
+      EXAMS_DROPDOWN.push(item);
+// ✅ بنك الاختبارات للنسخ
+const bank =
+  document.getElementById("examBank");
+
+// ✅ تنظيف البنك قبل إعادة التحميل
+if(bank){
+  bank.innerHTML = "";
+}
+if(bank){
+
+  bank.innerHTML += `
+
+    <label style="
+      display:block;
+      padding:10px;
+      margin-bottom:8px;
+      border-radius:12px;
+      background:#fff;
+      border:1px solid #eee;
+      cursor:pointer;
+    ">
+
+      <input
+        type="checkbox"
+        class="examCheck"
+        value="${d.id}"
+        style="margin-left:8px"
+      >
+
+      ${esc(item.title)}
+      |
+      ${esc(item.course)}
+      |
+      ${esc(item.trainer)}
+
+    </label>
+
+  `;
+}
+
+      // □ قائمة الإنشاء / التعديل
+      examSelect.innerHTML += `
+        <option value="${item.id}">
+          ${esc(item.title)} | ${esc(item.course)} | ${esc(item.trainer)}
+        </option>
+      `;
+    });
+
+    // □ عرض مباشر في Preview
+    filterExamDropdown(
+      document.getElementById("previewExamSearch")?.value || ""
+    );
+filterExamBank();
+
+  }catch(err){
+    console.error(err);
+
+    examSelect.innerHTML = `<option value="">Error loading exams</option>`;
+
+    const previewBox = document.getElementById("examPreviewBox");
+    if(previewBox){
+      previewBox.innerHTML = "❌ Error loading exams";
+    }
+  }
+}
+function filterExamBank(){
+
+  const search =
+    (
+      document.getElementById("examSearchTop")?.value || ""
+    ).toLowerCase().trim();
+
+  const sort =
+    document.getElementById("examSortTop")?.value || "new";
+
+  let list = [...EXAMS_DROPDOWN];
+
+  // ✅ البحث
+  if(search){
+
+    list = list.filter(e => {
+
+      return (
+        (e.title || "").toLowerCase().includes(search) ||
+        (e.course || "").toLowerCase().includes(search) ||
+        (e.trainer || "").toLowerCase().includes(search)
+      );
+
+    });
+
+  }
+
+  // ✅ الفرز
+  if(sort === "new"){
+    list.sort((a,b)=> b.createdAt - a.createdAt);
+  }
+
+  if(sort === "old"){
+    list.sort((a,b)=> a.createdAt - b.createdAt);
+  }
+
+  if(sort === "az"){
+    list.sort((a,b)=>
+      a.title.localeCompare(b.title)
+    );
+  }
+
+  if(sort === "za"){
+    list.sort((a,b)=>
+      b.title.localeCompare(a.title)
+    );
+  }
+
+  const bank =
+    document.getElementById("examBank");
+
+  if(!bank) return;
+
+  let html = "";
+
+  list.forEach(e => {
+
+    html += `
+
+      <label style="
+        display:block;
+        padding:10px;
+        margin-bottom:8px;
+        border-radius:12px;
+        background:#fff;
+        border:1px solid #eee;
+        cursor:pointer;
+      ">
+
+        <input
+          type="checkbox"
+          class="examCheck"
+          value="${e.id}"
+          style="margin-left:8px"
+        >
+
+        ${esc(e.title)}
+        |
+        ${esc(e.course)}
+        |
+        ${esc(e.trainer)}
+
+      </label>
+
+    `;
+
+  });
+
+  bank.innerHTML =
+    html || "No exams";
+
+}
+function filterExamDropdown(inputValue){
+
+  let search = "";
+
+  if(typeof inputValue === "string"){
+    search = inputValue.toLowerCase().trim();
+  }else{
+    search = document.getElementById("previewExamSearch")?.value.toLowerCase().trim() || "";
+  }
+
+  const sort = document.getElementById("examFilterSort")?.value || "new";
+
+  let list = [...EXAMS_DROPDOWN];
+
+  // البحث
+  if(search){
+    list = list.filter(e =>
+      (e.title || "").toLowerCase().includes(search) ||
+      (e.course || "").toLowerCase().includes(search) ||
+      (e.trainer || "").toLowerCase().includes(search)
+    );
+  }
+
+  // الفرز
+  if(sort === "new") list.sort((a,b)=> b.createdAt - a.createdAt);
+  if(sort === "old") list.sort((a,b)=> a.createdAt - b.createdAt);
+  if(sort === "az") list.sort((a,b)=> a.title.localeCompare(b.title));
+  if(sort === "za") list.sort((a,b)=> b.title.localeCompare(a.title));
+
+  const box = document.getElementById("examPreviewBox");
+
+  let html = `
+    <div style="
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+      gap:14px;
+    ">
+  `;
+
+  list.forEach(e=>{
+let cardColor = "#164478";
+
+if(e.examCategory === "midterm"){
+  cardColor = "#f59e0b"; // برتقالي
+}
+
+if(e.examCategory === "finalExam"){
+  cardColor = "#dc2626"; // أحمر
+}
+
+if(e.examCategory === "listening"){
+  cardColor = "#0ea5e9"; // أزرق
+}
+
+if(e.examCategory === "speaking"){
+  cardColor = "#16a34a"; // أخضر
+}
+
+if(e.examCategory === "quizEvaluation"){
+  cardColor = "#8b5cf6"; // بنفسجي
+}
+html += `
+
+<div class="exam-card"
+  data-id="${e.id}"
+  onclick="openExamTab('${e.id}')"
+  style="
+    background:#fff;
+    border:2px solid #dbeafe;
+    border-radius:22px;
+    padding:18px;
+    cursor:pointer;
+    transition:.25s;
+    box-shadow:0 6px 18px rgba(0,0,0,.06);
+    position:relative;
+    overflow:hidden;
+  ">
+
+  <div style="
+    position:absolute;
+    top:0;
+    right:0;
+    width:8px;
+    height:100%;
+    background:${cardColor};
+  "></div>
+
+<div style="
+  font-size:20px;
+  font-weight:900;
+  color:${cardColor};
+  margin-bottom:14px;
+  text-align:center;
+  line-height:1.6;
+">
+
+  ${esc(e.title || "-")}
+<input
+  value="${esc(e.title || "")}"
+
+  onclick="event.stopPropagation()"
+
+  onchange="renameExam('${e.id}', this.value)"
+
+  ${
+    (
+      e.hasLockedQuestions === true &&
+      String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+    )
+      ? "disabled"
+      : ""
+  }
+
+  style="
+    margin-top:10px;
+    text-align:center;
+
+    border:2px solid ${
+      (
+        e.hasLockedQuestions === true &&
+        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+      )
+        ? '#991b1b'
+        : cardColor
+    };
+
+    color:${
+      (
+        e.hasLockedQuestions === true &&
+        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+      )
+        ? '#991b1b'
+        : cardColor
+    };
+
+    background:${
+      (
+        e.hasLockedQuestions === true &&
+        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+      )
+        ? '#fee2e2'
+        : '#fff'
+    };
+
+    font-weight:900;
+
+    cursor:${
+      (
+        e.hasLockedQuestions === true &&
+        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+      )
+        ? 'not-allowed'
+        : 'text'
+    };
+  "
+>
+
+<div style="
+  margin-top:8px;
+  font-size:15px;
+  color:#6b7280;
+  font-weight:700;
+">
+  ${esc(e.course || "-")}
+</div>
+
+</div>
+
+<div style="
+  background:#f8fbff;
+  border:1px solid #dbeafe;
+  border-radius:16px;
+  padding:14px;
+  text-align:center;
+  line-height:2;
+  font-weight:900;
+  color:#374151;
+  font-size:16px;
+">
+
+  ${esc(e.trainer || "-")}
+
+  <br>
+
+  ⏰ ${esc(e.period || "-")}
+<br>
+
+
+</div>
+<div class="exam-actions" onclick="event.stopPropagation()">
+
+  <button
+    class="preview-btn"
+    onclick="
+      event.stopPropagation();
+      openExamTab('${e.id}');
+    "
+  >
+    □ Show Below
+  </button>
+
+  <button
+    class="preview-btn"
+    onclick="
+      event.stopPropagation();
+      openFullQuestions('${e.id}');
+    "
+  >
+    □ View All
+  </button>
+
+</div>
+</div>
+`;  
+});
+  html += `</div>`;
+
+  box.innerHTML = html || "لا توجد نتائج";
+}
+function changeCourseTab(courseId){
+
+  CURRENT_COURSE_ID = courseId;
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId){
+    alert("اختر الاختبار أولاً");
+    return;
+  }
+
+  openExamTab(examId, false);
+}async function openExamTab(
+  examId,
+  resetCourse = true
+){
+
+  CURRENT_PREVIEW_EXAM = examId;
+// ✅ ربط الأسئلة بهذه الدورة
+
+
+  // ✅ تلوين الكروت
+  document.querySelectorAll(".exam-card")
+    .forEach(card=>{
+      card.style.borderColor = "#dbeafe";
+      card.style.background = "#fff";
+    });
+
+  const activeCard = document.querySelector(
+    `.exam-card[data-id="${examId}"]`
+  );
+
+  if(activeCard){
+    activeCard.style.borderColor = "#164478";
+    activeCard.style.background = "#eef5ff";
+  }
+
+  // ✅ تغيير الاختبار الحالي
+  document.getElementById("examSelect").value = examId;
+
+  // =========================================
+  // ✅ تحميل بيانات الاختبار
+  // =========================================
+
+  const examDoc = await db.collection("exams")
+    .doc(examId)
+    .get();
+
+  if(!examDoc.exists) return;
+
+  const examData = examDoc.data();
+
+  // =========================================
+  // ✅ reset أول مرة فقط
+  // =========================================
+
+  if(resetCourse){
+
+    CURRENT_COURSE_ID = "";
+    CURRENT_COURSE_NAME = "";
+    CURRENT_TRAINER = "";
+    CURRENT_PERIOD = "";
+
+  }
+
+  // =========================================
+  // ✅ تبويبات الدورات
+  // =========================================
+
+  const tabsBox =
+    document.getElementById("courseTabs");
+
+  tabsBox.innerHTML = "";
+
+  const courses =
+    examData.coursesData || [];
+
+  // ✅ أول دورة افتراضية
+  if(!CURRENT_COURSE_ID && courses.length){
+
+    CURRENT_COURSE_ID =
+      courses[0].courseId || "";
+
+    CURRENT_COURSE_NAME =
+      courses[0].TrainingCourse || "";
+
+    CURRENT_TRAINER =
+      courses[0].Trainer || "";
+
+    CURRENT_PERIOD =
+      courses[0].Period || "";
+  }
+
+  courses.forEach(c=>{
+
+    const active =
+      CURRENT_COURSE_ID === c.courseId;
+
+    tabsBox.innerHTML += `
+
+      <div
+        onclick="changeCourseTab('${c.courseId}')"
+
+        style="
+          padding:12px 18px;
+          border-radius:14px;
+          cursor:pointer;
+          font-weight:900;
+          border:2px solid ${active ? '#164478' : '#dbeafe'};
+          background:${active ? '#eef5ff' : '#fff'};
+          color:#164478;
+          min-width:180px;
+          text-align:center;
+          transition:.25s;
+        "
+      >
+
+        ${esc(c.TrainingCourse || "-")}
+
+        <br>
+
+        <span style="font-size:13px">
+          ${esc(c.Trainer || "-")}
+        </span>
+
+        <br>
+
+        <span style="font-size:13px">
+          ⏰ ${esc(c.Period || "-")}
+        </span>
+
+      </div>
+      
+    `;
+  });
+
+  // ✅ تحميل الأسئلة
+  await loadQuestions();
+}
+function selectPreviewExam(examId){
+
+  
+
+  // إزالة التحديد القديم
+  document.querySelectorAll(".exam-card")
+    .forEach(card=>{
+      card.style.borderColor = "#dbeafe";
+      card.style.background = "#fff";
+    });
+
+  // تمييز الكرت المختار
+  const activeCard = document.querySelector(
+    `.exam-card[data-id="${examId}"]`
+  );
+
+  if(activeCard){
+
+    activeCard.style.borderColor = "#164478";
+    activeCard.style.background = "#eef5ff";
+  }
+
+  // فتح الأسئلة
+openExamTab(examId);}
+
+function addPassage(){
+
+  const text = prompt("اكتب شرح القطعة (Reading Passage)");
+
+  if(!text || !text.trim()){
+    alert("لم يتم إدخال النص");
+    return;
+  }
+
+  // □ نحفظها مؤقت داخل السؤال الحالي (بدون إنشاء سؤال جديد)
+  CURRENT_PASSAGE = text.trim();
+
+  alert("✅ تم حفظ القطعة لهذا السؤال");
+}/* ================= نوع السؤال ================= */
+function toggleQuestionType(){
+  const type = qType.value;
+
+  correctBox.classList.add("hidden");
+  orderNote.classList.add("hidden");
+  orderPreview.classList.add("hidden");
+  optionsBox.classList.remove("hidden");
+
+  correct.value = "";
+
+  if(type === "mcq"){
+    optionsBox.classList.remove("hidden");
+    correctBox.classList.remove("hidden");
+
+    correct.type = "number";
+    correct.placeholder = "رقم الإجابة الصحيحة (0-3)";
+  }
+
+  if(type === "order"){
+    optionsBox.classList.remove("hidden");
+    orderNote.classList.remove("hidden");
+    orderPreview.classList.remove("hidden");
+  }
+
+  if(type === "text"){
+    optionsBox.classList.add("hidden");
+    correctBox.classList.remove("hidden");
+
+    correct.type = "text";
+    correct.placeholder = "اكتب الإجابة الصحيحة (يمكن كتابة أكثر من إجابة مفصولة , )";
+  }
+
+  if(type === "match"){
+    optionsBox.classList.remove("hidden");
+    correctBox.classList.add("hidden");
+
+    orderNote.classList.remove("hidden");
+    orderNote.innerHTML = "✳️ اكتب بهذا الشكل: cat=قطة";
+  }
+if(type === "voice"){
+
+  optionsBox.classList.add("hidden");
+
+  correctBox.classList.add("hidden");
+
+  orderNote.classList.remove("hidden");
+
+  orderNote.innerHTML =
+    "□ سيقوم الطالب بتسجيل صوته";
+}
+  updateOrderPreview();
+}function updateOrderPreview(){
+  if(qType.value !== "order"){
+    orderPreview.innerHTML = "";
+    return;
+  }
+
+  const options = getOptions();
+
+  if(options.length === 0){
+    orderPreview.innerHTML = `the correct order will appear here`;
+    return;
+  }
+
+  orderPreview.innerHTML = `<strong>الترتيب الصحيح الذي سيُحفظ:</strong>`;
+  options.forEach((op, i)=>{
+    orderPreview.innerHTML += `<div>${i+1}) ${esc(op)}</div>`;
+  });
+}
+
+opt1.addEventListener("input", updateOrderPreview);
+opt2.addEventListener("input", updateOrderPreview);
+opt3.addEventListener("input", updateOrderPreview);
+opt4.addEventListener("input", updateOrderPreview);
+
+/* ================= رفع الميديا ================= */
+async function uploadFileToCloudinary(fileObj){
+  if(!fileObj) throw new Error("لا يوجد ملف");
+
+  const form = new FormData();
+  form.append("file", fileObj);
+  form.append("upload_preset", "kcgfhigd");
+
+  const url = "https://api.cloudinary.com/v1_1/dgs6mo4hl/auto/upload";
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: form
+  });
+
+  const text = await res.text();
+  console.log("RAW RESPONSE:", text);
+
+  let data;
+  try{
+    data = JSON.parse(text);
+  }catch(e){
+    throw new Error("استجابة غير مفهومة من السيرفر");
+  }
+
+  console.log("Cloudinary:", data);
+
+  if(!data.secure_url){
+    throw new Error(data.error?.message || "Cloudinary رفض الملف");
+  }
+
+  return data.secure_url;
+}
+/* ================= حفظ / تعديل السؤال ================= */
+async function saveQuestion(){
+
+  const examId = examSelect.value;
+
+  if(!examId){
+    return alert("Choose the exam first");
+  }
+
+  // □ جلب آخر ترتيب
+  const lastSnap = await db.collection("questions")
+    .where("examId","==",examId)
+    .get();
+
+  let newOrder = 1;
+
+  if(!lastSnap.empty){
+
+    const orders = lastSnap.docs.map(d =>
+      Number(d.data().order || 0)
+    );
+
+    newOrder = Math.max(...orders, 0) + 1;
+  }
+
+  const qText = String(question.value || "").trim();
+  const options = getOptions();
+
+  const deg   = Number(degree.value || 0);
+  const type  = qType.value;
+  const media = mediaType.value;
+
+  const fileObj = file.files[0];
+
+  const showMedia = true;
+
+  const group =
+    document.getElementById("groupSelect")?.value || "General";
+
+  if(!qText){
+    return alert("اكتب السؤال");
+  }
+
+  if(
+    (type === "mcq" ||
+     type === "order" ||
+     type === "match")
+     &&
+     options.length < 2
+  ){
+    return alert("أدخل خيارين على الأقل");
+  }
+
+  if(deg <= 0){
+    return alert("out of");
+  }
+
+  let correctAnswer;
+
+  // ================= VOICE =================
+  if(type === "voice"){
+
+    correctAnswer = "voice";
+  }
+
+  // ================= ORDER =================
+  else if(type === "order"){
+
+    correctAnswer = [...options];
+  }
+
+  // ================= TEXT =================
+  else if(type === "text"){
+
+    correctAnswer = String(correct.value || "")
+      .split(",")
+      .map(v => normalizeTextAnswer(v))
+      .filter(v => v);
+  }
+
+  // ================= MATCH =================
+  else if(type === "match"){
+
+    const pairs = options.map(op=>{
+
+      const [a,b] = op.split("=");
+
+      if(!a || !b) return null;
+
+      return {
+        left: a.trim(),
+        right: b.trim()
+      };
+
+    }).filter(v=>v);
+
+    if(pairs.length < 2){
+      return alert("اكتب خيارات التوصيل بهذا الشكل: cat=قطة");
+    }
+
+    correctAnswer = pairs;
+  }
+
+  // ================= MCQ =================
+  else{
+
+    const i = Number(correct.value);
+
+    if(
+      isNaN(i) ||
+      i < 0 ||
+      i >= options.length
+    ){
+      return alert("No. of the correct answer");
+    }
+
+    correctAnswer = i;
+  }
+
+  // ================= EXAM =================
+  const examDoc = await db.collection("exams")
+    .doc(examId)
+    .get();
+
+  if(!examDoc.exists){
+    return alert("الاختبار غير موجود");
+  }
+
+  const exam = examDoc.data();
+
+
+
+
+  // ================= MEDIA =================
+  let mediaUrl = "";
+  let finalMediaType = media;
+
+  if(fileObj){
+
+    try{
+
+      const mime = fileObj.type || "";
+
+      if(mime.startsWith("image/")){
+        finalMediaType = "image";
+      }
+
+      else if(mime.startsWith("video/")){
+        finalMediaType = "video";
+      }
+
+      else if(mime.startsWith("audio/")){
+        finalMediaType = "audio";
+      }
+
+      else{
+        return alert("نوع الملف غير مدعوم");
+      }
+
+      mediaUrl = await uploadFileToCloudinary(fileObj);
+
+    }catch(err){
+
+      console.error(err);
+
+      return alert("فشل رفع الملف: " + err.message);
+    }
+  }
+
+  // =========================================================
+  // ======================== UPDATE =========================
+  // =========================================================
+
+  if(EDIT_QUESTION_ID){
+
+    const oldDoc = await db.collection("questions")
+      .doc(EDIT_QUESTION_ID)
+      .get();
+
+    const oldData = oldDoc.exists
+      ? oldDoc.data()
+      : {};
+
+    const data = {
+locked:
+  oldData.locked === true,
+
+      examId: examId,
+
+      question: qText,
+
+      passage:
+        CURRENT_PASSAGE ||
+        oldData.passage ||
+        "",
+
+      options: options,
+
+      correct: correctAnswer,
+
+      degree: deg,
+
+      type: type,
+
+      mediaType:
+        fileObj
+          ? finalMediaType
+          : (oldData.mediaType || "none"),
+
+      mediaUrl:
+        fileObj
+          ? mediaUrl
+          : (oldData.mediaUrl || ""),
+
+      group: group,
+
+      showMedia: true,
+
+      // □ المحافظة على الترتيب القديم
+      order: oldData.order ?? 0,
+
+      coursesUsed: dedupeCoursesUsed([
+
+        ...(oldData.coursesUsed || []),
+
+        ...(exam.coursesData || []).map(c => ({
+          courseId: c.courseId,
+          TrainingCourse: c.TrainingCourse,
+          Trainer: c.Trainer
+        }))
+
+      ])
+    };
+
+await db.collection("questions")
+  .doc(EDIT_QUESTION_ID)
+  .update(data);
+
+// =====================================
+// ✅ تحديث النتائج القديمة تلقائياً
+// =====================================
+
+const resultsSnap = await db.collection("results")
+  .where("examId","==",examId)
+  .get();
+
+for(const resultDoc of resultsSnap.docs){
+
+  const result = resultDoc.data();
+
+  if(
+    !result.answers ||
+    result.answers[EDIT_QUESTION_ID] === undefined
+  ){
+    continue;
+  }
+
+  const studentAnswer =
+    result.answers[EDIT_QUESTION_ID];
+
+  let earned = 0;
+
+  if(type === "mcq"){
+
+    if(Number(studentAnswer) === Number(correctAnswer)){
+      earned = Number(deg || 0);
+    }
+
+  }
+
+  else if(type === "text"){
+
+    const normalizedStudent =
+      normalizeTextAnswer(studentAnswer);
+
+    const validAnswers =
+      Array.isArray(correctAnswer)
+        ? correctAnswer
+        : [];
+
+    if(validAnswers.includes(normalizedStudent)){
+      earned = Number(deg || 0);
+    }
+
+  }
+
+  else if(type === "order"){
+
+    if(
+      JSON.stringify(studentAnswer) ===
+      JSON.stringify(correctAnswer)
+    ){
+      earned = Number(deg || 0);
+    }
+
+  }
+
+  else if(type === "match"){
+
+    let totalPairs = correctAnswer.length;
+    let correctPairs = 0;
+
+    (studentAnswer || []).forEach(ans=>{
+
+      const found = correctAnswer.find(c =>
+        c.left === ans.left &&
+        c.right === ans.right
+      );
+
+      if(found) correctPairs++;
+
+    });
+
+    earned =
+      (correctPairs / totalPairs) *
+      Number(deg || 0);
+
+  }
+
+  let details =
+    Array.isArray(result.details)
+      ? result.details
+      : [];
+
+  details = details.map(d=>{
+
+    if(d.questionId !== EDIT_QUESTION_ID){
+      return d;
+    }
+
+    return {
+      ...d,
+      correctAnswer: correctAnswer,
+      earned: earned,
+      degree: Number(deg || 0)
+    };
+
+  });
+
+  const totalScore = details.reduce((sum,d)=>
+    sum + Number(d.earned || 0)
+  ,0);
+
+  const totalDegree = details.reduce((sum,d)=>
+    sum + Number(d.degree || 0)
+  ,0);
+
+  const percent =
+    totalDegree > 0
+      ? Math.round((totalScore / totalDegree) * 100)
+      : 0;
+
+  await db.collection("results")
+    .doc(resultDoc.id)
+    .update({
+
+      details: details,
+      score: totalScore,
+      totalDegree: totalDegree,
+      percent: percent
+
+    });
+
+}
+    await updateVisibleQuestions(examId);
+
+    CURRENT_PASSAGE = "";
+
+    alert("✅ update has done");
+
+    clearForm();
+
+    await loadQuestions();
+
+    return;
+  }
+
+// ================= ADD =================
+  await db.collection("questions").add({
+    examId: examId,
+order: newOrder,
+    question: qText,
+
+    // □ أهم إضافة
+    passage: CURRENT_PASSAGE || "",
+
+    options: options,
+    correct: correctAnswer,
+    degree: deg,
+    type: type,
+    mediaType: fileObj ? finalMediaType : "none",
+    mediaUrl: mediaUrl,
+
+    group: group,
+    showMedia: true,
+locked:false,
+
+    coursesUsed: dedupeCoursesUsed(
+      (exam.coursesData || []).map(c => ({
+        courseId: c.courseId,
+        TrainingCourse: c.TrainingCourse,
+        Trainer: c.Trainer
+      }))
+    ),
+
+    createdAt: new Date()
+  });
+
+// □ مهم جدًا: تحديث الأسئلة الظاهرة للطالب
+await updateVisibleQuestions(examId);
+
+CURRENT_PASSAGE = "";
+
+alert("✅ save successfully");
+clearForm();
+await loadQuestions();
+}
+async function updateVisibleQuestions(examId){
+
+  if(!examId) return;
+
+const snap = await db.collection("questions")
+  .where("examId","==",examId)
+  .get();
+  const ids = snap.docs
+    .sort((a,b)=>{
+      const A = Number(a.data().order || 0);
+      const B = Number(b.data().order || 0);
+      return A - B;
+    })
+    .map(d => d.id);
+
+const examRef =
+  db.collection("exams").doc(examId);
+
+const examDoc =
+  await examRef.get();
+
+const oldMap =
+  examDoc.data()?.visibleQuestionsByCourse || {};
+if(!CURRENT_COURSE_ID){
+  return;
+}
+oldMap[CURRENT_COURSE_ID] = ids;
+
+await examRef.update({
+  visibleQuestionsByCourse: oldMap
+});
+  console.log("✅ كل الأسئلة أصبحت ظاهرة للطالب:", ids.length);
+}
+/* ================= تعديل السؤال ================= */
+async function editQuestion(id){
+  const doc = await db.collection("questions").doc(id).get();
+
+  if(!doc.exists){
+    alert("السؤال غير موجود");
+    return;
+  }
+
+  const q = doc.data();
+
+  EDIT_QUESTION_ID = id;
+
+  question.value = q.question || "";
+  opt1.value = q.options?.[0] || "";
+  opt2.value = q.options?.[1] || "";
+  opt3.value = q.options?.[2] || "";
+  opt4.value = q.options?.[3] || "";
+  degree.value = q.degree || "";
+  qType.value = q.type || "mcq";
+  mediaType.value = q.mediaType || "none";
+
+  if(q.type === "mcq"){
+    correct.value = q.correct;
+  }
+
+  else if(q.type === "text"){
+    correct.value = Array.isArray(q.correct) ? q.correct.join(", ") : "";
+  }
+
+  else if(q.type === "match"){
+    const pairs = Array.isArray(q.correct) ? q.correct : [];
+
+    opt1.value = pairs[0] ? `${pairs[0].left}=${pairs[0].right}` : "";
+    opt2.value = pairs[1] ? `${pairs[1].left}=${pairs[1].right}` : "";
+    opt3.value = pairs[2] ? `${pairs[2].left}=${pairs[2].right}` : "";
+    opt4.value = pairs[3] ? `${pairs[3].left}=${pairs[3].right}` : "";
+
+    correct.value = "";
+  }
+
+  else{
+    correct.value = "";
+  }
+
+  if(q.examId){
+    examSelect.value = q.examId;
+  }
+
+  toggleQuestionType();
+}
+async function quickUpdateQuestion(id){
+
+  const qDoc = await db.collection("questions").doc(id).get();
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
+
+  const old = qDoc.data();
+// ✅ السؤال مقفل
+if(old.locked === true){
+
+  alert("□ Locked Question");
+
+  return;
+}
+
+  const newQuestion = document.getElementById("edit_q_" + id).value.trim();
+  const newPassage  = document.getElementById("edit_passage_" + id).value.trim();
+  const newDegree   = Number(document.getElementById("edit_degree_" + id).value || 0);
+  const newCorrect  = document.getElementById("edit_correct_" + id).value.trim();
+const updatedOptions = [];
+
+(old.options || []).forEach((_,i)=>{
+
+  updatedOptions.push(
+    document.getElementById(`edit_option_${id}_${i}`)?.value.trim() || ""
+  );
+
+});
+
+  if(!newQuestion){
+    alert("Write the question");
+    return;
+  }
+
+  if(newDegree <= 0){
+    alert("Insert degree");
+    return;
+  }
+
+  let correctAnswer = old.correct;
+
+  if(old.type === "mcq"){
+    const i = Number(newCorrect);
+    if(isNaN(i) || i < 0 || i >= (old.options || []).length){
+      alert("Correct answer must be option number مثل 0 أو 1 أو 2 أو 3");
+      return;
+    }
+    correctAnswer = i;
+  }
+
+  else if(old.type === "text"){
+    correctAnswer = newCorrect
+      .split(",")
+      .map(v => normalizeTextAnswer(v))
+      .filter(v => v);
+  }
+
+if(old.type === "order"){
+  correctAnswer = [...updatedOptions];
+}
+  else if(old.type === "match"){
+    correctAnswer = (updatedOptions || []).map(op=>{
+      const [left, right] = String(op).split("=");
+      if(!left || !right) return null;
+      return {
+        left: left.trim(),
+        right: right.trim()
+      };
+    }).filter(Boolean);
+  }
+
+  await db.collection("questions").doc(id).update({
+    question: newQuestion,
+options: updatedOptions,
+    passage: newPassage,
+    degree: newDegree,
+    correct: correctAnswer,
+    updatedAt: new Date()
+  });
+
+  alert("✅ Updated successfully");
+  await loadQuestions();
+}
+async function editExamTime(){
+
+const examId = CURRENT_PREVIEW_EXAM;
+  if(!examId){
+    alert("اختر الاختبار أولاً");
+    return;
+  }
+
+  const examDoc = await db.collection("exams").doc(examId).get();
+
+  if(!examDoc.exists){
+    alert("الاختبار غير موجود");
+    return;
+  }
+
+  // قراءة القيم من الحقول
+  let hours = Math.max(Number(document.getElementById("editH").value) || 0, 0);
+  let minutes = Math.max(Number(document.getElementById("editM").value) || 0, 0);
+
+  // ❌ إذا الاثنين فاضي
+  if(hours === 0 && minutes === 0){
+    alert("Insert the timer");
+    return;
+  }
+
+  // □ تحويل الدقائق الزائدة
+  if(minutes >= 60){
+    hours += Math.floor(minutes / 60);
+    minutes = minutes % 60;
+  }
+
+  const newDuration = (hours * 3600) + (minutes * 60);
+
+  await db.collection("exams").doc(examId).update({
+    duration: newDuration
+  });
+
+  alert(`✅ تم التحديث: ${hours} ساعة و ${minutes} دقيقة`);
+
+  await loadExams();
+
+  // تفريغ الحقول
+  document.getElementById("editH").value = "";
+  document.getElementById("editM").value = "";
+}/* ================= إرسال السؤال لدورة أخرى ================= */
+async function sendToCourse(questionId){
+  const qDoc = await db.collection("questions").doc(questionId).get();
+  if(!qDoc.exists) return alert("No questions");
+
+  const q = qDoc.data();
+
+  const coursesSnap = await db.collection("Courses").get();
+
+  let courses = [];
+  coursesSnap.forEach(doc=>{
+    const c = doc.data();
+    if(norm(c.status) === "open"){
+courses.push({
+  id: doc.id,
+  TrainingCourse: c.TrainingCourse || "",
+  Trainer: c.Trainer || "",
+  Period: c.Period || ""
+});    }
+  });
+
+  if(!courses.length){
+    return alert("No available courses");
+  }
+
+  let text = "Choose new course No.:\\n\\n";
+  courses.forEach((c, i)=>{
+   text += `${i+1}) ${c.TrainingCourse} | ${c.Trainer} | ${c.Period || "-"}\n`;
+  });
+
+  const choice = prompt(text);
+  if(choice === null) return;
+
+  const selected = courses[Number(choice) - 1];
+  if(!selected){
+    alert("not correct");
+    return;
+  }
+
+  const updatedCourses = dedupeCoursesUsed([
+    ...(q.coursesUsed || []),
+    {
+      courseId: selected.id,
+      TrainingCourse: selected.TrainingCourse,
+      Trainer: selected.Trainer
+    }
+  ]);
+
+await db.collection("questions")
+  .doc(questionId)
+  .update({
+
+    linkedCourseId: selected.id,
+
+    linkedCourseName:
+      selected.TrainingCourse || "",
+
+    linkedTrainer:
+      selected.Trainer || "",
+
+    linkedPeriod:
+      selected.Period || "",
+
+    // ✅ حفظ كل الدورات بشكل صحيح
+    coursesUsed: dedupeCoursesUsed([
+
+      ...(q.coursesUsed || []),
+
+      {
+        courseId: selected.id,
+
+        TrainingCourse:
+          selected.TrainingCourse || "",
+
+        Trainer:
+          selected.Trainer || "",
+
+        Period:
+          selected.Period || ""
+      }
+
+    ])
+
+});  alert("□ The question has sent to the other course");
+  await loadQuestions();
+}
+function liveExamPreview(searchText){
+
+  // □ فلترة القائمة أولًا
+  filterExamDropdown(searchText);
+
+  const examFilter = document.getElementById("examFilter");
+
+  // □ إذا فيه نتائج → اختر أول واحد تلقائي
+  if(examFilter && examFilter.options.length > 1){
+
+    examFilter.selectedIndex = 1;
+
+    // □ عرض الأسئلة مباشرة
+    loadQuestions();
+  }
+}
+async function removeSelectedLinkedCourse(questionId){
+
+  const select =
+    document.getElementById(
+      "linkedSelect_" + questionId
+    );
+
+  if(!select || !select.value){
+
+    alert("Choose course first");
+
+    return;
+  }
+
+  const courseId =
+    String(select.value).trim();
+
+  const qRef =
+    db.collection("questions")
+      .doc(questionId);
+
+  const qDoc =
+    await qRef.get();
+
+  if(!qDoc.exists){
+
+    alert("Question not found");
+
+    return;
+  }
+
+  const q =
+    qDoc.data();
+
+  // ✅ حذف الارتباط فقط
+  const filtered =
+    (q.coursesUsed || []).filter(c => {
+
+      return String(c.courseId || "").trim() !==
+             courseId;
+
+    });
+
+if(filtered.length === 0){
+
+  // ✅ رجع السؤال للدورة الأساسية بدل اختفائه
+  const examDoc =
+    await db.collection("exams")
+      .doc(q.examId)
+      .get();
+
+  const examData = examDoc.data() || {};
+
+  const baseCourses =
+    examData.coursesData || [];
+
+  await qRef.update({
+
+    coursesUsed: baseCourses.map(c => ({
+
+      courseId: c.courseId || "",
+
+      TrainingCourse:
+        c.TrainingCourse || "",
+
+      Trainer:
+        c.Trainer || "",
+
+      Period:
+        c.Period || ""
+
+    }))
+
+  });
+
+}else{
+
+  await qRef.update({
+
+    coursesUsed: filtered
+
+  });
+
+}
+  alert("✅ Link removed only");
+
+  await loadQuestions();
+
+}
+async function relinkQuestion(questionId){
+
+  const qDoc =
+    await db.collection("questions")
+      .doc(questionId)
+      .get();
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
+
+  const q = qDoc.data();
+
+  const coursesSnap =
+    await db.collection("Courses").get();
+
+  let courses = [];
+
+  coursesSnap.forEach(doc=>{
+
+    const c = doc.data();
+
+    if(norm(c.status) === "open"){
+
+      courses.push({
+        id: doc.id,
+        TrainingCourse: c.TrainingCourse || "",
+        Trainer: c.Trainer || "",
+        Period: c.Period || ""
+      });
+
+    }
+
+  });
+
+  if(!courses.length){
+    alert("No available courses");
+    return;
+  }
+
+const old =
+  document.getElementById(
+    "relinkBox_" + questionId
+  );
+
+if(old){
+  old.remove();
+}
+
+const html = `
+
+  <div
+    id="relinkBox_${questionId}"
+    style="
+      margin-top:12px;
+      background:#fff;
+      border:2px solid #16a34a;
+      border-radius:14px;
+      padding:12px;
+    "
+  >
+
+    <select
+      id="relinkSelect_${questionId}"
+      style="
+        width:100%;
+        padding:12px;
+        border-radius:12px;
+        border:2px solid #16a34a;
+        font-weight:900;
+      "
+    >
+
+      <option value="">
+        Choose course
+      </option>
+
+      ${courses.map(c => `
+
+        <option value="${c.id}">
+
+          ${c.TrainingCourse}
+          |
+          ${c.Trainer}
+          ${c.Period ? ` | ${c.Period}` : ""}
+
+        </option>
+
+      `).join("")}
+
+    </select>
+
+    <button
+      onclick="confirmRelinkQuestion('${questionId}')"
+      style="
+        margin-top:10px;
+        width:100%;
+        padding:12px;
+        border:none;
+        border-radius:12px;
+        background:#16a34a;
+        color:#fff;
+        font-weight:900;
+        cursor:pointer;
+      "
+    >
+      ✅ Confirm Link
+    </button>
+
+  </div>
+`;
+
+const container =
+  document.getElementById(
+    "linkedBox_" + questionId
+  );
+
+if(container){
+
+  container.insertAdjacentHTML(
+    "beforeend",
+    html
+  );
+
+}
+return;
+  await db.collection("questions")
+    .doc(questionId)
+    .update({
+
+      coursesUsed: dedupeCoursesUsed([
+
+        ...(q.coursesUsed || []),
+
+        {
+          courseId: selected.id,
+
+          TrainingCourse:
+            selected.TrainingCourse || "",
+
+          Trainer:
+            selected.Trainer || "",
+
+          Period:
+            selected.Period || ""
+        }
+
+      ])
+
+    });
+
+  alert("✅ Course linked again");
+
+  await loadQuestions();
+
+}
+async function confirmRelinkQuestion(questionId){
+
+  const select =
+    document.getElementById(
+      "relinkSelect_" + questionId
+    );
+
+  if(!select || !select.value){
+    alert("Choose course first");
+    return;
+  }
+
+  const courseId =
+    String(select.value).trim();
+
+  const qRef =
+    db.collection("questions").doc(questionId);
+
+  const qDoc =
+    await qRef.get();
+
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
+
+  const q = qDoc.data();
+
+  const cDoc =
+    await db.collection("Courses")
+      .doc(courseId)
+      .get();
+
+  if(!cDoc.exists){
+    alert("Course not found");
+    return;
+  }
+
+  const selected = {
+    id: cDoc.id,
+    ...cDoc.data()
+  };
+
+  await qRef.update({
+
+    coursesUsed: dedupeCoursesUsed([
+
+      ...(q.coursesUsed || []),
+
+      {
+        courseId: selected.id,
+
+        TrainingCourse:
+          selected.TrainingCourse || "",
+
+        Trainer:
+          selected.Trainer || "",
+
+        Period:
+          selected.Period || ""
+      }
+
+    ])
+
+  });
+
+  alert("✅ Course linked");
+
+  await loadQuestions();
+
+}
+/* ================= حذف السؤال ================= */
+async function deleteExam(){
+
+const examId = CURRENT_PREVIEW_EXAM;if(!examId){
+    alert("Choose the exam first");
+    return;
+  }
+
+  const confirmDelete = confirm("⚠️Delete the entire test and its contents ");
+
+  if(!confirmDelete) return;
+
+  try{
+
+    // □ حذف الأسئلة المرتبطة
+    const qSnap = await db.collection("questions")
+      .where("examId","==",examId)
+      .get();
+
+    for(const doc of qSnap.docs){
+      await db.collection("questions").doc(doc.id).delete();
+    }
+
+    // □ حذف النتائج المرتبطة
+    const rSnap = await db.collection("results")
+      .where("examId","==",examId)
+      .get();
+
+    for(const doc of rSnap.docs){
+      await db.collection("results").doc(doc.id).delete();
+    }
+
+    // □ حذف الاختبار نفسه
+    await db.collection("exams").doc(examId).delete();
+
+alert("✅ the exam has deleted successfully");
+
+// □ تصفير الاختبار الحالي
+CURRENT_PREVIEW_EXAM = "";
+CURRENT_COURSE_ID = "";
+
+// تحديث
+await loadExams();
+await loadQuestions();
+  }catch(err){
+    console.error(err);
+    alert("❌ Failed");
+  }
+}
+async function saveLinkedCourseSkill(
+  questionId,
+  courseId,
+  skill,
+  groupName
+){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId) return;
+
+  const examRef =
+    db.collection("exams").doc(examId);
+
+  const examDoc =
+    await examRef.get();
+
+  if(!examDoc.exists) return;
+
+  const examData =
+    examDoc.data() || {};
+
+  const map =
+    examData.groupSkillsByCourse || {};
+
+  // ✅ إنشاء الدورة
+  if(!map[courseId]){
+    map[courseId] = {};
+  }
+
+  // ✅ حفظ المهارة باسم الجروب الحقيقي
+  map[courseId][groupName] = skill;
+
+  await examRef.update({
+    groupSkillsByCourse: map
+  });
+
+  console.log(
+    "✅ saved",
+    courseId,
+    groupName,
+    skill
+  );
+
+}
+async function toggleLinkedCourseQuestions(courseId, show){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId || !courseId){
+    alert("Choose exam and course first");
+    return;
+  }
+
+  const examRef =
+    db.collection("exams").doc(examId);
+
+  const examDoc =
+    await examRef.get();
+
+  if(!examDoc.exists){
+    alert("Exam not found");
+    return;
+  }
+
+  const examData =
+    examDoc.data() || {};
+
+  const visibleMap =
+    examData.visibleQuestionsByCourse || {};
+
+  const qSnap =
+    await db.collection("questions")
+      .where("examId","==",examId)
+      .get();
+
+  const ids = [];
+
+  qSnap.forEach(doc=>{
+
+    const q =
+      doc.data() || {};
+
+    const used =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    const belongs =
+      used.some(c =>
+        String(c.courseId || "").trim() ===
+        String(courseId || "").trim()
+      );
+
+    if(belongs){
+      ids.push(doc.id);
+    }
+
+  });
+
+  if(show){
+    visibleMap[courseId] = ids;
+  }else{
+    visibleMap[courseId] = [];
+  }
+
+  await examRef.update({
+    visibleQuestionsByCourse: visibleMap
+  });
+
+  alert(
+    show
+      ? "✅ Questions shown to students"
+      : "✅ Questions hidden from students"
+  );
+
+  await loadQuestions();
+}
+
+/* ================= عرض الأسئلة ================= */
+async function loadQuestions(){
+
+  const questionsList =
+    document.getElementById("questionsList");
+
+  let selectedExamId =
+    CURRENT_PREVIEW_EXAM;
+
+  if(!selectedExamId){
+
+    questionsList.innerHTML = `
+      <div class="empty">⚠️ choose the exam</div>
+    `;
+
+    return;
+  }
+
+  try{
+
+    const examDoc =
+      await db.collection("exams")
+        .doc(selectedExamId)
+        .get();
+
+    const examData =
+      examDoc.exists ? examDoc.data() : {};
+
+    const onePageQuestions =
+      examData.onePageQuestions === true;
+
+    const visibleMap =
+      examData.visibleQuestionsByCourse || {};
+
+    const courseVisible =
+      (visibleMap[CURRENT_COURSE_ID] || []).length > 0;
+
+    let visibleQuestions =
+      visibleMap[CURRENT_COURSE_ID] || [];
+
+    if(visibleQuestions.length === 0){
+
+      const firstCourseId =
+        Object.keys(visibleMap)[0];
+
+      if(
+        firstCourseId &&
+        firstCourseId !== CURRENT_COURSE_ID
+      ){
+        visibleQuestions =
+          visibleMap[firstCourseId] || [];
+      }
+
+    }
+
+    const groupSkillsByCourse =
+      examData.groupSkillsByCourse || {};
+
+    const groupSkills =
+      groupSkillsByCourse[CURRENT_COURSE_ID] || {};
+
+    questionsList.innerHTML = "";
+
+    questionsList.innerHTML += `
+
+      <div style="margin-top:10px;margin-bottom:15px">
+
+        <button
+          onclick="toggleLinkedCourseQuestions(
+            '${CURRENT_COURSE_ID}',
+            ${!courseVisible}
+          )"
+          style="
+            width:100%;
+            padding:14px;
+            border:none;
+            border-radius:14px;
+            font-weight:900;
+            font-size:16px;
+            cursor:pointer;
+            background:${courseVisible ? '#16a34a' : '#dc2626'};
+            color:#fff;
+          "
+        >
+          ${
+            courseVisible
+              ? '□ Hide Questions'
+              : '✅ Show Questions'
+          }
+        </button>
+
+      </div>
+
+    `;
+
+    const USER_ROLE =
+      (
+        localStorage.getItem("role") || ""
+      ).toLowerCase();
+
+    if(USER_ROLE === "admin"){
+
+      questionsList.innerHTML += `
+
+        <div style="
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          margin-top:14px;
+          margin-bottom:14px;
+        ">
+
+          <button
+            onclick="bulkLockQuestions(true)"
+            style="
+              flex:1;
+              background:#dc2626;
+              color:#fff;
+              border:none;
+              border-radius:14px;
+              padding:14px;
+              font-weight:900;
+              cursor:pointer;
+            "
+          >
+            □ Lock Selected
+          </button>
+
+          <button
+            onclick="bulkLockQuestions(false)"
+            style="
+              flex:1;
+              background:#16a34a;
+              color:#fff;
+              border:none;
+              border-radius:14px;
+              padding:14px;
+              font-weight:900;
+              cursor:pointer;
+            "
+          >
+            □ Unlock Selected
+          </button>
+<button
+  onclick="updateAllQuestionsDegree()"
+  style="
+    flex:1;
+    background:#7c3aed;
+    color:#fff;
+    border:none;
+    border-radius:14px;
+    padding:14px;
+    font-weight:900;
+    cursor:pointer;
+  "
+>
+  ⭐ Change All Degrees
+</button>
+        </div>
+
+      `;
+
+    }
+const snap =
+  await db.collection("questions")
+    .where("examId","==",selectedExamId)
+    .get();
+
+const examQuestions =
+  snap.docs.map(doc=>({
+    id: doc.id,
+    ...doc.data()
+  }));
+const hasLockedQuestions =
+  examQuestions.some(q => q.locked === true);
+
+const deleteExamBtn =
+  document.getElementById("deleteExamBtn");
+
+if(deleteExamBtn){
+  if(hasLockedQuestions && USER_ROLE !== "admin"){
+    deleteExamBtn.style.display = "none";
+  }else{
+    deleteExamBtn.style.display = "block";
+  }
+}
+let questions =
+  [...examQuestions];
+
+questions =
+  questions.filter(q => {
+
+    const used =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    if(used.length === 0){
+      return true;
+    }
+
+    return used.some(c =>
+      String(c.courseId || "").trim() ===
+      String(CURRENT_COURSE_ID).trim()
+    );
+
+  });
+
+let totalDegree = 0;
+
+questions.forEach(q => {
+  totalDegree += Number(q.degree || 0);
+});
+
+questionsList.innerHTML += `
+  <div style="
+    background:#ecfdf5;
+    border:2px solid #bbf7d0;
+    color:#166534;
+    padding:14px;
+    border-radius:16px;
+    font-size:22px;
+    font-weight:900;
+    text-align:center;
+    margin-bottom:15px;
+  ">
+    ⭐ Total Quiz Marks: ${totalDegree}
+  </div>
+`;
+
+questionsList.innerHTML += `
+
+  <div class="badge ${onePageQuestions ? 'ok' : 'warn'}"
+       style="margin-bottom:10px">
+    □ One Page:
+    ${onePageQuestions ? 'ON' : 'OFF'}
+  </div>
+
+`;
+
+questions.sort((a,b)=>
+  Number(a.order || 0) -
+  Number(b.order || 0)
+);
+
+const homeworkCount =
+  questions.filter(q =>
+    String(q.group || "").toLowerCase()
+      .includes("homework")
+  ).length;
+
+if(examData.isHomework === true){
+
+  questionsList.innerHTML += `
+
+    <div style="
+      margin-top:10px;
+      background:#fff7ed;
+      border:2px solid #fdba74;
+      color:#9a3412;
+      padding:14px;
+      border-radius:14px;
+      font-weight:900;
+      line-height:1.9;
+    ">
+
+      □ Homework Quiz
+      <br>
+      ✅ Total Homework Quizzes in this course:
+      ${homeworkCount}
+      <br>
+      □ Maximum counted:
+      5 Homework only = 10 marks
+
+    </div>
+
+  `;
+}
+
+if(!questions.length){
+
+  questionsList.innerHTML += `
+    <div class="empty">لا توجد أسئلة</div>
+  `;
+
+  return;
+}
+    const allQuestionsSnap =
+      await db.collection("questions").get();
+
+    const allQuestions =
+      allQuestionsSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+    const grouped = {};
+
+    questions.forEach(q=>{
+
+      const groupName =
+        String(q.group || "General");
+
+      if(!grouped[groupName]){
+        grouped[groupName] = [];
+      }
+
+      grouped[groupName].push(q);
+
+    });
+    // ✅ جلب كل الاختبارات لحساب المهارات والدورات المرتبطة
+const examsSnapForSkills =
+  await db.collection("exams").get();
+// ======================================
+// ✅ Linked Courses Stats
+// ======================================
+
+const linkedCoursesStats = {};
+
+// ✅ المرور على الأسئلة
+// ✅ المرور على جميع الأسئلة
+allQuestions.forEach(q=>{
+
+  // ❌ تجاهل Reading Passage
+  if(q.isMain === true){
+    return;
+  }
+
+  const used =
+    Array.isArray(q.coursesUsed)
+      ? q.coursesUsed
+      : [];
+
+// ❌ تجاهل الأسئلة التي ليست مرتبطة
+// بنفس الدورة الحالية أو المرتبطة
+
+const hasCurrentCourse =
+  used.some(c =>
+
+    String(c.courseId || "").trim() ===
+    String(CURRENT_COURSE_ID).trim()
+
+  );
+
+if(!hasCurrentCourse){
+  return;
+}
+  const realGroupName =
+    String(q.group || "General").trim();
+
+  used.forEach(c=>{
+
+    const cid =
+      String(c.courseId || "").trim();
+
+    // ❌ تجاهل الدورة الأساسية
+    if(
+      cid ===
+      String(CURRENT_COURSE_ID).trim()
+    ){
+      return;
+    }
+
+    // ✅ إنشاء الدورة
+    if(!linkedCoursesStats[cid]){
+
+      linkedCoursesStats[cid] = {
+
+        courseId: cid,
+
+        TrainingCourse:
+          c.TrainingCourse || "",
+
+        Trainer:
+          c.Trainer || "",
+
+        Period:
+          c.Period || "",
+
+        skills: {},
+
+        savedSkills:
+          groupSkillsByCourse?.[cid] || {}
+
+      };
+
+    }
+
+    // ✅ المهارة الخاصة بالدورة
+// ✅ جلب المهارة المحفوظة تلقائياً
+let skillName =
+
+  linkedCoursesStats[cid]
+    ?.savedSkills?.[realGroupName]
+
+  ||
+
+  groupSkillsByCourse?.[cid]?.[realGroupName]
+
+  ||
+
+  groupSkills?.[realGroupName]
+
+  ||
+
+  "";
+
+// ✅ إذا لا توجد مهارة
+// حاول أخذها من أي اختبار آخر
+if(!skillName){
+
+  examsSnapForSkills.forEach(examDoc=>{
+
+    const ex = examDoc.data() || {};
+
+    const map =
+      ex.groupSkillsByCourse || {};
+
+    const saved =
+      map?.[cid]?.[realGroupName];
+
+    if(saved && !skillName){
+
+      skillName = saved;
+
+    }
+
+  });
+
+}
+    // ❌ تجاهل إذا لا توجد مهارة
+    if(!skillName || skillName === "No Skill"){
+      return;
+    }
+
+    // ✅ إنشاء المهارة
+    if(
+      linkedCoursesStats[cid]
+        .skills[skillName] === undefined
+    ){
+      linkedCoursesStats[cid]
+        .skills[skillName] = 0;
+    }
+
+    // ✅ كل سؤال يزيد العدد
+// ======================================
+// ✅ حساب المهارة حسب عدد الدورات
+// وليس حسب عدد الأسئلة
+// ======================================
+
+// إنشاء مخزن داخلي
+if(
+  !linkedCoursesStats[cid]
+    .countedSkills
+){
+  linkedCoursesStats[cid]
+    .countedSkills = {};
+}
+
+// إنشاء Set للمهارة
+if(
+  !linkedCoursesStats[cid]
+    .countedSkills[skillName]
+){
+  linkedCoursesStats[cid]
+    .countedSkills[skillName] = new Set();
+}
+
+// ✅ إنشاء Set للامتحانات
+if(
+  !linkedCoursesStats[cid]
+    .countedSkills[skillName]
+){
+  linkedCoursesStats[cid]
+    .countedSkills[skillName] = new Set();
+}
+
+// ✅ كل اختبار ينحسب مرة واحدة
+linkedCoursesStats[cid]
+  .countedSkills[skillName]
+  .add(String(q.examId || ""));
+
+// ✅ العدد النهائي
+linkedCoursesStats[cid]
+  .skills[skillName] =
+
+  linkedCoursesStats[cid]
+    .countedSkills[skillName]
+    .size;  });
+
+});
+    Object.keys(grouped).forEach(groupName=>{
+
+      const groupQuestions = grouped[groupName];
+      const encodedGroup = encodeURIComponent(groupName);
+
+      const allChecked = groupQuestions.every(q =>
+        visibleQuestions.includes(q.id)
+      );
+
+      const currentSkill = groupSkills[groupName] || "";
+const baseSkill =
+  groupSkillsByCourse?.[CURRENT_COURSE_ID]?.[groupName] || "";
+// ======================================
+// ✅ حساب مهارات الجروب الحالية
+// ======================================
+
+// ======================================
+// ======================================
+// ✅ حساب جميع اختبارات الدورة بدون await هنا
+// ======================================
+
+let homeworkCount = 0;
+let listeningCount = 0;
+let readingCount = 0;
+let grammarCount = 0;
+let generalCount = 0;
+
+const countedExams = new Set();
+
+examsSnapForSkills.forEach(doc=>{
+
+  const ex = doc.data() || {};
+  const examId = doc.id;
+
+  if(countedExams.has(examId)) return;
+
+  const belongsToCourse =
+    Array.isArray(ex.courseIds) &&
+    ex.courseIds.some(id =>
+      String(id).trim() ===
+      String(CURRENT_COURSE_ID).trim()
+    );
+
+  if(!belongsToCourse) return;
+
+  const map = ex.groupSkillsByCourse || {};
+  const courseSkills = map[CURRENT_COURSE_ID] || {};
+
+  const hasThisGroup =
+    courseSkills[groupName];
+
+  if(!hasThisGroup) return;
+
+  countedExams.add(examId);
+
+  const skill = courseSkills[groupName] || "General";
+
+  if(skill === "Homework") homeworkCount++;
+  else if(skill === "Listening") listeningCount++;
+  else if(skill === "Reading") readingCount++;
+  else if(skill === "Grammar") grammarCount++;
+  else generalCount++;
+
+});// ======================================
+// ✅ GROUP BOX
+// ======================================
+
+questionsList.innerHTML += `
+
+<div style="
+  border:2px solid #cfe0ff;
+  background:#f3f8ff;
+  border-radius:18px;
+  padding:16px;
+  margin-top:18px;
+">
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  ">
+
+    <div style="
+      font-weight:900;
+      color:#164478;
+      font-size:20px;
+    ">
+      □ ${esc(groupName)}
+    </div>
+
+    <label style="
+      display:flex;
+      gap:8px;
+      align-items:center;
+      font-weight:900;
+      color:#164478;
+    ">
+
+      <input
+        type="checkbox"
+        class="groupMasterCheck"
+        data-group="${esc(groupName)}"
+        ${allChecked ? "checked" : ""}
+        onchange='toggleWholeGroup(${JSON.stringify(groupName)}, this.checked)'
+      >
+
+      All Questions
+
+    </label>
+
+  </div>
+
+  <div style="
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:14px;
+  ">
+<div style="width:100%;margin-bottom:12px">
+
+  <select
+    onchange="
+      saveGroupSkill(
+        '${encodedGroup}',
+        this.value,
+        '${CURRENT_COURSE_ID}'
+      )
+    "
+    style="
+      width:100%;
+      padding:12px;
+      border-radius:12px;
+      border:2px solid #164478;
+      font-weight:900;
+    "
+  >
+    <option value="" ${baseSkill==="" ? "selected" : ""}>No Skill</option>
+    <option value="Listening" ${baseSkill==="Listening" ? "selected" : ""}>Listening</option>
+    <option value="Speaking" ${baseSkill==="Speaking" ? "selected" : ""}>Speaking</option>
+    <option value="Reading" ${baseSkill==="Reading" ? "selected" : ""}>Reading</option>
+    <option value="Writing" ${baseSkill==="Writing" ? "selected" : ""}>Writing</option>
+    <option value="Grammar" ${baseSkill==="Grammar" ? "selected" : ""}>Grammar</option>
+    <option value="Vocabulary" ${baseSkill==="Vocabulary" ? "selected" : ""}>Vocabulary</option>
+    <option value="Homework" ${baseSkill==="Homework" ? "selected" : ""}>Homework</option>
+  </select>
+
+</div>
+    <div class="skill-box">□ Homework<br>${homeworkCount}</div>
+    <div class="skill-box">□ Listening<br>${listeningCount}</div>
+    <div class="skill-box">□ Reading<br>${readingCount}</div>
+    <div class="skill-box">✍️ Grammar<br>${grammarCount}</div>
+    <div class="skill-box">□ General<br>${generalCount}</div>
+
+    ${Object.keys(linkedCoursesStats).length ? `
+
+<div style="
+  width:100%;
+  margin-top:18px;
+  background:#ffffff;
+  border:1px solid #dbeafe;
+  border-radius:18px;
+  padding:16px;
+">
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  ">
+
+    <div style="
+      font-size:20px;
+      font-weight:900;
+      color:#164478;
+    ">
+      □ Linked Courses
+    </div>
+
+    <div style="
+      background:#eef5ff;
+      color:#164478;
+      padding:6px 14px;
+      border-radius:999px;
+      font-weight:900;
+      font-size:13px;
+    ">
+      ${Object.keys(linkedCoursesStats).length} Courses
+    </div>
+
+  </div>
+
+  <div style="
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:14px;
+  ">
+
+    ${Object.values(linkedCoursesStats).map(c=>{
+
+      const linkedVisible =
+        Array.isArray(visibleMap[c.courseId]) &&
+        visibleMap[c.courseId].length > 0;
+
+      return `
+
+        <div style="
+          background:${linkedVisible ? '#f0fdf4' : '#fef2f2'};
+          border:2px solid ${linkedVisible ? '#22c55e' : '#ef4444'};
+          border-radius:18px;
+          padding:14px;
+        ">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:8px;
+            margin-bottom:10px;
+          ">
+
+            <div style="
+              font-size:18px;
+              font-weight:900;
+              color:#164478;
+              line-height:1.5;
+            ">
+              ${esc(c.TrainingCourse || "-")}
+            </div>
+
+            <span style="
+              background:${linkedVisible ? '#16a34a' : '#dc2626'};
+              color:#fff;
+              padding:5px 10px;
+              border-radius:999px;
+              font-size:12px;
+              font-weight:900;
+              white-space:nowrap;
+            ">
+              ${linkedVisible ? 'Visible' : 'Hidden'}
+            </span>
+
+          </div>
+
+          <div style="
+            color:#374151;
+            font-weight:800;
+            font-size:14px;
+            line-height:1.9;
+            margin-bottom:12px;
+          ">
+            □‍□ ${esc(c.Trainer || "-")}
+            <br>
+            ⏰ ${esc(c.Period || "-")}
+          </div>
+${(()=>{
+
+  const realGroupName =
+    String(groupName || "General").trim();
+
+  const linkedSkill =
+    groupSkillsByCourse?.[c.courseId]?.[realGroupName] || "";
+
+  return `
+
+    <select
+      onchange="
+        saveLinkedCourseSkill(
+          '',
+          '${c.courseId}',
+          this.value,
+          '${realGroupName}'
+        )
+      "
+      style="
+        width:100%;
+        padding:12px;
+        border-radius:12px;
+        border:2px solid #164478;
+        font-weight:900;
+        margin-top:10px;
+        margin-bottom:12px;
+      "
+    >
+
+      <option value="" ${linkedSkill==="" ? "selected" : ""}>No Skill</option>
+      <option value="Listening" ${linkedSkill==="Listening" ? "selected" : ""}>Listening</option>
+      <option value="Speaking" ${linkedSkill==="Speaking" ? "selected" : ""}>Speaking</option>
+      <option value="Reading" ${linkedSkill==="Reading" ? "selected" : ""}>Reading</option>
+      <option value="Writing" ${linkedSkill==="Writing" ? "selected" : ""}>Writing</option>
+      <option value="Grammar" ${linkedSkill==="Grammar" ? "selected" : ""}>Grammar</option>
+      <option value="Vocabulary" ${linkedSkill==="Vocabulary" ? "selected" : ""}>Vocabulary</option>
+      <option value="Homework" ${linkedSkill==="Homework" ? "selected" : ""}>Homework</option>
+
+    </select>
+
+  `;
+
+})()}
+          <button
+            onclick="toggleLinkedCourseQuestions('${c.courseId}', ${!linkedVisible})"
+            style="
+              background:${linkedVisible ? '#dc2626' : '#16a34a'};
+              color:#fff;
+              border:none;
+              border-radius:12px;
+              padding:11px;
+              font-weight:900;
+              cursor:pointer;
+              width:100%;
+              margin-bottom:12px;
+            "
+          >
+            ${linkedVisible ? '□ Hide From Students' : '□️ Show To Students'}
+          </button>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2,1fr);
+            gap:8px;
+          ">
+
+            <div class="skill-box">
+              Listening<br>
+              <span style="font-size:22px">${Number(c.skills?.Listening || 0)}</span>
+            </div>
+
+            <div class="skill-box">
+              Homework<br>
+              <span style="font-size:22px">${Number(c.skills?.Homework || 0)}</span>
+            </div>
+
+            <div class="skill-box">
+              Grammar ✍️<br>
+              <span style="font-size:22px">${Number(c.skills?.Grammar || 0)}</span>
+            </div>
+
+            <div class="skill-box">
+              Reading<br>
+              <span style="font-size:22px">${Number(c.skills?.Reading || 0)}</span>
+            </div>
+
+          </div>
+
+        </div>
+
+      `;
+
+    }).join("")}
+
+  </div>
+
+</div>
+
+` : ""}
+
+</div>
+`;groupQuestions.forEach((q,index)=>{
+
+  const media = renderMedia(q.mediaType, q.mediaUrl);
+
+  const checked =
+  Array.isArray(visibleQuestions) &&
+  visibleQuestions.includes(q.id)
+    ? "checked"
+    : "";
+  let optionsHtml = "";
+
+  if(q.type === "mcq" || q.type === "order"){
+    optionsHtml = Array.isArray(q.options)
+      ? q.options.map(op=>`
+        <li style="direction:ltr;text-align:left">
+          ${esc(op)}
+        </li>
+      `).join("")
+      : "";
+  }
+
+  else if(q.type === "match"){
+    optionsHtml = Array.isArray(q.correct)
+      ? q.correct.map(pair=>`
+        <li style="direction:ltr;text-align:left">
+          ${esc(pair.left)} = ${esc(pair.right)}
+        </li>
+      `).join("")
+      : "";
+  }
+
+  else if(q.type === "text"){
+    optionsHtml = `<li>Text Answer</li>`;
+  }
+
+  let coursesHTML = "";
+
+  if(q.coursesUsed && q.coursesUsed.length){
+    q.coursesUsed.forEach((c, i)=>{
+      coursesHTML += `
+        <div class="used-item">
+          <span class="badge used">Use ${i+1}</span>
+          <br>
+          <b>Course:</b> ${esc(c.TrainingCourse || "-")}
+          <br>
+          <b>Trainer:</b> ${esc(c.Trainer || "-")}
+        </div>
+      `;
+    });
+  }else{
+    coursesHTML = `
+      <div class="used-item">No courses</div>
+    `;
+  }
+
+questionsList.innerHTML += `
+
+<div class="pro-question-card">
+
+  <div class="pro-question-head">
+
+    <div style="font-weight:900">
+      Question ${index + 1}
+    </div>
+
+<div></div>
+
+  </div>
+
+  <div style="
+  display:flex;
+  justify-content:center;
+  margin:12px 0;
+">
+  <div style="
+    background:#ecfdf5;
+    border:2px solid #22c55e;
+    color:#166534;
+    padding:10px 20px;
+    border-radius:999px;
+    font-size:20px;
+    font-weight:900;
+  ">
+    ⭐ ${q.degree || 0} Marks
+  </div>
+</div>
+
+    ${
+      q.locked
+      ? `<div style="
+          background:#fee2e2;
+          color:#991b1b;
+          border:1px solid #fecaca;
+          padding:10px;
+          border-radius:12px;
+          font-weight:900;
+          margin-bottom:10px;
+        ">□ Locked Question</div>`
+      : ""
+    }
+
+    <label style="
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:900;
+      color:#164478;
+      margin-bottom:10px;
+    ">
+      <input
+        type="checkbox"
+        class="questionCheck"
+        value="${q.id}"
+        data-group="${esc(groupName)}"
+        ${checked}
+        onchange="saveVisibleQuestions()"
+      >
+      Show to students
+    </label>
+
+<textarea
+  id="edit_q_${q.id}"
+  class="pro-edit-input"
+  style="
+    min-height:100px;
+    font-size:22px;
+    font-weight:900;
+    line-height:1.9;
+  "
+>
+    ${esc(q.question || "")}</textarea>
+
+    ${
+      q.passage
+      ? `
+        <textarea
+          id="edit_passage_${q.id}"
+          class="pro-edit-input"
+          style="min-height:70px"
+          placeholder="Passage"
+        >${esc(q.passage || "")}</textarea>
+      `
+      : `
+        <textarea
+          id="edit_passage_${q.id}"
+          class="pro-edit-input"
+          style="min-height:55px"
+          placeholder="Passage"
+        ></textarea>
+      `
+    }
+
+    ${media}
+
+  <div style="
+  margin-top:12px;
+  background:#f8fbff;
+  border:1px solid #dbeafe;
+  border-radius:14px;
+  padding:12px;
+">
+
+  <b style="
+    color:#164478;
+    font-size:18px;
+  ">
+    Options / Answer
+  </b>
+
+  ${(q.options || []).map((op,i)=>{
+
+    const isCorrect =
+      Number(q.correct) === i;
+
+    return `
+
+      <input
+        id="edit_option_${q.id}_${i}"
+        value="${esc(op)}"
+
+        style="
+          width:100%;
+          margin-top:10px;
+          padding:14px;
+          font-size:18px;
+          font-weight:900;
+          direction:ltr;
+          text-align:left;
+          border-radius:12px;
+
+          background:
+            ${isCorrect ? '#ecfdf5' : '#fff'};
+
+          border:
+            2px solid
+            ${isCorrect ? '#22c55e' : '#dbeafe'};
+
+          color:
+            ${isCorrect ? '#166534' : '#111827'};
+        "
+      >
+
+      ${
+        isCorrect
+        ? `
+          <div style="
+            color:#16a34a;
+            font-weight:900;
+            margin-top:4px;
+            font-size:15px;
+          ">
+            ✅ Correct Answer
+          </div>
+        `
+        : ""
+      }
+
+    `;
+
+  }).join("")}
+
+</div>
+
+    <input
+      id="edit_degree_${q.id}"
+      class="pro-edit-input"
+      type="number"
+      value="${Number(q.degree || 0)}"
+      placeholder="Degree"
+    >
+
+    <input
+      id="edit_correct_${q.id}"
+      class="pro-edit-input"
+      value="${
+        Array.isArray(q.correct)
+          ? esc(q.correct.join(", "))
+          : esc(q.correct)
+      }"
+      placeholder="Correct Answer"
+    >
+
+    <div style="margin-top:12px">
+      <span class="pro-chip">Group: ${esc(q.group || "General")}</span>
+      <span class="pro-chip">Order: ${Number(q.order || 0)}</span>
+    </div>
+<div
+  id="linkedBox_${q.id}"
+  style="
+    display:none;
+    margin-top:15px;
+    background:#eef5ff;
+    border:2px solid #dbeafe;
+    border-radius:18px;
+    padding:15px;
+  "
+>
+
+  <div style="
+    font-size:18px;
+    font-weight:900;
+    color:#164478;
+    margin-bottom:12px;
+  ">
+    □ Linked Courses Only
+  </div>
+<button
+  onclick="relinkQuestion('${q.id}')"
+  style="
+    width:100%;
+    background:#16a34a;
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:12px;
+    font-weight:900;
+    cursor:pointer;
+    margin-bottom:12px;
+  "
+>
+
+  ➕ Add Linked Course
+</button>
+  ${
+    Array.isArray(q.coursesUsed) &&
+    q.coursesUsed.filter(c =>
+      String(c.courseId || "").trim() !==
+      String(CURRENT_COURSE_ID).trim()
+    ).length
+
+    ? `
+
+      <select
+        id="linkedSelect_${q.id}"
+        style="
+          width:100%;
+          padding:12px;
+          border-radius:12px;
+          border:2px solid #164478;
+          font-weight:900;
+        "
+      >
+
+        ${q.coursesUsed
+          .filter(c =>
+            String(c.courseId || "").trim() !==
+            String(CURRENT_COURSE_ID).trim()
+          )
+          .map(c=>`
+            <option value="${c.courseId}">
+              ${esc(c.TrainingCourse || "-")}
+              |
+              ${esc(c.Trainer || "-")}
+              ${c.Period ? ` | ${esc(c.Period)}` : ""}
+            </option>
+          `).join("")}
+
+      </select>
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+        gap:10px;
+        margin-top:12px;
+      ">
+
+        <button
+          onclick="
+            resetLinkedCourseOne(
+              '${q.id}',
+              document.getElementById('linkedSelect_${q.id}').value
+            )
+          "
+          style="background:#f59e0b"
+        >
+          □ Reset Student
+        </button>
+
+        <button
+          onclick="
+            resetLinkedCourseAll(
+              '${q.id}',
+              document.getElementById('linkedSelect_${q.id}').value
+            )
+          "
+          style="background:#dc2626"
+        >
+          ♻️ Reset Course
+        </button>
+
+        <button
+          onclick="removeSelectedLinkedCourse('${q.id}')"
+          style="background:#ef4444"
+        >
+          ❌ Remove Link
+        </button>
+
+      </div>
+
+    `
+    : `
+      <div style="
+        background:#fff;
+        border:1px dashed #cbd5e1;
+        border-radius:12px;
+        padding:12px;
+        color:#64748b;
+        font-weight:900;
+        text-align:center;
+      ">
+        لا توجد دورات مرتبطة غير الدورة الحالية
+      </div>
+    `
+  }
+
+</div>
+    <div class="pro-actions">
+
+      <button onclick="quickUpdateQuestion('${q.id}')" style="background:#16a34a">
+        ✅ Save
+      </button>
+
+      <button onclick="editQuestion('${q.id}')" style="background:#0ea5e9">
+        ✏️ Edit Form
+      </button>
+
+
+    ${
+  q.locked === true &&
+  USER_ROLE !== "admin"
+  ? ""
+  : `
+    <button
+      onclick="deleteQuestion('${q.id}')"
+      style="background:#dc2626"
+    >
+      □ Delete
+    </button>
+  `
+}
+
+<button
+  onclick="
+    const box = document.getElementById('linkedBox_${q.id}');
+    if(box){
+      box.style.display =
+        box.style.display === 'none' ? 'block' : 'none';
+    }
+  "
+  style="background:#2563eb"
+>
+  □ Linked Courses
+</button>
+
+      <button
+  onclick="resetAllByQuestion('${q.id}')"
+  style="background:#7c3aed"
+>
+  □ Reset All
+</button>
+
+<button
+  onclick="resetOneByQuestion('${q.id}')"
+  style="background:#f59e0b"
+>
+  □ Reset Student
+</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+`;
+
+});
+    });
+
+  }catch(err){
+    console.error(err);
+    questionsList.innerHTML = `<div class="empty">حدث خطأ أثناء تحميل الأسئلة</div>`;
+  }
+}
+async function autoSaveVisibleQuestions(){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId) return;
+
+  if(!CURRENT_COURSE_ID) return;
+
+  // الأسئلة المحددة فقط
+  const selected = [];
+
+  document
+    .querySelectorAll(".questionCheck:checked")
+    .forEach(cb=>{
+
+      selected.push(cb.value);
+
+    });
+
+  const ref =
+    db.collection("exams").doc(examId);
+
+  const docSnap =
+    await ref.get();
+
+  const oldMap =
+    docSnap.data()?.visibleQuestionsByCourse || {};
+
+  // حفظ خاص بهذه الدورة
+  oldMap[CURRENT_COURSE_ID] = selected;
+
+  // ✅ النظام الجديد
+  await ref.update({
+
+    visibleQuestionsByCourse: oldMap,
+
+    // ✅ توافق مع النظام القديم
+    visibleQuestions: selected
+
+  });
+
+  console.log(
+    "✅ Saved:",
+    CURRENT_COURSE_ID,
+    selected.length
+  );
+}
+function toggleWholeGroup(groupName, checked){
+
+  document.querySelectorAll(`.questionCheck[data-group="${esc(groupName)}"]`)
+    .forEach(cb=>{
+      cb.checked = checked;
+    });
+
+  syncGroupCheck(groupName);
+}
+async function saveGroupSkill(
+  groupName,
+  skill,
+  courseId
+){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId) return;
+
+  const examRef =
+    db.collection("exams").doc(examId);
+
+  const examDoc =
+    await examRef.get();
+
+  const examData =
+    examDoc.data() || {};
+
+  const map =
+    examData.groupSkillsByCourse || {};
+
+  const targetCourseId =
+    courseId || CURRENT_COURSE_ID;
+
+  if(!map[targetCourseId]){
+    map[targetCourseId] = {};
+  }
+
+  map[targetCourseId][decodeURIComponent(groupName)] =
+    skill;
+
+  await examRef.update({
+    groupSkillsByCourse: map
+  });
+await loadQuestions();
+
+  console.log(
+    "✅ saved",
+    targetCourseId,
+    skill
+  );
+
+}function syncSortBottom(val){
+  const topSort = document.getElementById("examSortTop");
+  if(topSort) topSort.value = val;
+
+  filterExams(document.getElementById("examSearchBottom")?.value || "");
+}
+function syncGroupCheck(groupName){
+
+  const items = [
+document.querySelectorAll(
+  `.questionCheck[data-group="${CSS.escape(groupName)}"]`
+)
+  ];
+
+  const master = document.querySelector(
+    `.groupMasterCheck[data-group="${CSS.escape(groupName)}"]`
+  );
+
+  if(!master || !items.length) return;
+
+  master.checked = items.every(cb => cb.checked);
+}
+async function resetOneByQuestion(questionId){
+
+  const qDoc = await db.collection("questions").doc(questionId).get();
+
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
+
+  const q = qDoc.data();
+  const examId = q.examId;
+
+  const iqama = prompt("insert his Id:");
+
+  if(!iqama) return;
+
+  const studentSnap = await db.collection("students")
+    .where("iqama","==",iqama)
+    .get();
+
+  if(studentSnap.empty){
+    alert("WRONG");
+    return;
+  }
+
+  const studentId = studentSnap.docs[0].id;
+
+  const resultSnap = await db.collection("results")
+    .where("studentId","==",studentId)
+    .where("examId","==",examId)
+    .where("courseId","==",CURRENT_COURSE_ID)
+    .get();
+
+  for(const doc of resultSnap.docs){
+    await db.collection("results").doc(doc.id).delete();
+  }
+
+  await allowStudentRetake(
+    examId,
+    CURRENT_COURSE_ID,
+    studentId,
+    iqama
+  );
+
+  alert("✅ Student can do the exam again");
+
+}
+async function resetAllByQuestion(questionId){
+
+const qDoc = await db.collection("questions").doc(questionId).get();
+const q = qDoc.data();
+const examId = q.examId;
+
+if(!confirm("⚠️ All results for this test will be deleted. ")) return;
+
+const snap = await db.collection("results")
+.where("examId","==",examId)
+.where("courseId","==",CURRENT_COURSE_ID)
+.get();
+for(const doc of snap.docs){
+  await db.collection("results").doc(doc.id).delete();
+}
+
+alert("✅ The test is open to everyone ");
+
+}
+async function importPDF(){
+
+  const examId = document.getElementById("examSelect").value;
+
+  if(!examId){
+    alert("⚠️ اختر الاختبار أولاً");
+    return;
+  }
+
+  const file = document.getElementById("pdfFile").files[0];
+
+  if(!file){
+    alert("اختر ملف PDF");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function(){
+
+    try{
+
+      const typedArray = new Uint8Array(this.result);
+      const pdf = await pdfjsLib.getDocument(typedArray).promise;
+
+      let fullText = "";
+
+      for(let i = 1; i <= pdf.numPages; i++){
+
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+
+        let line = "";
+        let lastY = null;
+
+        content.items.forEach(item => {
+
+          if(
+            lastY === null ||
+            Math.abs(item.transform[5] - lastY) < 5
+          ){
+            line += item.str + " ";
+          }else{
+            fullText += line + "\n\n";
+            line = item.str + " ";
+          }
+
+          lastY = item.transform[5];
+        });
+
+        fullText += line + "\n\n";
+      }
+
+console.log("PDF TEXT:", fullText);
+
+await processTextToQuestions(fullText);
+    }catch(err){
+
+      console.error(err);
+      alert("❌ فشل قراءة PDF");
+    }
+
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function convertWordHtmlToImportText(html){
+
+  return String(html || "")
+
+    // ✅ نحفظ البولد كعلامة خاصة
+    .replace(/<strong[^>]*>/gi, "[[BOLD]]")
+    .replace(/<\/strong>/gi, "[[/BOLD]]")
+    .replace(/<b[^>]*>/gi, "[[BOLD]]")
+    .replace(/<\/b>/gi, "[[/BOLD]]")
+
+    // ✅ تحويل فقرات Word إلى أسطر
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<p[^>]*>/gi, "")
+
+    // ✅ تنظيف باقي HTML
+    .replace(/<[^>]+>/g, "")
+
+    // ✅ رموز HTML
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+async function importWord(){
+
+  const examId = document.getElementById("examSelect").value;
+
+  if(!examId){
+    alert("⚠️ اختر الاختبار أولاً");
+    return;
+  }
+
+  const fileInput = document.getElementById("wordFile");
+  const file = fileInput.files[0];
+
+  if(!file){
+    alert("اختر ملف Word أو TXT");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function(e){
+
+    try{
+
+      let text = "";
+
+      window.WORD_HTML = "";
+
+      if(file.name.toLowerCase().endsWith(".txt")){
+
+        text = e.target.result;
+
+      }else{
+
+        // ✅ النص العادي للأسئلة
+        const rawResult = await mammoth.extractRawText({
+          arrayBuffer: e.target.result
+        });
+
+        text = rawResult.value;
+
+        // ✅ HTML فقط لمعرفة Bold
+        const htmlResult = await mammoth.convertToHtml({
+          arrayBuffer: e.target.result
+        });
+
+        window.WORD_HTML = htmlResult.value;
+
+      }
+
+      console.log("WORD TEXT:", text);
+      console.log("WORD HTML:", window.WORD_HTML);
+
+      await processTextToQuestions(text);
+
+    }catch(err){
+
+      console.error(err);
+      alert("❌ فشل قراءة الملف: " + err.message);
+
+    }
+
+  };
+
+  if(file.name.toLowerCase().endsWith(".txt")){
+    reader.readAsText(file);
+  }else{
+    reader.readAsArrayBuffer(file);
+  }
+}
+ async function processTextToQuestions(text){
+
+  const examId = document.getElementById("examSelect").value;
+  const group = document.getElementById("groupSelect")?.value || "General";
+
+  if(!examId){
+    alert("⚠️ اختر الاختبار أولاً");
+    return;
+  }
+
+  // ================= جلب بيانات الاختبار =================
+  const examDoc = await db.collection("exams").doc(examId).get();
+  const examData = examDoc.exists ? examDoc.data() : {};
+/* =========================
+   Homework Counter
+========================= */
+
+let homeworkCount = 0;
+
+if(Array.isArray(examData.courseIds)){
+
+  const hwSnap = await db.collection("exams")
+    .where("isHomework","==",true)
+    .get();
+
+  hwSnap.forEach(doc=>{
+
+    const e = doc.data();
+
+    const sameCourse =
+      (e.courseIds || []).some(id =>
+        examData.courseIds.includes(id)
+      );
+
+    if(sameCourse){
+      homeworkCount++;
+    }
+
+  });
+}
+
+  const coursesUsed = (examData.coursesData || []).map(c => ({
+    courseId: c.courseId,
+    TrainingCourse: c.TrainingCourse,
+    Trainer: c.Trainer
+  }));
+
+
+  // =====================================================
+  // ================= تنظيف النص =========================
+  // =====================================================
+
+  text = String(text || "")
+    .replace(/\r/g,"\n")
+    .replace(/[●•▪■]/g,"")
+    .replace(/\u00A0/g," ")
+    .replace(/\t/g," ")
+    .replace(/\n{3,}/g,"\n\n")
+    .trim();
+// □ حماية الأوقات مثل 11.30
+
+
+text = text.replace(
+
+
+/(\d+)\.(\d+)/g,
+
+
+"$1DOT$2"
+
+
+);
+
+  // □ حماية الأوقات مثل 11.30pm
+  text = text.replace(
+    /(\d+)\.(\d+\s*(am|pm))/gi,
+    "$1TIME$2"
+  );
+
+  // □ حماية الأرقام العادية مثل 10.00
+  text = text.replace(
+    /(\d+)\.(\d+)/g,
+    "$1DOT$2"
+  );
+
+  // □ يمنع ضياع آخر سؤال
+  text += "\n\nEND_OF_FILE";
+
+  // □ إصلاح ملفات Word المدمجة
+  text = text
+    .replace(/([a-zA-Z\?])(\d+\s*[-.)])/g,"$1\n$2")
+    .replace(/\n\s*(\d+)\s*[-.)]/g,"\n$1) ")
+    .replace(/\n\s*([a-zA-Z])\s*[-.)]/g,"\n$1) ");
+
+  console.log("TEXT AFTER FIX:", text);
+
+
+  // =====================================================
+  // ================= استخراج القطعة =====================
+  // =====================================================
+
+let passage = "";
+
+const firstQuestionIndex = text.search(/(^|\n)\d+\s*[\-\.\)]/);
+
+if(firstQuestionIndex > 0){
+
+  const possiblePassage = text
+    .substring(0, firstQuestionIndex)
+    .trim();
+
+  // □ يعتبر Passage فقط إذا طويل
+  const wordCount = possiblePassage.split(/\s+/).length;
+
+if(wordCount >= 25){
+
+  passage = possiblePassage
+    .replace(/TIME/gi,".")
+    .replace(/DOT/gi,".");
+
+}
+  text = text
+    .substring(firstQuestionIndex)
+    .trim();
+}
+// =====================================================
+// ================= تقسيم الأسئلة ======================
+// =====================================================
+
+console.log(
+  "TEXT BEFORE SPLIT:",
+  text
+);
+console.log(
+  "TEXT BEFORE SPLIT:",
+  text
+);
+
+const questionBlocks = text.split(
+  /(?:^|\n)(?=\d+\s*[\-\.\)])/
+);
+
+console.log(
+  "BLOCK COUNT:",
+  questionBlocks.length
+);
+
+console.log(
+  "QUESTION BLOCKS:",
+  questionBlocks
+);
+
+  // =====================================================
+  // ================= آخر ترتيب ==========================
+  // =====================================================
+
+  const lastSnap = await db.collection("questions")
+    .where("examId","==",examId)
+.where("courseId","==",CURRENT_COURSE_ID)
+    .get();
+
+  let orderCounter = 0;
+
+  if(!lastSnap.empty){
+
+    const orders = lastSnap.docs.map(d =>
+      Number(d.data().order || 0)
+    );
+
+    orderCounter = Math.max(...orders, 0);
+  }
+
+
+  // =====================================================
+  // ================= الاستيراد ==========================
+  // =====================================================
+
+  let imported = 0;
+  let visibleIds = [];
+// ✅ استخراج أماكن الإجابات Bold من Word
+const boldAnswers = [];
+
+if(window.WORD_HTML){
+
+  const parser = new DOMParser();
+
+  const htmlDoc = parser.parseFromString(
+    window.WORD_HTML,
+    "text/html"
+  );
+
+  const paragraphs = [...htmlDoc.querySelectorAll("p")];
+
+  let currentOptions = [];
+
+  paragraphs.forEach(p => {
+
+    const txt = p.textContent.trim();
+
+    // بداية سؤال جديد
+    if(/^\d+\s*[\.\)]/.test(txt)){
+
+      if(currentOptions.length){
+        boldAnswers.push(currentOptions);
+      }
+
+      currentOptions = [];
+
+      return;
+    }
+
+    // خيار a b c d
+    if(/^[a-zA-Z]\s*[\)\.\-]/.test(txt)){
+
+      const isBold =
+        p.innerHTML.includes("<strong>") ||
+        p.innerHTML.includes("<b>");
+
+      currentOptions.push(isBold);
+    }
+
+  });
+
+  if(currentOptions.length){
+    boldAnswers.push(currentOptions);
+  }
+
+}
+
+console.log("BOLD ANSWERS:", boldAnswers);
+console.log(
+  "BOLD ANSWERS:",
+  boldAnswers
+);
+
+  for(const rawBlock of questionBlocks){
+
+    let block = String(rawBlock || "").trim();
+
+    if(!block) continue;
+
+    // □ حذف marker
+    block = block.replace(/END_OF_FILE/g,"").trim();
+
+    // حذف رقم السؤال
+    block = block.replace(/^\d+\s*[\-\.\)]\s*/,"").trim();
+
+    const lines = block
+
+  .replace(/([a-z])\s+([A-Da-d])\)/g,"$1\n$2)")
+
+  .split("\n")      .map(v => v.trim())
+      .filter(Boolean);
+
+    if(lines.length < 2) continue;
+
+
+    // =====================================================
+    // ================= السؤال =============================
+    // =====================================================
+
+    let questionText = lines[0].trim();
+// □ إرجاع الوقت الطبيعي
+questionText = questionText.replace(/DOT/g,".");
+
+    // □ رجوع النقاط الطبيعية
+    questionText = questionText
+      .replace(/TIME/gi,".")
+      .replace(/DOT/gi,".");
+
+    if(!questionText) continue;
+
+
+    // =====================================================
+    // ================= الخيارات ===========================
+    // =====================================================
+
+    const options = [];
+for(let i = 1; i < lines.length; i++){
+
+  let line = lines[i].trim();
+
+  line = line.replace(
+    /^[a-zA-Z]\s*[\)\.\-]\s*/,
+    ""
+  ).trim();
+
+  line = line
+    .replace(/TIME/gi,".")
+    .replace(/DOT/gi,".");
+
+  line = line.replace(/DOT/g,".");
+
+  if(line){
+    options.push(line);
+  }
+
+} 
+// □ هذا القوس كان ناقص    // □ تنظيف الخيارات الفارغة
+    const cleanOptions = options
+      .map(o => String(o || "").trim())
+      .filter(o => o);
+
+    // لازم خيارين على الأقل
+    if(cleanOptions.length < 2){
+
+      console.log("SKIPPED:", questionText);
+
+      continue;
+    }
+
+
+// =====================================================
+// ================= تحديد الإجابة ======================
+// =====================================================
+
+let correctIndex = 0;
+
+// ✅ النجمة * تحدد الإجابة الصحيحة
+cleanOptions.forEach((op, idx) => {
+
+  const low = String(op || "").toLowerCase();
+
+  if(
+    op.includes("*") ||
+    low.includes("(correct)") ||
+    low.includes("[correct]") ||
+    low.includes("{correct}")
+  ){
+    correctIndex = idx;
+  }
+
+});const finalOptions = cleanOptions.map(op =>
+
+  String(op || "")
+    .replace(/\[\[BOLD\]\]/gi,"")
+    .replace(/\[\[\/BOLD\]\]/gi,"")
+    .replace(/<strong>/gi,"")
+    .replace(/<\/strong>/gi,"")
+    .replace(/<b>/gi,"")
+    .replace(/<\/b>/gi,"")
+    .replace(/<[^>]+>/g,"")
+    .replace(/\(correct\)/gi,"")
+    .replace(/\[correct\]/gi,"")
+    .replace(/\{correct\}/gi,"")
+    .replace(/\*/g,"")
+    .trim()
+
+);
+    // =====================================================
+    // ================= الترتيب ============================
+    // =====================================================
+
+    orderCounter++;
+
+
+    // =====================================================
+    // ================= حفظ السؤال =========================
+    // =====================================================
+
+    const docRef = await db.collection("questions").add({
+
+      examId: examId,
+
+      question: questionText,
+
+      passage: passage || "",
+
+      options: finalOptions,
+
+      correct: correctIndex,
+
+      degree: 1,
+
+      type: "mcq",
+
+      group: group,
+
+      skill: group,
+
+showMedia: true,
+      mediaType: "none",
+
+      mediaUrl: "",
+
+      coursesUsed: coursesUsed,
+
+      order: orderCounter,
+
+      createdAt: new Date()
+    });
+
+    visibleIds.push(docRef.id);
+
+    imported++;
+  }
+
+
+  // =====================================================
+  // ================= تحديث visibleQuestions =============
+  // =====================================================
+
+  if(visibleIds.length){
+
+    const examRef = db.collection("exams").doc(examId);
+
+    const examSnap2 = await examRef.get();
+
+    const oldVisible =
+      examSnap2.data()?.visibleQuestions || [];
+
+    await examRef.update({
+
+      visibleQuestions: [
+
+        ...oldVisible,
+
+        ...visibleIds
+      ]
+    });
+  }
+
+
+  // =====================================================
+  // ================= النتيجة =============================
+  // =====================================================
+
+  alert(`✅ تم استيراد ${imported} سؤال`);
+
+  console.log("PASSAGE:", passage);
+  console.log("VISIBLE IDS:", visibleIds);
+
+  await loadQuestions();
+}
+async function showCourseSelector(questionId){
+
+  const selectHtml = `
+    <select id="courseDropdownSelect"
+      style="
+        width:100%;
+        padding:14px;
+        border-radius:14px;
+        border:2px solid #dbeafe;
+        font-size:22px;
+        font-weight:700;
+      ">
+
+      <option value="">Choose Course</option>
+
+    </select>
+  `;
+
+  const wrapper = document.createElement("div");
+
+  wrapper.innerHTML = `
+
+    <div style="
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      z-index:99999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    "
+    id="courseModal"
+    >
+
+      <div style="
+        width:100%;
+        max-width:520px;
+        background:#fff;
+        border-radius:24px;
+        padding:24px;
+        box-shadow:0 10px 40px rgba(0,0,0,.18);
+      ">
+
+        <div style="
+          font-size:24px;
+          font-weight:900;
+          color:#164478;
+          margin-bottom:18px;
+          text-align:center;
+        ">
+          □ Link Question To Course
+        </div>
+
+        ${selectHtml}
+
+        <div style="
+          display:flex;
+          gap:12px;
+          margin-top:22px;
+        ">
+
+          <button
+            id="saveCourseBtn"
+            style="
+              flex:1;
+              background:#164478;
+              color:#fff;
+              border:none;
+              padding:14px;
+              border-radius:14px;
+              font-weight:900;
+              cursor:pointer;
+            "
+          >
+            Save
+          </button>
+
+          <button
+            onclick="document.getElementById('courseModal').remove()"
+            style="
+              flex:1;
+              background:#ef4444;
+              color:#fff;
+              border:none;
+              padding:14px;
+              border-radius:14px;
+              font-weight:900;
+              cursor:pointer;
+            "
+          >
+            Cancel
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(wrapper);
+
+  const dropdown =
+    document.getElementById("courseDropdownSelect");
+
+  // =========================================
+  // ✅ تحميل الدورات
+  // =========================================
+
+  const coursesSnap =
+    await db.collection("Courses").get();
+
+  const CURRENT_USER =
+    String(localStorage.getItem("username") || "")
+      .trim()
+      .toLowerCase();
+
+  coursesSnap.forEach(doc=>{
+
+    const c = doc.data();
+
+    const status =
+      String(c.status || "")
+        .trim()
+        .toLowerCase();
+
+    const trainer =
+      String(c.Trainer || "")
+        .trim()
+        .toLowerCase();
+
+    // ✅ فقط الدورات المفتوحة
+    if(
+      status !== "open" &&
+      status !== "مفتوح"
+    ){
+      return;
+    }
+
+    // ✅ فقط دورات المدرب
+    if(trainer !== CURRENT_USER){
+      return;
+    }
+
+    dropdown.innerHTML += `
+
+      <option
+        value="${doc.id}"
+        data-course="${esc(c.TrainingCourse || "")}"
+        data-trainer="${esc(c.Trainer || "")}"
+        data-period="${esc(c.Period || "")}"
+      >
+
+        ${esc(c.TrainingCourse || "-")}
+        | ${esc(c.Trainer || "-")}
+        | ${esc(c.Period || "-")}
+
+      </option>
+    `;
+  });
+
+  // =========================================
+  // ✅ الحفظ الحقيقي
+  // =========================================
+
+  document.getElementById("saveCourseBtn")
+    .onclick = async function(){
+
+      const selected =
+        dropdown.options[
+          dropdown.selectedIndex
+        ];
+
+      const courseId =
+        selected.value;
+
+      if(!courseId){
+
+        alert("Choose Course");
+
+        return;
+      }
+
+      // ✅ أهم تعديل
+      await db.collection("questions")
+  .doc(questionId)
+  .update({
+
+    // ✅ الدورة المرتبط بها السؤال
+    linkedCourseId:
+      courseId,
+
+    // ✅ الاختبار الذي سيظهر داخله السؤال
+    linkedToExamId:
+      CURRENT_PREVIEW_EXAM,
+
+    // ✅ بيانات إضافية
+    linkedCourseName:
+      selected.dataset.course || "",
+
+    linkedTrainer:
+      selected.dataset.trainer || "",
+
+    linkedPeriod:
+      selected.dataset.period || ""
+
+  });
+      document
+        .getElementById("courseModal")
+        .remove();
+
+      alert("✅ Course Linked");
+
+      await loadQuestions();
+    };
+}
+/* ================= تشغيل ================= */
+async function init(){
+  await loadFilters();
+  await loadCourses();
+  await loadExams();
+  await loadExamBank(); // □ مهم جدًا
+  toggleQuestionType();
+}
+async function deleteQuestion(id){
+
+  if(!id){
+    alert("معرّف السؤال غير موجود");
+    return;
+  }
+
+  const ok = confirm("⚠️ delete only this question");
+  if(!ok) return;
+
+  try{
+    const qDoc = await db.collection("questions").doc(id).get();
+const examId = qDoc.exists ? qDoc.data().examId : "";
+
+await db.collection("questions").doc(id).delete();
+
+if(examId){
+  await updateVisibleQuestions(examId);
+}
+
+    alert("✅ the question has deleted successfully");
+
+    // إذا كنت تعدّل نفس السؤال المحذوف
+    if(EDIT_QUESTION_ID === id){
+      clearForm();
+    }
+
+    await loadQuestions();
+
+  }catch(err){
+    console.error(err);
+    alert("❌ فشل حذف السؤال");
+  }
+}
+async function toggleMediaVisibility(questionId, currentState){
+  try{
+    await db.collection("questions").doc(questionId).update({
+      showMedia: !currentState
+    });
+
+    alert("Updated successfully ✅");
+
+    await loadQuestions();
+
+  }catch(err){
+    console.error(err);
+    alert("فشل التحديث ❌");
+  }
+}
+// □ ربط اختيار الاختبار مع الأزرار
+document.addEventListener("change", (e)=>{
+  if(e.target.classList.contains("examCheck")){
+    
+  }
+});
+async function unlinkQuestion(questionId){
+
+  try{
+
+    if(!confirm("Remove this link only?")) return;
+
+    const ref =
+      db.collection("questions").doc(questionId);
+
+    const docSnap = await ref.get();
+
+    if(!docSnap.exists){
+
+      alert("Question not found");
+
+      return;
+    }
+
+    const q = docSnap.data() || {};
+
+    // جميع الدورات المرتبط بها السؤال
+    let used =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    // حذف الدورة الحالية فقط
+    used = used.filter(c => {
+
+      return String(c.courseId || "").trim() !==
+             String(CURRENT_COURSE_ID || "").trim();
+
+    });
+
+    // ====================================
+    // إذا بقيت دورات أخرى
+    // ====================================
+
+    if(used.length > 0){
+
+      const first = used[0];
+
+      await ref.update({
+
+        // جميع الدورات المتبقية
+        coursesUsed: used,
+
+        // أول دورة تصبح الرئيسية
+        linkedCourseId:
+          first.courseId || "",
+
+        linkedCourseName:
+          first.TrainingCourse || "",
+
+        linkedTrainer:
+          first.Trainer || "",
+
+        linkedPeriod:
+          first.Period || ""
+
+      });
+
+    }
+
+    // ====================================
+    // إذا لم يبق أي دورة
+    // ====================================
+
+    else{
+
+      await ref.update({
+
+        coursesUsed: [],
+
+        linkedCourseId:
+          firebase.firestore.FieldValue.delete(),
+
+        linkedCourseName:
+          firebase.firestore.FieldValue.delete(),
+
+        linkedTrainer:
+          firebase.firestore.FieldValue.delete(),
+
+        linkedPeriod:
+          firebase.firestore.FieldValue.delete()
+
+      });
+
+    }
+
+    alert("✅ Link removed only");
+
+    // إعادة تحميل الأسئلة
+    await loadQuestions(CURRENT_PREVIEW_EXAM);
+
+  }catch(err){
+
+    console.error(err);
+
+    alert("❌ Failed to remove link");
+
+  }
+}function toggleWholeGroup(groupName, checked){
+
+  document
+    .querySelectorAll(`.questionCheck[data-group="${groupName}"]`)
+    .forEach(cb=>{
+
+      cb.checked = checked;
+
+    });
+
+  autoSaveVisibleQuestions();
+}
+async function renameExam(examId, newTitle){
+
+  newTitle = String(newTitle || "").trim();
+
+  if(!newTitle){
+    alert("اكتب اسم الكويز");
+    return;
+  }
+
+  const role = String(localStorage.getItem("role") || "")
+    .trim()
+    .toLowerCase();
+
+  const qSnap = await db.collection("questions")
+    .where("examId","==",examId)
+    .where("locked","==",true)
+    .limit(1)
+    .get();
+
+  if(!qSnap.empty && role !== "admin"){
+    alert("□ Locked Quiz");
+    await loadExams();
+    return;
+  }
+
+  await db.collection("exams").doc(examId).update({
+    title: newTitle,
+    updatedAt: new Date()
+  });
+
+  await loadExams();
+}
+async function updateAllQuestionsDegree(){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId){
+    alert("اختر الاختبار أولاً");
+    return;
+  }
+
+  const newDegree = Number(
+    prompt("اكتب الدرجة الجديدة لكل الأسئلة:")
+  );
+
+  if(!newDegree || newDegree <= 0){
+    alert("اكتب درجة صحيحة");
+    return;
+  }
+
+  if(!confirm("سيتم تعديل درجة جميع أسئلة هذا الاختبار، هل أنت متأكد؟")){
+    return;
+  }
+
+  const qSnap = await db.collection("questions")
+    .where("examId","==",examId)
+    .get();
+
+  for(const doc of qSnap.docs){
+
+    await db.collection("questions")
+      .doc(doc.id)
+      .update({
+        degree: newDegree,
+        updatedAt: new Date()
+      });
+
+  }
+
+  alert("✅ تم تعديل درجة جميع أسئلة الاختبار");
+
+  await loadQuestions();
+}
+// □ تشغيل الصفحة
+init();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+<style>
+@keyframes fadeIn{
+  from{
+    opacity:0;
+    transform:translateX(-50%) translateY(-10px);
+  }
+  to{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+}
+.course-select-btn{
+  width:auto;
+  padding:8px 14px;
+  border-radius:12px;
+  font-weight:900;
+  margin-left:8px;
+}
+
+.course-select-btn.off{
+  background:#e5e7eb;
+  color:#111827;
+}
+
+.course-select-btn.on{
+  background:#16a34a;
+  color:#fff;
+}
+
+.course-status{
+  display:inline-block;
+  padding:7px 14px;
+  border-radius:999px;
+  font-weight:900;
+}
+
+.course-status.show{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.course-status.hide{
+  background:#fee2e2;
+  color:#991b1b;
+}
+</style>
+
+</body>
+</html>
+<script>
+
+async function saveLinkedCourseSkill(
+  questionId,
+  courseId,
+  skill,
+  groupName
+){
+
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId) return;
+
+  const examRef =
+    db.collection("exams").doc(examId);
+
+  const examDoc =
+    await examRef.get();
+
+  if(!examDoc.exists) return;
+
+  const examData =
+    examDoc.data() || {};
+
+  const map =
+    examData.groupSkillsByCourse || {};
+
+  // ✅ إنشاء الدورة إذا غير موجودة
+  if(!map[courseId]){
+    map[courseId] = {};
+  }
+
+  // ✅ حفظ المهارة
+  map[courseId][groupName] = skill;
+
+  // ✅ حفظ مباشر
+  await examRef.update({
+    groupSkillsByCourse: map
+  });
+await loadQuestions();
+
+  // ✅ إشعار جميل
+  const toast = document.createElement("div");
+
+  toast.innerHTML = `
+    ✅ Skill Saved:
+    <b>${skill || "No Skill"}</b>
+  `;
+
+  toast.style.cssText = `
+    position:fixed;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#16a34a;
+    color:#fff;
+    padding:14px 22px;
+    border-radius:16px;
+    font-weight:900;
+    z-index:999999;
+    box-shadow:0 10px 25px rgba(0,0,0,.18);
+    font-size:15px;
+    animation:fadeIn .25s ease;
+  `;
+
+  document.body.appendChild(toast);
+
+  setTimeout(()=>{
+    toast.remove();
+  },2000);
+
+}
+// ✅ إعادة الاختبار لطالب واحد للدورة المرتبطة
+async function resetLinkedCourseOne(
+  questionId,
+  courseId
+){
+
+  const iqama = prompt("Insert Student ID");
+
+  if(!iqama) return;
+
+  const qDoc = await db.collection("questions")
+    .doc(questionId)
+    .get();
+
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
+
+  const q = qDoc.data();
+
+  const examId = q.examId;
+
+  // ✅ البحث عن الطالب
+  const studentSnap = await db.collection("students")
+    .where("iqama","==",iqama)
+    .get();
+
+  if(studentSnap.empty){
+    alert("Student not found");
+    return;
+  }
+
+  const studentId = studentSnap.docs[0].id;
+
+  // ✅ حذف نتيجة نفس الدورة فقط
+  const resultSnap = await db.collection("results")
+    .where("studentId","==",studentId)
+    .where("examId","==",examId)
+    .where("courseId","==",courseId)
+    .get();
+
+  if(resultSnap.empty){
+    alert("No result for this course");
+    return;
+  }
+
+  for(const doc of resultSnap.docs){
+
+    await db.collection("results")
+      .doc(doc.id)
+      .delete();
+
+  }
+
+  alert("✅ Student can do exam again");
+
+}
+
+// ✅ إعادة الاختبار لكل طلاب الدورة المرتبطة
+async function resetLinkedCourseAll(
+  questionId,
+  courseId
+){
+
+  const ok = confirm(
+    "Reset this linked course only?"
+  );
+
+  if(!ok) return;
+
+  const qDoc = await db.collection("questions")
+    .doc(questionId)
+    .get();
+
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
+
+  const q = qDoc.data();
+
+  const examId = q.examId;
+
+  // ✅ حذف نتائج نفس الدورة فقط
+  const resultSnap = await db.collection("results")
+    .where("examId","==",examId)
+    .where("courseId","==",courseId)
+    .get();
+
+  if(resultSnap.empty){
+    alert("No students");
+    return;
+  }
+
+  for(const doc of resultSnap.docs){
+
+    await db.collection("results")
+      .doc(doc.id)
+      .delete();
+
+  }
+
+  alert("✅ Linked course reset completed");
+
+}
+// ======================================
+// ✅ Lock / Unlock Question
+// ======================================
+
+async function toggleQuestionLock(questionId){
+
+  const role =
+    String(
+      localStorage.getItem("role") || ""
+    )
+    .trim()
+    .toLowerCase();
+
+  // ❌ غير الأدمن ممنوع
+  if(role !== "admin"){
+
+    alert("❌ Access Denied");
+
+    return;
+  }
+
+  // ✅ طلب الباسورد
+  const pass = prompt(
+    "Insert Admin Password"
+  );
+
+  // ✅ غيّر الباسورد هنا
+  if(pass !== "prudle123"){
+
+    alert("❌ Wrong Password");
+
+    return;
+  }
+
+  const ref =
+    db.collection("questions")
+      .doc(questionId);
+
+  const docSnap =
+    await ref.get();
+
+  if(!docSnap.exists){
+
+    alert("Question not found");
+
+    return;
+  }
+
+  const q = docSnap.data();
+
+  const locked =
+    q.locked === true;
+
+  await ref.update({
+
+    locked: !locked
+
+  });
+
+  alert(
+
+    locked
+      ? "✅ Question Unlocked"
+      : "□ Question Locked"
+
+  );
+
+  await loadQuestions();
+}
+// ======================================
+// ✅ Bulk Lock / Unlock
+// ======================================
+
+async function bulkLockQuestions(lockState){
+
+  // ✅ فقط admin
+  const role =
+    String(
+      localStorage.getItem("role") || ""
+    )
+    .trim()
+    .toLowerCase();
+
+  if(role !== "admin"){
+
+    alert("❌ Access Denied");
+
+    return;
+  }
+
+  // ✅ باسورد
+  const pass = prompt(
+    "Insert Admin Password"
+  );
+
+  if(pass !== "prudle123"){
+
+    alert("❌ Wrong Password");
+
+    return;
+  }
+
+  // ✅ الأسئلة المحددة
+  const selected = [];
+
+  document
+    .querySelectorAll(
+      ".questionCheck:checked"
+    )
+    .forEach(cb=>{
+
+      selected.push(cb.value);
+
+    });
+
+  if(!selected.length){
+
+    alert("Choose questions first");
+
+    return;
+  }
+
+  // ✅ تحديث جماعي
+  for(const id of selected){
+
+    await db.collection("questions")
+      .doc(id)
+      .update({
+
+        locked: lockState
+
+      });
+
+  }
+
+  alert(
+
+    lockState
+      ? "□ Questions Locked"
+      : "□ Questions Unlocked"
+
+  );
+
+  await loadQuestions();
+}
+async function openFullQuestions(examId){
+
+  const modal = document.getElementById("questionsModal");
+  const title = document.getElementById("modalTitle");
+  const body  = document.getElementById("modalQuestions");
+
+  function fixQ(text){
+    text = String(text || "").trim();
+
+    if(text.startsWith("?")){
+      text = text.replace(/^\?+\s*/, "").trim() + "?";
+    }
+
+    return text;
+  }
+
+  modal.style.display = "flex";
+  body.innerHTML = "⏳ Loading...";
+
+  try{
+
+    const examDoc = await db.collection("exams")
+      .doc(examId)
+      .get();
+
+    const examTitle = examDoc.exists
+      ? examDoc.data().title || "Questions"
+      : "Questions";
+
+    title.innerHTML = "□ " + esc(examTitle);
+
+    const snap = await db.collection("questions")
+      .where("examId","==",examId)
+      .get();
+
+    if(snap.empty){
+      body.innerHTML = `
+        <div style="
+          text-align:center;
+          padding:40px;
+          color:#6b7280;
+          font-weight:900;
+          font-size:22px;
+        ">
+          No questions found in this exam
+        </div>
+      `;
+      return;
+    }
+
+    let questions = snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    questions.sort((a,b)=>
+      Number(a.order || 0) - Number(b.order || 0)
+    );
+
+    let html = `
+      <div style="
+        direction:ltr;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-bottom:20px;
+        position:sticky;
+        top:0;
+        background:#fff;
+        z-index:10;
+        padding-bottom:12px;
+      ">
+
+        <input
+          id="modalQuestionSearch"
+          placeholder="Search questions..."
+          oninput="filterModalQuestions(this.value)"
+          style="
+            flex:1;
+            min-width:240px;
+            padding:12px 16px;
+            border:2px solid #dbeafe;
+            border-radius:14px;
+            font-weight:800;
+            direction:ltr;
+            text-align:left;
+          "
+        >
+
+        <div style="
+          background:#eef5ff;
+          color:#164478;
+          padding:12px 18px;
+          border-radius:999px;
+          font-weight:900;
+          white-space:nowrap;
+        ">
+          Total Questions: ${questions.length}
+        </div>
+
+      </div>
+
+      <div id="modalQuestionsWrap" style="direction:ltr;">
+    `;
+
+    questions.forEach((q,index)=>{
+
+      const correct = q.correct;
+
+      html += `
+        <div class="modal-q-card" data-search="${esc(
+          (q.question || "") + " " + (q.options || []).join(" ")
+        ).toLowerCase()}" style="
+          direction:ltr;
+          text-align:left;
+          background:linear-gradient(180deg,#ffffff,#f8fbff);
+          border:2px solid #dbeafe;
+          border-radius:22px;
+          padding:18px;
+          margin-bottom:18px;
+          box-shadow:0 10px 25px rgba(22,68,120,.08);
+        ">
+
+          <div style="
+            direction:ltr;
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-bottom:12px;
+          ">
+
+            <div style="
+              background:#164478;
+              color:#fff;
+              padding:7px 14px;
+              border-radius:999px;
+              font-weight:900;
+            ">
+              Q${index + 1}
+            </div>
+
+            <div style="
+              background:#ecfdf5;
+              color:#047857;
+              padding:7px 14px;
+              border-radius:999px;
+              font-weight:900;
+            ">
+              Marks ${q.degree || 1} ⭐
+            </div>
+
+            <div style="
+              background:#fef3c7;
+              color:#92400e;
+              padding:7px 14px;
+              border-radius:999px;
+              font-weight:900;
+            ">
+              ${esc(q.type || "mcq")}
+            </div>
+
+          </div>
+
+          <div style="
+            direction:ltr !important;
+            unicode-bidi:isolate;
+            text-align:center;
+            font-size:22px;
+            font-weight:900;
+            color:#164478;
+            line-height:1.8;
+            margin-bottom:14px;
+          ">
+            ${esc(fixQ(q.question || "-"))}
+          </div>
+
+          ${
+            q.mediaUrl && q.mediaType !== "none"
+            ? `
+              <div style="
+                direction:ltr;
+                margin:14px 0;
+                background:#f8fafc;
+                border:2px solid #dbeafe;
+                border-radius:18px;
+                padding:14px;
+              ">
+                ${
+                  q.mediaType === "image"
+                  ? `<img src="${q.mediaUrl}" style="
+                      width:100%;
+                      max-height:360px;
+                      object-fit:contain;
+                      border-radius:14px;
+                      border:1px solid #e5e7eb;
+                    ">`
+                  : ""
+                }
+
+                ${
+                  q.mediaType === "video"
+                  ? `<video controls src="${q.mediaUrl}" style="
+                      width:100%;
+                      max-height:420px;
+                      border-radius:14px;
+                      border:1px solid #e5e7eb;
+                    "></video>`
+                  : ""
+                }
+
+                ${
+                  q.mediaType === "audio"
+                  ? `<audio controls src="${q.mediaUrl}" style="
+                      width:100%;
+                    "></audio>`
+                  : ""
+                }
+              </div>
+            `
+            : ""
+          }
+
+          ${
+            q.passage
+            ? `
+              <div style="
+                direction:ltr !important;
+                unicode-bidi:isolate;
+                text-align:left;
+                background:#fff7ed;
+                border:1px solid #fed7aa;
+                color:#9a3412;
+                padding:12px;
+                border-radius:14px;
+                margin-bottom:12px;
+                font-weight:800;
+                line-height:1.8;
+              ">
+                ${esc(q.passage)}
+              </div>
+            `
+            : ""
+          }
+
+          ${
+            Array.isArray(q.options) && q.options.length
+            ? q.options.map((op,i)=>`
+              <div style="
+                direction:ltr !important;
+                unicode-bidi:isolate;
+                text-align:left;
+                padding:12px 14px;
+                margin-top:8px;
+                border-radius:14px;
+                font-weight:900;
+                background:${Number(i) === Number(correct) ? "#dcfce7" : "#f8fafc"};
+                border:2px solid ${Number(i) === Number(correct) ? "#16a34a" : "#e5e7eb"};
+                color:${Number(i) === Number(correct) ? "#166534" : "#374151"};
+              ">
+                ${String.fromCharCode(65+i)}. ${esc(op)}
+                ${Number(i) === Number(correct) ? " ✅" : ""}
+              </div>
+            `).join("")
+            : `
+              <div style="
+                direction:ltr;
+                text-align:center;
+                background:#f8fafc;
+                border:2px dashed #dbeafe;
+                color:#64748b;
+                padding:12px;
+                border-radius:14px;
+                font-weight:900;
+              ">
+                No options for this question
+              </div>
+            `
+          }
+
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+
+    body.innerHTML = html;
+
+  }catch(err){
+
+    console.error("openFullQuestions error:", err);
+
+    body.innerHTML = `
+      <div style="
+        background:#fee2e2;
+        color:#991b1b;
+        padding:20px;
+        border-radius:18px;
+        font-weight:900;
+        text-align:center;
+        direction:ltr;
+      ">
+        ❌ Error while displaying questions
+        <br><br>
+        ${esc(err.message || err)}
+      </div>
+    `;
+  }
+}
+
+function closeQuestionsModal(){
+
+  document.getElementById("questionsModal")
+    .style.display = "none";
+
+}
+function filterModalQuestions(value){
+
+  value = String(value || "").toLowerCase().trim();
+
+  document.querySelectorAll(".modal-q-card").forEach(card=>{
+
+    const txt = card.dataset.search || "";
+
+    card.style.display = txt.includes(value)
+      ? "block"
+      : "none";
+
+  });
+}
+</script>
+
