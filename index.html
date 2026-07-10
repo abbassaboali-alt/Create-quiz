@@ -3218,51 +3218,88 @@ async function confirmRelinkQuestion(questionId){
 /* ================= حذف السؤال ================= */
 async function deleteExam(){
 
-const examId = CURRENT_PREVIEW_EXAM;if(!examId){
+  const examId = CURRENT_PREVIEW_EXAM;
+
+  if(!examId){
     alert("Choose the exam first");
     return;
   }
 
-  const confirmDelete = confirm("⚠️Delete the entire test and its contents ");
+  const confirmDelete = confirm(
+    "⚠️ سيتم حذف الاختبار وأسئلته فقط، وستبقى نتائج الطلاب محفوظة. هل تريد المتابعة؟"
+  );
 
   if(!confirmDelete) return;
 
   try{
 
-    // □ حذف الأسئلة المرتبطة
+    /* ==================================
+       حذف أسئلة الاختبار فقط
+    ================================== */
+
     const qSnap = await db.collection("questions")
       .where("examId","==",examId)
       .get();
 
     for(const doc of qSnap.docs){
-      await db.collection("questions").doc(doc.id).delete();
+
+      await db.collection("questions")
+        .doc(doc.id)
+        .delete();
+
     }
 
-    // □ حذف النتائج المرتبطة
-    const rSnap = await db.collection("results")
-      .where("examId","==",examId)
-      .get();
+    /* ==================================
+       مهم: لا نحذف النتائج القديمة
+    ================================== */
 
-    for(const doc of rSnap.docs){
-      await db.collection("results").doc(doc.id).delete();
+    // لا تضع أي delete لمجموعة results هنا
+
+    /* ==================================
+       حذف مستند الاختبار فقط
+    ================================== */
+
+    await db.collection("exams")
+      .doc(examId)
+      .delete();
+
+    alert(
+      "✅ تم حذف الاختبار وأسئلته، وتم الاحتفاظ بنتائج الطلاب السابقة"
+    );
+
+    CURRENT_PREVIEW_EXAM = "";
+    CURRENT_COURSE_ID = "";
+    CURRENT_COURSE_NAME = "";
+    CURRENT_TRAINER = "";
+    CURRENT_PERIOD = "";
+
+    const questionsList =
+      document.getElementById("questionsList");
+
+    const courseTabs =
+      document.getElementById("courseTabs");
+
+    if(questionsList){
+      questionsList.innerHTML = "";
     }
 
-    // □ حذف الاختبار نفسه
-    await db.collection("exams").doc(examId).delete();
+    if(courseTabs){
+      courseTabs.innerHTML = "";
+    }
 
-alert("✅ the exam has deleted successfully");
+    await loadExams();
 
-// □ تصفير الاختبار الحالي
-CURRENT_PREVIEW_EXAM = "";
-CURRENT_COURSE_ID = "";
-
-// تحديث
-await loadExams();
-await loadQuestions();
   }catch(err){
-    console.error(err);
-    alert("❌ Failed");
+
+    console.error(
+      "Delete exam error:",
+      err
+    );
+
+    alert("❌ Failed to delete exam");
+
   }
+
 }
 async function saveLinkedCourseSkill(
   questionId,
