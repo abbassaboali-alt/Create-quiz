@@ -5703,81 +5703,67 @@ async function importWord(){
 
     window.WORD_HTML = "";
 
-    /* =========================================
-       ملف TXT
-    ========================================= */
+    // =============================================
+    // إذا كان الملف TXT
+    // =============================================
 
     if(isTxt){
 
-      text =
-        await file.text();
+      text = await file.text();
 
     }
 
-    /* =========================================
-       ملف DOCX
-    ========================================= */
+    // =============================================
+    // إذا كان الملف Word DOCX
+    // =============================================
 
     else{
 
-      const arrayBuffer =
-        await file.arrayBuffer();
+const arrayBuffer =
+  await file.arrayBuffer();
 
-      /* استخراج HTML */
-      const htmlResult =
-        await mammoth.convertToHtml({
-          arrayBuffer
-        });
+/* =============================================
+   استخراج HTML أولًا
+   لأن HTML يحافظ على ترقيم Word التلقائي
+============================================= */
 
-      window.WORD_HTML =
-        htmlResult.value || "";
+const htmlResult =
+  await mammoth.convertToHtml({
+    arrayBuffer: arrayBuffer
+  });
 
-      /* محاولة قراءة الترقيم التلقائي */
-      text =
-        wordHtmlToNumberedText(
-          window.WORD_HTML
-        );
+window.WORD_HTML =
+  htmlResult.value || "";
 
-      /* استخراج النص الخام أيضًا */
-      const rawResult =
-        await mammoth.extractRawText({
-          arrayBuffer
-        });
+/* =============================================
+   تحويل HTML إلى نص مع إضافة أرقام القوائم
+============================================= */
 
-      const rawText =
-        rawResult.value || "";
+text =
+  wordHtmlToNumberedText(
+    window.WORD_HTML
+  );
 
-      /*
-        إذا كان النص المحوّل من HTML لا يحتوي خيارات،
-        نستخدم النص الخام.
-      */
-      const htmlOptionCount =
-        (
-          String(text || "").match(
-            /(?:^|\n)\s*[a-dA-D]\s*[\)\.\-:]/g
-          ) || []
-        ).length;
+/* =============================================
+   احتياط:
+   إذا لم يخرج نص من HTML نستخدم النص الخام
+============================================= */
 
-      const rawOptionCount =
-        (
-          String(rawText || "").match(
-            /(?:^|\n)\s*[a-dA-D]\s*[\)\.\-:]/g
-          ) || []
-        ).length;
+if(!String(text || "").trim()){
 
-      if(
-        !String(text || "").trim() ||
-        rawOptionCount > htmlOptionCount
-      ){
+  const rawResult =
+    await mammoth.extractRawText({
+      arrayBuffer: arrayBuffer
+    });
 
-        text = rawText;
-
-      }
+  text =
+    rawResult.value || "";
+}
 
     }
 
     console.log(
-      "FINAL WORD TEXT:",
+      "WORD TEXT:",
       text
     );
 
@@ -5791,9 +5777,9 @@ async function importWord(){
       alert("⚠️ لم يتم العثور على نص داخل الملف");
 
       return;
+
     }
 
-    /* إرسال النص للتحليل والحفظ */
     await processTextToQuestions(
       text
     );
