@@ -5703,65 +5703,81 @@ async function importWord(){
 
     window.WORD_HTML = "";
 
-    // =============================================
-    // إذا كان الملف TXT
-    // =============================================
+    /* =========================================
+       ملف TXT
+    ========================================= */
 
     if(isTxt){
 
-      text = await file.text();
+      text =
+        await file.text();
 
     }
 
-    // =============================================
-    // إذا كان الملف Word DOCX
-    // =============================================
+    /* =========================================
+       ملف DOCX
+    ========================================= */
 
     else{
 
-const arrayBuffer =
-  await file.arrayBuffer();
+      const arrayBuffer =
+        await file.arrayBuffer();
 
-/* =============================================
-   استخراج HTML أولًا
-   لأن HTML يحافظ على ترقيم Word التلقائي
-============================================= */
+      /* استخراج HTML */
+      const htmlResult =
+        await mammoth.convertToHtml({
+          arrayBuffer
+        });
 
-const htmlResult =
-  await mammoth.convertToHtml({
-    arrayBuffer: arrayBuffer
-  });
+      window.WORD_HTML =
+        htmlResult.value || "";
 
-window.WORD_HTML =
-  htmlResult.value || "";
+      /* محاولة قراءة الترقيم التلقائي */
+      text =
+        wordHtmlToNumberedText(
+          window.WORD_HTML
+        );
 
-/* =============================================
-   تحويل HTML إلى نص مع إضافة أرقام القوائم
-============================================= */
+      /* استخراج النص الخام أيضًا */
+      const rawResult =
+        await mammoth.extractRawText({
+          arrayBuffer
+        });
 
-text =
-  wordHtmlToNumberedText(
-    window.WORD_HTML
-  );
+      const rawText =
+        rawResult.value || "";
 
-/* =============================================
-   احتياط:
-   إذا لم يخرج نص من HTML نستخدم النص الخام
-============================================= */
+      /*
+        إذا كان النص المحوّل من HTML لا يحتوي خيارات،
+        نستخدم النص الخام.
+      */
+      const htmlOptionCount =
+        (
+          String(text || "").match(
+            /(?:^|\n)\s*[a-dA-D]\s*[\)\.\-:]/g
+          ) || []
+        ).length;
 
-if(!String(text || "").trim()){
+      const rawOptionCount =
+        (
+          String(rawText || "").match(
+            /(?:^|\n)\s*[a-dA-D]\s*[\)\.\-:]/g
+          ) || []
+        ).length;
 
-  const rawResult =
-    await mammoth.extractRawText({
-      arrayBuffer: arrayBuffer
-    });
+      if(
+        !String(text || "").trim() ||
+        rawOptionCount > htmlOptionCount
+      ){
 
-  text =
-    rawResult.value || "";
-}
+        text = rawText;
+
+      }
+
+    }
 
     console.log(
-      "WORD TEXT:",
+      "FINAL WORD TEXT:",
       text
     );
 
@@ -5775,9 +5791,9 @@ if(!String(text || "").trim()){
       alert("⚠️ لم يتم العثور على نص داخل الملف");
 
       return;
-
     }
 
+    /* إرسال النص للتحليل والحفظ */
     await processTextToQuestions(
       text
     );
