@@ -5069,7 +5069,7 @@ async function importWord(){
     reader.readAsArrayBuffer(file);
   }
 }
- async function processTextToQuestions(text){
+async function processTextToQuestions(text){
 
   const examId = document.getElementById("examSelect").value;
   const group = document.getElementById("groupSelect")?.value || "General";
@@ -5079,424 +5079,283 @@ async function importWord(){
     return;
   }
 
-  // ================= جلب بيانات الاختبار =================
   const examDoc = await db.collection("exams").doc(examId).get();
-  const examData = examDoc.exists ? examDoc.data() : {};
-/* =========================
-   Homework Counter
-========================= */
 
-let homeworkCount = 0;
+  if(!examDoc.exists){
+    alert("الاختبار غير موجود");
+    return;
+  }
 
-if(Array.isArray(examData.courseIds)){
-
-  const hwSnap = await db.collection("exams")
-    .where("isHomework","==",true)
-    .get();
-
-  hwSnap.forEach(doc=>{
-
-    const e = doc.data();
-
-    const sameCourse =
-      (e.courseIds || []).some(id =>
-        examData.courseIds.includes(id)
-      );
-
-    if(sameCourse){
-      homeworkCount++;
-    }
-
-  });
-}
+  const examData = examDoc.data() || {};
 
   const coursesUsed = (examData.coursesData || []).map(c => ({
-    courseId: c.courseId,
-    TrainingCourse: c.TrainingCourse,
-    Trainer: c.Trainer
+    courseId: c.courseId || "",
+    TrainingCourse: c.TrainingCourse || "",
+    Trainer: c.Trainer || "",
+    Period: c.Period || ""
   }));
 
-
-  // =====================================================
-  // ================= تنظيف النص =========================
-  // =====================================================
+  /* =====================================================
+     تنظيف وتوحيد النص
+  ===================================================== */
 
   text = String(text || "")
-    .replace(/\r/g,"\n")
-    .replace(/[●•▪■]/g,"")
-    .replace(/\u00A0/g," ")
-    .replace(/\t/g," ")
-    .replace(/\n{3,}/g,"\n\n")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00A0/g, " ")
+    .replace(/[●•▪■]/g, "")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\t/g, " ")
+    .replace(/[ ]{2,}/g, " ")
     .trim();
-// □ حماية الأوقات مثل 11.30
 
-
-text = text.replace(
-
-
-/(\d+)\.(\d+)/g,
-
-
-"$1DOT$2"
-
-
-);
-
-  // □ حماية الأوقات مثل 11.30pm
+  // حماية الأرقام العشرية والأوقات مثل 11.30 و 10.00pm
   text = text.replace(
-    /(\d+)\.(\d+\s*(am|pm))/gi,
-    "$1TIME$2"
+    /(\d+)\.(\d+(?:\s*(?:am|pm))?)/gi,
+    "$1[[DOT]]$2"
   );
 
-  // □ حماية الأرقام العادية مثل 10.00
+  /*
+    إصلاح الدمج الناتج من Word، مثل:
+    d) his*9. We love our school...
+  */
   text = text.replace(
-    /(\d+)\.(\d+)/g,
-    "$1DOT$2"
+    /([^\n])\s*(?=(?:\d{1,3})\s*[.\-)]+\s+)/g,
+    "$1\n"
   );
 
-  // □ يمنع ضياع آخر سؤال
-  text += "\n\nEND_OF_FILE";
+  // وضع كل خيار في سطر مستقل، حتى إذا دمجه Word مع السؤال أو خيار آخر
+  text = text.replace(
+    /\s+(?=(?:[A-Ha-h]|[أ-د])\s*[.\-)]+\s*)/g,
+    "\n"
+  );
 
-  // □ إصلاح ملفات Word المدمجة
+  // توحيد بداية أرقام الأسئلة
+  text = text.replace(
+    /^\s*(\d{1,3})\s*[.\-)]+\s*/gm,
+    "$1) "
+  );
+
+  // توحيد بداية الخيارات
+  text = text.replace(
+    /^\s*([A-Ha-h]|[أ-د])\s*[.\-)]+\s*/gm,
+    "$1) "
+  );
+
   text = text
-    .replace(/([a-zA-Z\?])(\d+\s*[-.)])/g,"$1\n$2")
-    .replace(/\n\s*(\d+)\s*[-.)]/g,"\n$1) ")
-    .replace(/\n\s*([a-zA-Z])\s*[-.)]/g,"\n$1) ");
-
-  console.log("TEXT AFTER FIX:", text);
-
-
-  // =====================================================
-  // ================= استخراج القطعة =====================
-  // =====================================================
-
-let passage = "";
-
-const firstQuestionIndex = text.search(/(^|\n)\d+\s*[\-\.\)]/);
-
-if(firstQuestionIndex > 0){
-
-  const possiblePassage = text
-    .substring(0, firstQuestionIndex)
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // □ يعتبر Passage فقط إذا طويل
-  const wordCount = possiblePassage.split(/\s+/).length;
+  console.log("IMPORT NORMALIZED TEXT:", text);
 
-if(wordCount >= 25){
+  /* =====================================================
+     استخراج قطعة القراءة قبل أول سؤال
+  ===================================================== */
 
-  passage = possiblePassage
-    .replace(/TIME/gi,".")
-    .replace(/DOT/gi,".");
+  let passage = "";
+  const firstQuestionMatch = text.match(/(?:^|\n)\s*\d{1,3}\)\s+/);
 
-}
-  text = text
-    .substring(firstQuestionIndex)
-    .trim();
-}
-// =====================================================
-// ================= تقسيم الأسئلة ======================
-// =====================================================
+  if(firstQuestionMatch && firstQuestionMatch.index > 0){
 
-console.log(
-  "TEXT BEFORE SPLIT:",
-  text
-);
-console.log(
-  "TEXT BEFORE SPLIT:",
-  text
-);
+    const possiblePassage = text
+      .slice(0, firstQuestionMatch.index)
+      .trim();
 
-const questionBlocks = text.split(
-  /(?:^|\n)(?=\d+\s*[\-\.\)])/
-);
+    const wordCount = possiblePassage
+      .split(/\s+/)
+      .filter(Boolean)
+      .length;
 
-console.log(
-  "BLOCK COUNT:",
-  questionBlocks.length
-);
+    if(wordCount >= 25){
+      passage = possiblePassage;
+    }
 
-console.log(
-  "QUESTION BLOCKS:",
-  questionBlocks
-);
+    text = text.slice(firstQuestionMatch.index).trim();
+  }
 
-  // =====================================================
-  // ================= آخر ترتيب ==========================
-  // =====================================================
+  /* =====================================================
+     تقسيم الأسئلة
+  ===================================================== */
 
-  const lastSnap = await db.collection("questions")
-    .where("examId","==",examId)
-.where("courseId","==",CURRENT_COURSE_ID)
+  const questionBlocks = text
+    .split(/(?=^\s*\d{1,3}\)\s+)/gm)
+    .map(v => v.trim())
+    .filter(Boolean);
+
+  console.log("QUESTION BLOCKS:", questionBlocks);
+
+  const oldQuestionsSnap = await db.collection("questions")
+    .where("examId", "==", examId)
     .get();
 
   let orderCounter = 0;
 
-  if(!lastSnap.empty){
-
-    const orders = lastSnap.docs.map(d =>
-      Number(d.data().order || 0)
+  if(!oldQuestionsSnap.empty){
+    orderCounter = Math.max(
+      ...oldQuestionsSnap.docs.map(d => Number(d.data().order || 0)),
+      0
     );
-
-    orderCounter = Math.max(...orders, 0);
   }
-
-
-  // =====================================================
-  // ================= الاستيراد ==========================
-  // =====================================================
 
   let imported = 0;
-  let visibleIds = [];
-// ✅ استخراج أماكن الإجابات Bold من Word
-const boldAnswers = [];
-
-if(window.WORD_HTML){
-
-  const parser = new DOMParser();
-
-  const htmlDoc = parser.parseFromString(
-    window.WORD_HTML,
-    "text/html"
-  );
-
-  const paragraphs = [...htmlDoc.querySelectorAll("p")];
-
-  let currentOptions = [];
-
-  paragraphs.forEach(p => {
-
-    const txt = p.textContent.trim();
-
-    // بداية سؤال جديد
-    if(/^\d+\s*[\.\)]/.test(txt)){
-
-      if(currentOptions.length){
-        boldAnswers.push(currentOptions);
-      }
-
-      currentOptions = [];
-
-      return;
-    }
-
-    // خيار a b c d
-    if(/^[a-zA-Z]\s*[\)\.\-]/.test(txt)){
-
-      const isBold =
-        p.innerHTML.includes("<strong>") ||
-        p.innerHTML.includes("<b>");
-
-      currentOptions.push(isBold);
-    }
-
-  });
-
-  if(currentOptions.length){
-    boldAnswers.push(currentOptions);
-  }
-
-}
-
-console.log("BOLD ANSWERS:", boldAnswers);
-console.log(
-  "BOLD ANSWERS:",
-  boldAnswers
-);
+  let skipped = 0;
+  const visibleIds = [];
 
   for(const rawBlock of questionBlocks){
 
     let block = String(rawBlock || "").trim();
 
-    if(!block) continue;
+    // حذف رقم السؤال من البداية
+    block = block.replace(/^\s*\d{1,3}\)\s*/, "").trim();
 
-    // □ حذف marker
-    block = block.replace(/END_OF_FILE/g,"").trim();
-
-    // حذف رقم السؤال
-    block = block.replace(/^\d+\s*[\-\.\)]\s*/,"").trim();
-
-    const lines = block
-
-  .replace(/([a-z])\s+([A-Da-d])\)/g,"$1\n$2)")
-
-  .split("\n")      .map(v => v.trim())
-      .filter(Boolean);
-
-    if(lines.length < 2) continue;
-
-
-    // =====================================================
-    // ================= السؤال =============================
-    // =====================================================
-
-    let questionText = lines[0].trim();
-// □ إرجاع الوقت الطبيعي
-questionText = questionText.replace(/DOT/g,".");
-
-    // □ رجوع النقاط الطبيعية
-    questionText = questionText
-      .replace(/TIME/gi,".")
-      .replace(/DOT/gi,".");
-
-    if(!questionText) continue;
-
-
-    // =====================================================
-    // ================= الخيارات ===========================
-    // =====================================================
-
-    const options = [];
-for(let i = 1; i < lines.length; i++){
-
-  let line = lines[i].trim();
-
-  line = line.replace(
-    /^[a-zA-Z]\s*[\)\.\-]\s*/,
-    ""
-  ).trim();
-
-  line = line
-    .replace(/TIME/gi,".")
-    .replace(/DOT/gi,".");
-
-  line = line.replace(/DOT/g,".");
-
-  if(line){
-    options.push(line);
-  }
-
-} 
-// □ هذا القوس كان ناقص    // □ تنظيف الخيارات الفارغة
-    const cleanOptions = options
-      .map(o => String(o || "").trim())
-      .filter(o => o);
-
-    // لازم خيارين على الأقل
-    if(cleanOptions.length < 2){
-
-      console.log("SKIPPED:", questionText);
-
+    if(!block){
+      skipped++;
       continue;
     }
 
+    const lines = block
+      .split("\n")
+      .map(v => v.trim())
+      .filter(Boolean);
 
-// =====================================================
-// ================= تحديد الإجابة ======================
-// =====================================================
+    const optionStartIndex = lines.findIndex(line =>
+      /^(?:[A-Ha-h]|[أ-د])\)\s*/.test(line)
+    );
 
-let correctIndex = 0;
+    if(optionStartIndex < 1){
+      console.warn("SKIPPED - no options:", block);
+      skipped++;
+      continue;
+    }
 
-// ✅ النجمة * تحدد الإجابة الصحيحة
-cleanOptions.forEach((op, idx) => {
+    // يدعم السؤال إذا كان ممتدًا على أكثر من سطر
+    let questionText = lines
+      .slice(0, optionStartIndex)
+      .join(" ")
+      .replace(/\[\[DOT\]\]/g, ".")
+      .trim();
 
-  const low = String(op || "").toLowerCase();
+    const optionLines = lines.slice(optionStartIndex);
+    const options = [];
+    let correctIndex = -1;
 
-  if(
-    op.includes("*") ||
-    low.includes("(correct)") ||
-    low.includes("[correct]") ||
-    low.includes("{correct}")
-  ){
-    correctIndex = idx;
-  }
+    for(const optionLine of optionLines){
 
-});const finalOptions = cleanOptions.map(op =>
+      const match = optionLine.match(
+        /^(?:[A-Ha-h]|[أ-د])\)\s*(.+)$/
+      );
 
-  String(op || "")
-    .replace(/\[\[BOLD\]\]/gi,"")
-    .replace(/\[\[\/BOLD\]\]/gi,"")
-    .replace(/<strong>/gi,"")
-    .replace(/<\/strong>/gi,"")
-    .replace(/<b>/gi,"")
-    .replace(/<\/b>/gi,"")
-    .replace(/<[^>]+>/g,"")
-    .replace(/\(correct\)/gi,"")
-    .replace(/\[correct\]/gi,"")
-    .replace(/\{correct\}/gi,"")
-    .replace(/\*/g,"")
-    .trim()
+      if(!match) continue;
 
-);
-    // =====================================================
-    // ================= الترتيب ============================
-    // =====================================================
+      let optionText = String(match[1] || "")
+        .replace(/\[\[DOT\]\]/g, ".")
+        .trim();
+
+      const isCorrect =
+        /\*\s*$/.test(optionText) ||
+        /(?:\(correct\)|\[correct\]|\{correct\})\s*$/i.test(optionText) ||
+        /\[\[BOLD\]\]/i.test(optionText);
+
+      optionText = optionText
+        .replace(/\*\s*$/g, "")
+        .replace(/(?:\(correct\)|\[correct\]|\{correct\})\s*$/gi, "")
+        .replace(/\[\[\/?BOLD\]\]/gi, "")
+        .replace(/<\/?(?:strong|b)>/gi, "")
+        .trim();
+
+      if(!optionText) continue;
+
+      const newIndex = options.length;
+      options.push(optionText);
+
+      if(isCorrect){
+        correctIndex = newIndex;
+      }
+    }
+
+    if(!questionText || options.length < 2){
+      console.warn("SKIPPED - invalid question:", {
+        questionText,
+        options
+      });
+      skipped++;
+      continue;
+    }
+
+    if(correctIndex < 0){
+      console.warn("SKIPPED - correct answer not marked:", questionText);
+      skipped++;
+      continue;
+    }
 
     orderCounter++;
 
-
-    // =====================================================
-    // ================= حفظ السؤال =========================
-    // =====================================================
-
     const docRef = await db.collection("questions").add({
-
-      examId: examId,
-
+      examId,
       question: questionText,
-
       passage: passage || "",
-
-      options: finalOptions,
-
+      options,
       correct: correctIndex,
-
       degree: 1,
-
       type: "mcq",
-
-      group: group,
-
+      group,
       skill: group,
-
-showMedia: true,
+      showMedia: true,
       mediaType: "none",
-
       mediaUrl: "",
-
-      coursesUsed: coursesUsed,
-
+      locked: false,
+      coursesUsed,
       order: orderCounter,
-
       createdAt: new Date()
     });
 
     visibleIds.push(docRef.id);
-
     imported++;
   }
 
-
-  // =====================================================
-  // ================= تحديث visibleQuestions =============
-  // =====================================================
+  /* =====================================================
+     تحديث الأسئلة الظاهرة
+  ===================================================== */
 
   if(visibleIds.length){
 
     const examRef = db.collection("exams").doc(examId);
+    const freshExamDoc = await examRef.get();
+    const freshExamData = freshExamDoc.data() || {};
 
-    const examSnap2 = await examRef.get();
+    const oldVisible = Array.isArray(freshExamData.visibleQuestions)
+      ? freshExamData.visibleQuestions
+      : [];
 
-    const oldVisible =
-      examSnap2.data()?.visibleQuestions || [];
+    const updateData = {
+      visibleQuestions: [...new Set([...oldVisible, ...visibleIds])]
+    };
 
-    await examRef.update({
+    if(CURRENT_COURSE_ID){
+      const visibleByCourse = {
+        ...(freshExamData.visibleQuestionsByCourse || {})
+      };
 
-      visibleQuestions: [
+      const oldCourseVisible = Array.isArray(
+        visibleByCourse[CURRENT_COURSE_ID]
+      )
+        ? visibleByCourse[CURRENT_COURSE_ID]
+        : [];
 
-        ...oldVisible,
+      visibleByCourse[CURRENT_COURSE_ID] = [
+        ...new Set([...oldCourseVisible, ...visibleIds])
+      ];
 
-        ...visibleIds
-      ]
-    });
+      updateData.visibleQuestionsByCourse = visibleByCourse;
+    }
+
+    await examRef.update(updateData);
   }
 
-
-  // =====================================================
-  // ================= النتيجة =============================
-  // =====================================================
-
-  alert(`✅ تم استيراد ${imported} سؤال`);
+  alert(
+    `✅ تم استيراد ${imported} سؤال` +
+    (skipped ? `\n⚠️ تم تجاوز ${skipped} سؤال لعدم اكتمال الخيارات أو عدم وجود نجمة للإجابة الصحيحة.` : "")
+  );
 
   console.log("PASSAGE:", passage);
   console.log("VISIBLE IDS:", visibleIds);
