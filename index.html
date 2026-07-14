@@ -5489,6 +5489,179 @@ function convertWordHtmlToImportText(html){
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+/* =====================================================
+   تحويل HTML الخاص بـ Word إلى نص
+   مع المحافظة على الترقيم التلقائي
+===================================================== */
+function wordHtmlToNumberedText(html){
+
+  const parser = new DOMParser();
+
+  const doc = parser.parseFromString(
+    String(html || ""),
+    "text/html"
+  );
+
+  const output = [];
+
+  function cleanText(value){
+
+    return String(value || "")
+
+      .replace(/\u00A0/g, " ")
+
+      .replace(
+        /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,
+        ""
+      )
+
+      .replace(/[ \t]+/g, " ")
+
+      .trim();
+  }
+
+  function readNode(node){
+
+    if(!node) return;
+
+    /* =========================================
+       قائمة Word مرقمة تلقائيًا
+    ========================================= */
+    if(node.nodeType === Node.ELEMENT_NODE){
+
+      const tag =
+        String(node.tagName || "").toLowerCase();
+
+      if(tag === "ol"){
+
+        const start =
+          Number(node.getAttribute("start") || 1);
+
+        let number = start;
+
+        Array.from(node.children).forEach(li => {
+
+          if(
+            String(li.tagName || "").toLowerCase()
+            !== "li"
+          ){
+            return;
+          }
+
+          const parts = [];
+
+          Array.from(li.childNodes).forEach(child => {
+
+            const childTag =
+              child.nodeType === Node.ELEMENT_NODE
+                ? String(child.tagName || "").toLowerCase()
+                : "";
+
+            // عدم إدخال قائمة داخلية مرتين
+            if(childTag === "ol" || childTag === "ul"){
+              return;
+            }
+
+            const value =
+              cleanText(child.textContent);
+
+            if(value){
+              parts.push(value);
+            }
+
+          });
+
+          const line =
+            cleanText(parts.join(" "));
+
+          if(line){
+
+            output.push(
+              `${number}. ${line}`
+            );
+
+          }
+
+          number++;
+
+          // قراءة أي قوائم داخلية
+          Array.from(li.children).forEach(child => {
+
+            const childTag =
+              String(child.tagName || "").toLowerCase();
+
+            if(childTag === "ol" || childTag === "ul"){
+              readNode(child);
+            }
+
+          });
+
+        });
+
+        return;
+      }
+
+      /* =========================================
+         قائمة نقطية
+      ========================================= */
+      if(tag === "ul"){
+
+        Array.from(node.children).forEach(li => {
+
+          if(
+            String(li.tagName || "").toLowerCase()
+            !== "li"
+          ){
+            return;
+          }
+
+          const value =
+            cleanText(li.textContent);
+
+          if(value){
+            output.push(value);
+          }
+
+        });
+
+        return;
+      }
+
+      /* =========================================
+         الفقرات والعناوين
+      ========================================= */
+      if(
+        tag === "p" ||
+        tag === "div" ||
+        tag === "h1" ||
+        tag === "h2" ||
+        tag === "h3" ||
+        tag === "h4"
+      ){
+
+        const value =
+          cleanText(node.textContent);
+
+        if(value){
+          output.push(value);
+        }
+
+        return;
+      }
+    }
+
+    Array.from(node.childNodes || [])
+      .forEach(readNode);
+  }
+
+  Array.from(doc.body.childNodes)
+    .forEach(readNode);
+
+  return output
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 async function importWord(){
 
   const examId =
@@ -5546,28 +5719,46 @@ async function importWord(){
 
     else{
 
-      const arrayBuffer =
-        await file.arrayBuffer();
+const arrayBuffer =
+  await file.arrayBuffer();
 
-      // استخراج النص الخام
-      const rawResult =
-        await mammoth.extractRawText({
-          arrayBuffer: arrayBuffer
-        });
+/* =============================================
+   استخراج HTML أولًا
+   لأن HTML يحافظ على ترقيم Word التلقائي
+============================================= */
 
-      text =
-        rawResult.value || "";
+const htmlResult =
+  await mammoth.convertToHtml({
+    arrayBuffer: arrayBuffer
+  });
 
-      // استخراج HTML لمعرفة Bold
-      const htmlResult =
-        await mammoth.convertToHtml({
-          arrayBuffer: arrayBuffer
-        });
+window.WORD_HTML =
+  htmlResult.value || "";
 
-      window.WORD_HTML =
-        htmlResult.value || "";
+/* =============================================
+   تحويل HTML إلى نص مع إضافة أرقام القوائم
+============================================= */
 
-    }
+text =
+  wordHtmlToNumberedText(
+    window.WORD_HTML
+  );
+
+/* =============================================
+   احتياط:
+   إذا لم يخرج نص من HTML نستخدم النص الخام
+============================================= */
+
+if(!String(text || "").trim()){
+
+  const rawResult =
+    await mammoth.extractRawText({
+      arrayBuffer: arrayBuffer
+    });
+
+  text =
+    rawResult.value || "";
+}
 
     console.log(
       "WORD TEXT:",
