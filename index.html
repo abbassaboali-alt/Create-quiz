@@ -5002,72 +5002,123 @@ function convertWordHtmlToImportText(html){
 }
 async function importWord(){
 
-  const examId = document.getElementById("examSelect").value;
+  const examId =
+    document.getElementById("examSelect")?.value || "";
 
   if(!examId){
     alert("⚠️ اختر الاختبار أولاً");
     return;
   }
 
-  const fileInput = document.getElementById("wordFile");
-  const file = fileInput.files[0];
+  const fileInput =
+    document.getElementById("wordFile");
+
+  const file =
+    fileInput?.files?.[0];
 
   if(!file){
-    alert("اختر ملف Word أو TXT");
+    alert("⚠️ اختر ملف Word أو TXT أولاً");
     return;
   }
 
-  const reader = new FileReader();
+  const fileName =
+    String(file.name || "").toLowerCase();
 
-  reader.onload = async function(e){
+  const isTxt =
+    fileName.endsWith(".txt");
 
-    try{
+  const isWord =
+    fileName.endsWith(".docx");
 
-      let text = "";
+  if(!isTxt && !isWord){
+    alert("⚠️ الملف يجب أن يكون DOCX أو TXT");
+    return;
+  }
 
-      window.WORD_HTML = "";
+  try{
 
-      if(file.name.toLowerCase().endsWith(".txt")){
+    let text = "";
 
-        text = e.target.result;
+    window.WORD_HTML = "";
 
-      }else{
+    // =============================================
+    // إذا كان الملف TXT
+    // =============================================
 
-        // ✅ النص العادي للأسئلة
-        const rawResult = await mammoth.extractRawText({
-          arrayBuffer: e.target.result
-        });
+    if(isTxt){
 
-        text = rawResult.value;
-
-        // ✅ HTML فقط لمعرفة Bold
-        const htmlResult = await mammoth.convertToHtml({
-          arrayBuffer: e.target.result
-        });
-
-        window.WORD_HTML = htmlResult.value;
-
-      }
-
-      console.log("WORD TEXT:", text);
-      console.log("WORD HTML:", window.WORD_HTML);
-
-      await processTextToQuestions(text);
-
-    }catch(err){
-
-      console.error(err);
-      alert("❌ فشل قراءة الملف: " + err.message);
+      text = await file.text();
 
     }
 
-  };
+    // =============================================
+    // إذا كان الملف Word DOCX
+    // =============================================
 
-  if(file.name.toLowerCase().endsWith(".txt")){
-    reader.readAsText(file);
-  }else{
-    reader.readAsArrayBuffer(file);
+    else{
+
+      const arrayBuffer =
+        await file.arrayBuffer();
+
+      // استخراج النص الخام
+      const rawResult =
+        await mammoth.extractRawText({
+          arrayBuffer: arrayBuffer
+        });
+
+      text =
+        rawResult.value || "";
+
+      // استخراج HTML لمعرفة Bold
+      const htmlResult =
+        await mammoth.convertToHtml({
+          arrayBuffer: arrayBuffer
+        });
+
+      window.WORD_HTML =
+        htmlResult.value || "";
+
+    }
+
+    console.log(
+      "WORD TEXT:",
+      text
+    );
+
+    console.log(
+      "WORD HTML:",
+      window.WORD_HTML
+    );
+
+    if(!String(text || "").trim()){
+
+      alert("⚠️ لم يتم العثور على نص داخل الملف");
+
+      return;
+
+    }
+
+    await processTextToQuestions(
+      text
+    );
+
+  }catch(err){
+
+    console.error(
+      "IMPORT WORD ERROR:",
+      err
+    );
+
+    alert(
+      "❌ فشل قراءة الملف:\n" +
+      (
+        err?.message ||
+        String(err)
+      )
+    );
+
   }
+
 }
  async function processTextToQuestions(text){
 
@@ -5085,7 +5136,7 @@ async function importWord(){
   try{
 
     // =====================================================
-    // 1) جلب بيانات الاختبار
+    // جلب بيانات الاختبار
     // =====================================================
 
     const examRef =
@@ -5095,16 +5146,25 @@ async function importWord(){
       await examRef.get();
 
     if(!examDoc.exists){
+
       alert("⚠️ لم يتم العثور على الاختبار");
+
       return;
+
     }
 
     const examData =
       examDoc.data() || {};
 
+
+    // =====================================================
+    // الدورات المرتبطة
+    // =====================================================
+
     const coursesUsed =
       Array.isArray(examData.coursesData)
         ? examData.coursesData.map(c => ({
+
             courseId:
               c.courseId || "",
 
@@ -5113,42 +5173,64 @@ async function importWord(){
 
             Trainer:
               c.Trainer || ""
+
           }))
         : [];
 
 
     // =====================================================
-    // 2) تنظيف النص المستخرج من Word
+    // تنظيف النص
     // =====================================================
 
-    let cleanedText = String(text || "")
-      .replace(/\r\n?/g, "\n")
-      .replace(/\u00A0/g, " ")
-      .replace(/\t/g, " ")
-      .replace(/[●•▪■]/g, "")
-      .replace(/[“”]/g, '"')
-      .replace(/[‘’]/g, "'")
-      .trim();
+    let cleanedText =
+      String(text || "")
+
+        .replace(/\r\n?/g, "\n")
+
+        .replace(/\u00A0/g, " ")
+
+        .replace(
+          /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,
+          ""
+        )
+
+        .replace(/\t/g, " ")
+
+        .replace(/[●•▪■]/g, "")
+
+        .replace(/[“”]/g, '"')
+
+        .replace(/[‘’]/g, "'")
+
+        .replace(/\n{3,}/g, "\n\n")
+
+        .trim();
+
 
     if(!cleanedText){
-      alert("⚠️ ملف Word لا يحتوي على نص يمكن استيراده");
+
+      alert("⚠️ لم يتم العثور على نص للأسئلة");
+
       return;
+
     }
 
 
     // =====================================================
-    // 3) حماية الأرقام العشرية والأوقات
-    // مثال: 11.30 أو 10.00pm
+    // حماية الأرقام العشرية مثل 11.30
     // =====================================================
 
     cleanedText = cleanedText.replace(
+
       /(\d+)\.(\d+\s*(?:am|pm)?)/gi,
+
       "$1__DECIMAL_DOT__$2"
+
     );
 
 
     // =====================================================
-    // 4) إضافة فاصل قبل كل سؤال
+    // إضافة علامة قبل كل سؤال
     // يدعم:
     // 1.
     // 1)
@@ -5156,24 +5238,39 @@ async function importWord(){
     // =====================================================
 
     cleanedText = cleanedText.replace(
-      /(^|[\n\s])(\d{1,3})\s*[\.\)\-]\s*(?=[A-Za-z])/g,
-      "\n__QUESTION__$2. "
+
+      /(^|\n|\s)(\d{1,3})\s*[\.\)\-:]\s*(?=[A-Za-z])/g,
+
+      "\n__QUESTION_START__$2. "
+
     );
 
-    cleanedText = cleanedText
-      .replace(/^__QUESTION__/, "__QUESTION__")
-      .trim();
-
 
     // =====================================================
-    // 5) تقسيم النص إلى أسئلة
+    // تقسيم الأسئلة
     // =====================================================
 
-    let questionBlocks = cleanedText
-      .split("__QUESTION__")
-      .map(v => v.trim())
-      .filter(Boolean);
+    const questionBlocks =
+      cleanedText
 
+        .split("__QUESTION_START__")
+
+        .map(block => block.trim())
+
+        .filter(block =>
+          /^\d{1,3}\s*[\.\)\-:]/.test(block)
+        );
+
+
+    console.log(
+      "CLEANED WORD TEXT:",
+      cleanedText
+    );
+
+    console.log(
+      "QUESTION BLOCK COUNT:",
+      questionBlocks.length
+    );
 
     console.log(
       "QUESTION BLOCKS:",
@@ -5181,155 +5278,60 @@ async function importWord(){
     );
 
 
-    // =====================================================
-    // 6) قراءة الإجابات المكتوبة Bold داخل Word
-    // هذه خطوة إضافية؛ النجمة تبقى الطريقة الأساسية
-    // =====================================================
+    if(!questionBlocks.length){
 
-    const boldAnswersByQuestion = [];
+      alert(
+        "⚠️ لم يتم العثور على أسئلة.\n" +
+        "تأكد أن كل سؤال يبدأ برقم مثل 1. أو 1)"
+      );
 
-    if(window.WORD_HTML){
-
-      try{
-
-        const parser =
-          new DOMParser();
-
-        const htmlDoc =
-          parser.parseFromString(
-            window.WORD_HTML,
-            "text/html"
-          );
-
-        const paragraphs =
-          [...htmlDoc.querySelectorAll("p")];
-
-        paragraphs.forEach(p => {
-
-          const paragraphText =
-            String(p.textContent || "")
-              .replace(/\u00A0/g, " ")
-              .trim();
-
-          if(!paragraphText) return;
-
-          // هل الفقرة تبدأ برقم سؤال؟
-          if(!/^\s*\d+\s*[\.\)\-]/.test(paragraphText)){
-            return;
-          }
-
-          const answerFlags = [
-            false,
-            false,
-            false,
-            false
-          ];
-
-          const runs =
-            [...p.querySelectorAll(
-              "strong, b, span"
-            )];
-
-          runs.forEach(run => {
-
-            const style =
-              String(
-                run.getAttribute("style") || ""
-              ).toLowerCase();
-
-            const isBold =
-              run.tagName.toLowerCase() === "strong" ||
-              run.tagName.toLowerCase() === "b" ||
-              style.includes("font-weight:bold") ||
-              style.includes("font-weight: bold") ||
-              /font-weight\s*:\s*(600|700|800|900)/.test(style);
-
-            if(!isBold) return;
-
-            const boldText =
-              String(run.textContent || "").trim();
-
-            if(!boldText) return;
-
-            // يحاول معرفة الخيار الذي يقع داخله النص العريض
-            const optionRegex =
-              /(?:^|\s)([a-dA-D])\s*[\)\.\-]\s*/g;
-
-            const matches =
-              [...paragraphText.matchAll(optionRegex)];
-
-            matches.forEach((match, index) => {
-
-              const start =
-                match.index + match[0].length;
-
-              const end =
-                matches[index + 1]
-                  ? matches[index + 1].index
-                  : paragraphText.length;
-
-              const optionText =
-                paragraphText
-                  .slice(start, end)
-                  .replace(/\*/g, "")
-                  .trim();
-
-              if(
-                optionText &&
-                (
-                  optionText.includes(boldText) ||
-                  boldText.includes(optionText)
-                )
-              ){
-                answerFlags[index] = true;
-              }
-
-            });
-
-          });
-
-          boldAnswersByQuestion.push(
-            answerFlags
-          );
-
-        });
-
-      }catch(boldError){
-
-        console.warn(
-          "تعذر تحليل Bold من Word:",
-          boldError
-        );
-
-      }
+      return;
 
     }
 
-    console.log(
-      "BOLD ANSWERS:",
-      boldAnswersByQuestion
-    );
-
 
     // =====================================================
-    // 7) معرفة آخر ترتيب موجود
+    // معرفة آخر ترتيب
     // =====================================================
 
-    let questionsQuery =
+    let questionQuery =
       db.collection("questions")
         .where("examId", "==", examId);
 
+
+    if(
+      typeof CURRENT_COURSE_ID !== "undefined" &&
+      CURRENT_COURSE_ID
+    ){
+
+      questionQuery =
+        questionQuery.where(
+          "courseId",
+          "==",
+          CURRENT_COURSE_ID
+        );
+
+    }
+
+
     const lastSnap =
-      await questionsQuery.get();
+      await questionQuery.get();
+
 
     let orderCounter = 0;
+
 
     if(!lastSnap.empty){
 
       const orders =
         lastSnap.docs.map(doc =>
-          Number(doc.data().order || 0)
+
+          Number(
+            doc.data().order || 0
+          )
+
         );
+
 
       orderCounter =
         Math.max(...orders, 0);
@@ -5338,14 +5340,18 @@ async function importWord(){
 
 
     // =====================================================
-    // 8) معالجة كل سؤال
+    // الاستيراد
     // =====================================================
 
     let imported = 0;
+
     let skipped = 0;
 
     const visibleIds = [];
-    const batch = db.batch();
+
+    const batch =
+      db.batch();
+
 
     for(
       let blockIndex = 0;
@@ -5354,66 +5360,91 @@ async function importWord(){
     ){
 
       let block =
-        String(questionBlocks[blockIndex] || "")
+        String(
+          questionBlocks[blockIndex] || ""
+        )
+
           .replace(
             /__DECIMAL_DOT__/g,
             "."
           )
+
+          .replace(
+            /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,
+            ""
+          )
+
+          .replace(/\u00A0/g, " ")
+
           .trim();
 
+
       if(!block){
+
         skipped++;
+
         continue;
+
       }
 
 
       // حذف رقم السؤال من البداية
       block = block.replace(
-        /^\d+\s*[\.\)\-]\s*/,
+
+        /^\d{1,3}\s*[\.\)\-:]\s*/,
+
         ""
+
       ).trim();
 
 
       // ===================================================
-      // فصل الخيارات حتى لو كانت ملتصقة:
-      // question.a) option b) option
+      // وضع فاصل قبل الخيارات
+      // يدعم:
+      // a)
+      // a.
+      // a-
+      // A)
       // ===================================================
 
-      const optionPattern =
-        /(?:^|\s)([a-dA-D])\s*[\)\.\-]\s*/g;
+      block = block.replace(
 
-      const optionMatches =
-        [...block.matchAll(optionPattern)];
+        /(?:^|[\s\n])([a-hA-H])\s*[\)\.\-:]\s*/g,
 
-      if(optionMatches.length < 2){
+        "\n__OPTION__$1) "
+
+      );
+
+
+      const blockParts =
+        block.split("\n__OPTION__");
+
+
+      // أول جزء هو السؤال
+      let questionText =
+        String(
+          blockParts.shift() || ""
+        )
+
+          .replace(
+            /__DECIMAL_DOT__/g,
+            "."
+          )
+
+          .replace(/\s+/g, " ")
+
+          .trim();
+
+
+      if(!questionText){
 
         console.warn(
-          "تم تجاوز السؤال لعدم العثور على خيارات:",
+          "EMPTY QUESTION:",
           block
         );
 
         skipped++;
-        continue;
-      }
 
-
-      // النص الموجود قبل أول a) هو السؤال
-      let questionText =
-        block
-          .slice(
-            0,
-            optionMatches[0].index
-          )
-          .trim();
-
-      questionText = questionText
-        .replace(/__DECIMAL_DOT__/g, ".")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      if(!questionText){
-
-        skipped++;
         continue;
 
       }
@@ -5425,139 +5456,148 @@ async function importWord(){
 
       const rawOptions = [];
 
-      for(
-        let optionIndex = 0;
-        optionIndex < optionMatches.length;
-        optionIndex++
-      ){
 
-        const currentMatch =
-          optionMatches[optionIndex];
-
-        const start =
-          currentMatch.index +
-          currentMatch[0].length;
-
-        const end =
-          optionMatches[optionIndex + 1]
-            ? optionMatches[optionIndex + 1].index
-            : block.length;
+      blockParts.forEach(part => {
 
         let optionText =
-          block
-            .slice(start, end)
+          String(part || "")
+
+            .replace(
+              /^[a-hA-H]\s*[\)\.\-:]\s*/,
+              ""
+            )
+
             .replace(
               /__DECIMAL_DOT__/g,
               "."
             )
+
             .replace(/\s+/g, " ")
+
             .trim();
 
+
         if(optionText){
-          rawOptions.push(optionText);
+
+          rawOptions.push(
+            optionText
+          );
+
         }
 
-      }
+      });
+
+
+      console.log(
+        "PARSED QUESTION:",
+        {
+          questionText,
+          rawOptions
+        }
+      );
 
 
       if(rawOptions.length < 2){
 
         console.warn(
-          "تم تجاوز السؤال لأن عدد الخيارات أقل من اثنين:",
-          questionText
+          "OPTIONS NOT FOUND:",
+          {
+            questionText,
+            block,
+            rawOptions
+          }
         );
 
         skipped++;
+
         continue;
 
       }
 
 
-      // يسمح بحد أقصى 8 خيارات
-      const limitedOptions =
-        rawOptions.slice(0, 8);
-
-
       // ===================================================
-      // 9) تحديد الإجابة الصحيحة
+      // تحديد الإجابة الصحيحة بواسطة النجمة
       // ===================================================
 
       let correctIndex = -1;
 
-      limitedOptions.forEach(
+
+      rawOptions.forEach(
         (option, index) => {
 
-          const optionLower =
-            String(option || "")
-              .toLowerCase();
+          const value =
+            String(option || "");
+
+          const lower =
+            value.toLowerCase();
+
 
           if(
-            option.includes("*") ||
-            optionLower.includes("(correct)") ||
-            optionLower.includes("[correct]") ||
-            optionLower.includes("{correct}") ||
-            optionLower.includes("[[bold]]")
+
+            value.includes("*") ||
+
+            lower.includes("(correct)") ||
+
+            lower.includes("[correct]") ||
+
+            lower.includes("{correct}")
+
           ){
-            correctIndex = index;
+
+            correctIndex =
+              index;
+
           }
 
         }
       );
 
 
-      // إن لم توجد نجمة، جرّب Bold من Word
-      if(
-        correctIndex === -1 &&
-        Array.isArray(
-          boldAnswersByQuestion[blockIndex]
-        )
-      ){
-
-        const boldIndex =
-          boldAnswersByQuestion[blockIndex]
-            .findIndex(Boolean);
-
-        if(boldIndex !== -1){
-          correctIndex = boldIndex;
-        }
-
-      }
-
-
-      // لا نختار أول إجابة تلقائيًا بدون علامة
       if(correctIndex === -1){
 
         console.warn(
-          "لم يتم تحديد الإجابة الصحيحة:",
-          questionText
+          "CORRECT ANSWER NOT FOUND:",
+          {
+            questionText,
+            rawOptions
+          }
         );
 
         skipped++;
+
         continue;
 
       }
 
 
       // ===================================================
-      // 10) إزالة النجمة وعلامات الإجابة
+      // تنظيف الخيارات من النجمة
       // ===================================================
 
       const finalOptions =
-        limitedOptions.map(option =>
+        rawOptions.map(option =>
 
           String(option || "")
-            .replace(/\[\[BOLD\]\]/gi, "")
-            .replace(/\[\[\/BOLD\]\]/gi, "")
-            .replace(/<strong>/gi, "")
-            .replace(/<\/strong>/gi, "")
-            .replace(/<b>/gi, "")
-            .replace(/<\/b>/gi, "")
-            .replace(/<[^>]+>/g, "")
-            .replace(/\(correct\)/gi, "")
-            .replace(/\[correct\]/gi, "")
-            .replace(/\{correct\}/gi, "")
+
             .replace(/\*/g, "")
+
+            .replace(
+              /\(correct\)/gi,
+              ""
+            )
+
+            .replace(
+              /\[correct\]/gi,
+              ""
+            )
+
+            .replace(
+              /\{correct\}/gi,
+              ""
+            )
+
             .replace(/\s+/g, " ")
+
             .trim()
 
         );
@@ -5567,40 +5607,38 @@ async function importWord(){
         correctIndex >= finalOptions.length
       ){
 
-        console.warn(
-          "رقم الإجابة الصحيحة غير صالح:",
-          questionText
-        );
-
         skipped++;
+
         continue;
 
       }
 
 
       // ===================================================
-      // 11) حفظ السؤال
+      // إنشاء السؤال
       // ===================================================
 
       orderCounter++;
 
+
       const questionRef =
         db.collection("questions").doc();
+
 
       const questionData = {
 
         examId: examId,
 
-        courseId:
-          window.CURRENT_COURSE_ID || "",
-
-        question: questionText,
+        question:
+          questionText,
 
         passage: "",
 
-        options: finalOptions,
+        options:
+          finalOptions,
 
-        correct: correctIndex,
+        correct:
+          correctIndex,
 
         degree: 1,
 
@@ -5616,24 +5654,41 @@ async function importWord(){
 
         mediaUrl: "",
 
-        coursesUsed: coursesUsed,
+        coursesUsed:
+          coursesUsed,
 
-        order: orderCounter,
+        order:
+          orderCounter,
 
         createdAt:
-          firebase.firestore.FieldValue
+          firebase.firestore
+            .FieldValue
             .serverTimestamp()
 
       };
+
+
+      if(
+        typeof CURRENT_COURSE_ID !== "undefined" &&
+        CURRENT_COURSE_ID
+      ){
+
+        questionData.courseId =
+          CURRENT_COURSE_ID;
+
+      }
+
 
       batch.set(
         questionRef,
         questionData
       );
 
+
       visibleIds.push(
         questionRef.id
       );
+
 
       imported++;
 
@@ -5641,112 +5696,149 @@ async function importWord(){
 
 
     // =====================================================
-    // 12) تنفيذ الحفظ دفعة واحدة
+    // إذا لم يتم العثور على أسئلة صالحة
     // =====================================================
 
     if(imported === 0){
 
       alert(
-        "⚠️ لم يتم استيراد أي سؤال.\n" +
-        "تأكد من وجود a) b) c) d) ومن وضع * بجانب الإجابة الصحيحة."
+        "⚠️ لم يتم استيراد أي سؤال.\n\n" +
+        "تأكد من التالي:\n" +
+        "1- كل سؤال يبدأ برقم مثل 1.\n" +
+        "2- الخيارات مكتوبة a) b) c) d)\n" +
+        "3- النجمة * بعد الإجابة الصحيحة"
       );
 
       return;
 
     }
 
+
+    // =====================================================
+    // حفظ الأسئلة
+    // =====================================================
+
     await batch.commit();
 
 
     // =====================================================
-    // 13) تحديث visibleQuestions
+    // تحديث visibleQuestions
     // =====================================================
 
     await examRef.update({
 
       visibleQuestions:
-        firebase.firestore.FieldValue
-          .arrayUnion(...visibleIds)
+        firebase.firestore
+          .FieldValue
+          .arrayUnion(
+            ...visibleIds
+          )
 
     });
 
 
-    // في حال وجود نظام منفصل حسب الدورة
+    // =====================================================
+    // visibleQuestionsByCourse
+    // =====================================================
+
     if(
-      window.CURRENT_COURSE_ID
+      typeof CURRENT_COURSE_ID !== "undefined" &&
+      CURRENT_COURSE_ID
     ){
 
-      const latestExamSnap =
+      const updatedExamSnap =
         await examRef.get();
 
-      const latestExamData =
-        latestExamSnap.data() || {};
 
-      const visibleByCourse = {
+      const updatedExamData =
+        updatedExamSnap.data() || {};
+
+
+      const visibleQuestionsByCourse = {
+
         ...(
-          latestExamData
+          updatedExamData
             .visibleQuestionsByCourse || {}
         )
+
       };
+
 
       const oldCourseQuestions =
         Array.isArray(
-          visibleByCourse[
-            window.CURRENT_COURSE_ID
+          visibleQuestionsByCourse[
+            CURRENT_COURSE_ID
           ]
         )
-          ? visibleByCourse[
-              window.CURRENT_COURSE_ID
+
+          ? visibleQuestionsByCourse[
+              CURRENT_COURSE_ID
             ]
+
           : [];
 
-      visibleByCourse[
-        window.CURRENT_COURSE_ID
+
+      visibleQuestionsByCourse[
+        CURRENT_COURSE_ID
       ] = [
+
         ...new Set([
+
           ...oldCourseQuestions,
+
           ...visibleIds
+
         ])
+
       ];
 
+
       await examRef.update({
+
         visibleQuestionsByCourse:
-          visibleByCourse
+          visibleQuestionsByCourse
+
       });
 
     }
 
 
     // =====================================================
-    // 14) النتيجة
+    // النتيجة
     // =====================================================
 
     let message =
       `✅ تم استيراد ${imported} سؤال بنجاح`;
 
+
     if(skipped > 0){
+
       message +=
-        `\n⚠️ تم تجاوز ${skipped} سؤال غير مكتمل`;
+        `\n⚠️ تم تجاوز ${skipped} سؤال`;
+
     }
+
 
     alert(message);
 
+
     console.log(
-      "IMPORTED IDS:",
+      "VISIBLE IDS:",
       visibleIds
     );
+
 
     await loadQuestions();
 
   }catch(error){
 
     console.error(
-      "WORD IMPORT ERROR:",
+      "PROCESS QUESTIONS ERROR:",
       error
     );
 
     alert(
-      "❌ حدث خطأ أثناء استيراد ملف Word:\n" +
+      "❌ حدث خطأ أثناء استيراد الأسئلة:\n" +
       (
         error?.message ||
         String(error)
