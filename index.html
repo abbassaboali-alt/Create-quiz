@@ -3305,45 +3305,181 @@ async function saveLinkedCourseSkill(
   questionId,
   courseId,
   skill,
-  groupName
+  groupName,
+  selectElement = null
 ){
 
-  const examId = CURRENT_PREVIEW_EXAM;
+  const examId =
+    CURRENT_PREVIEW_EXAM;
 
-  if(!examId) return;
+  if(!examId){
 
-  const examRef =
-    db.collection("exams").doc(examId);
+    alert("Choose the exam first");
 
-  const examDoc =
-    await examRef.get();
+    if(selectElement){
+      selectElement.value =
+        selectElement.dataset.oldValue || "";
+    }
 
-  if(!examDoc.exists) return;
-
-  const examData =
-    examDoc.data() || {};
-
-  const map =
-    examData.groupSkillsByCourse || {};
-
-  // ✅ إنشاء الدورة
-  if(!map[courseId]){
-    map[courseId] = {};
+    return;
   }
 
-  // ✅ حفظ المهارة باسم الجروب الحقيقي
-  map[courseId][groupName] = skill;
+  try{
 
-  await examRef.update({
-    groupSkillsByCourse: map
-  });
+    // ======================================
+    // 🔒 فحص أسئلة الدورة المرتبطة
+    // ======================================
 
-  console.log(
-    "✅ saved",
-    courseId,
-    groupName,
-    skill
-  );
+    const qSnap =
+      await db.collection("questions")
+        .where("examId", "==", examId)
+        .get();
+
+    const hasLockedQuestion =
+      qSnap.docs.some(doc => {
+
+        const q =
+          doc.data() || {};
+
+        const questionGroup =
+          String(q.group || "General").trim();
+
+        if(
+          questionGroup !==
+          String(groupName || "General").trim()
+        ){
+          return false;
+        }
+
+        if(q.locked !== true){
+          return false;
+        }
+
+        const used =
+          Array.isArray(q.coursesUsed)
+            ? q.coursesUsed
+            : [];
+
+        return used.some(c =>
+
+          String(c.courseId || "").trim() ===
+          String(courseId || "").trim()
+
+        );
+
+      });
+
+    if(hasLockedQuestion){
+
+      alert(
+        "🔒 لا يمكن تعديل المهارة لأن الدورة تحتوي على سؤال مقفل داخل هذه المجموعة"
+      );
+
+      if(selectElement){
+
+        selectElement.value =
+          selectElement.dataset.oldValue || "";
+
+      }
+
+      await loadQuestions();
+
+      return;
+    }
+
+    // ======================================
+    // ✅ حفظ المهارة
+    // ======================================
+
+    const examRef =
+      db.collection("exams").doc(examId);
+
+    const examDoc =
+      await examRef.get();
+
+    if(!examDoc.exists){
+
+      alert("Exam not found");
+
+      if(selectElement){
+        selectElement.value =
+          selectElement.dataset.oldValue || "";
+      }
+
+      return;
+    }
+
+    const examData =
+      examDoc.data() || {};
+
+const map =
+  examData.groupSkillsByCourse || {};
+
+const targetCourseId =
+  courseId || CURRENT_COURSE_ID;
+
+if(!targetCourseId){
+
+  alert("Choose the course first");
+
+  if(selectElement){
+    selectElement.value =
+      selectElement.dataset.oldValue || "";
+  }
+
+  return;
+}
+
+if(!map[targetCourseId]){
+  map[targetCourseId] = {};
+}
+
+map[targetCourseId][groupName] =
+  skill || "";
+
+    await examRef.update({
+
+      groupSkillsByCourse: map,
+
+      updatedAt:
+        firebase.firestore.FieldValue.serverTimestamp()
+
+    });
+
+    if(selectElement){
+
+      selectElement.dataset.oldValue =
+        skill || "";
+
+    }
+
+    await loadQuestions();
+
+    showSkillSavedToast(skill);
+
+  }catch(err){
+
+    console.error(
+      "SAVE LINKED SKILL ERROR:",
+      err
+    );
+
+    alert(
+      "❌ فشل حفظ المهارة: " +
+      (
+        err?.message ||
+        String(err)
+      )
+    );
+
+    if(selectElement){
+
+      selectElement.value =
+        selectElement.dataset.oldValue || "";
+
+    }
+
+  }
 
 }
 async function toggleLinkedCourseQuestions(courseId, show){
@@ -3919,7 +4055,15 @@ linkedCoursesStats[cid]
       const allChecked = groupQuestions.every(q =>
         visibleQuestions.includes(q.id)
       );
+// ======================================
+// 🔒 هل يوجد سؤال مقفل داخل هذه المجموعة؟
+// إذا كان سؤال واحد مقفلاً، تمنع المهارة كلها
+// ======================================
 
+const groupHasLockedQuestion =
+  groupQuestions.some(q =>
+    q.locked === true
+  );
       const currentSkill = groupSkills[groupName] || "";
 const baseSkill =
   groupSkillsByCourse?.[CURRENT_COURSE_ID]?.[groupName] || "";
@@ -4035,21 +4179,64 @@ questionsList.innerHTML += `
 <div style="width:100%;margin-bottom:12px">
 
   <select
-    onchange="
-      saveGroupSkill(
-        '${encodedGroup}',
-        this.value,
-        '${CURRENT_COURSE_ID}'
-      )
-    "
-    style="
-      width:100%;
-      padding:12px;
-      border-radius:12px;
-      border:2px solid #164478;
-      font-weight:900;
-    "
-  >
+
+  id="groupSkill_${encodedGroup}"
+
+  data-old-value="${esc(baseSkill)}"
+
+  ${
+    groupHasLockedQuestion
+      ? "disabled"
+      : ""
+  }
+
+  onchange="
+    saveGroupSkill(
+      '${encodedGroup}',
+      this.value,
+      '${CURRENT_COURSE_ID}',
+      this
+    )
+  "
+
+  style="
+    width:100%;
+    padding:12px;
+    border-radius:12px;
+
+    border:2px solid ${
+      groupHasLockedQuestion
+        ? '#991b1b'
+        : '#164478'
+    };
+
+    background:${
+      groupHasLockedQuestion
+        ? '#fee2e2'
+        : '#ffffff'
+    };
+
+    color:${
+      groupHasLockedQuestion
+        ? '#991b1b'
+        : '#164478'
+    };
+
+    cursor:${
+      groupHasLockedQuestion
+        ? 'not-allowed'
+        : 'pointer'
+    };
+
+    opacity:${
+      groupHasLockedQuestion
+        ? '.80'
+        : '1'
+    };
+
+    font-weight:900;
+  "
+>
     <option value="" ${baseSkill==="" ? "selected" : ""}>No Skill</option>
     <option value="Listening" ${baseSkill==="Listening" ? "selected" : ""}>Listening</option>
     <option value="Speaking" ${baseSkill==="Speaking" ? "selected" : ""}>Speaking</option>
@@ -4178,87 +4365,205 @@ ${(()=>{
 
   const linkedSkill =
     groupSkillsByCourse?.[c.courseId]?.[realGroupName] || "";
+// ======================================
+// 🔒 فحص الأسئلة المقفلة التابعة لهذه
+// الدورة المرتبطة وهذه المجموعة
+// ======================================
 
+const linkedGroupHasLockedQuestion =
+  groupQuestions.some(q => {
+
+    if(q.locked !== true){
+      return false;
+    }
+
+    const used =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    return used.some(item =>
+
+      String(item.courseId || "").trim() ===
+      String(c.courseId || "").trim()
+
+    );
+
+  });
   return `
 
-    <select
-      onchange="
-        saveLinkedCourseSkill(
-          '',
-          '${c.courseId}',
-          this.value,
-          '${realGroupName}'
-        )
-      "
-      style="
-        width:100%;
-        padding:12px;
-        border-radius:12px;
-        border:2px solid #164478;
-        font-weight:900;
-        margin-top:10px;
+   <select
+
+  data-old-value="${esc(linkedSkill)}"
+
+  ${
+    linkedGroupHasLockedQuestion
+      ? "disabled"
+      : ""
+  }
+
+  onchange="
+    saveLinkedCourseSkill(
+      '',
+      '${c.courseId}',
+      this.value,
+      '${realGroupName}',
+      this
+    )
+  "
+
+  style="
+    width:100%;
+    padding:12px;
+    border-radius:12px;
+
+    border:2px solid ${
+      linkedGroupHasLockedQuestion
+        ? '#991b1b'
+        : '#164478'
+    };
+
+    background:${
+      linkedGroupHasLockedQuestion
+        ? '#fee2e2'
+        : '#ffffff'
+    };
+
+    color:${
+      linkedGroupHasLockedQuestion
+        ? '#991b1b'
+        : '#164478'
+    };
+
+    cursor:${
+      linkedGroupHasLockedQuestion
+        ? 'not-allowed'
+        : 'pointer'
+    };
+
+    opacity:${
+      linkedGroupHasLockedQuestion
+        ? '.80'
+        : '1'
+    };
+
+    font-weight:900;
+    margin-top:10px;
+    margin-bottom:12px;
+  "
+>
+
+  <option value="" ${linkedSkill === "" ? "selected" : ""}>
+    No Skill
+  </option>
+
+  <option value="Listening" ${linkedSkill === "Listening" ? "selected" : ""}>
+    Listening
+  </option>
+
+  <option value="Speaking" ${linkedSkill === "Speaking" ? "selected" : ""}>
+    Speaking
+  </option>
+
+  <option value="Reading" ${linkedSkill === "Reading" ? "selected" : ""}>
+    Reading
+  </option>
+
+  <option value="Writing" ${linkedSkill === "Writing" ? "selected" : ""}>
+    Writing
+  </option>
+
+  <option value="Grammar" ${linkedSkill === "Grammar" ? "selected" : ""}>
+    Grammar
+  </option>
+
+  <option value="Vocabulary" ${linkedSkill === "Vocabulary" ? "selected" : ""}>
+    Vocabulary
+  </option>
+
+  <option value="Homework" ${linkedSkill === "Homework" ? "selected" : ""}>
+    Homework
+  </option>
+
+</select>
+
+${
+  linkedGroupHasLockedQuestion
+    ? `
+      <div style="
+        margin-top:-5px;
         margin-bottom:12px;
-      "
-    >
+        padding:8px 10px;
+        border-radius:10px;
+        background:#fee2e2;
+        border:1px solid #fecaca;
+        color:#991b1b;
+        text-align:center;
+        font-weight:900;
+        font-size:13px;
+      ">
+        🔒 Skill cannot be changed because this group contains a locked question
+      </div>
+    `
+    : ""
+}
 
-      <option value="" ${linkedSkill==="" ? "selected" : ""}>No Skill</option>
-      <option value="Listening" ${linkedSkill==="Listening" ? "selected" : ""}>Listening</option>
-      <option value="Speaking" ${linkedSkill==="Speaking" ? "selected" : ""}>Speaking</option>
-      <option value="Reading" ${linkedSkill==="Reading" ? "selected" : ""}>Reading</option>
-      <option value="Writing" ${linkedSkill==="Writing" ? "selected" : ""}>Writing</option>
-      <option value="Grammar" ${linkedSkill==="Grammar" ? "selected" : ""}>Grammar</option>
-      <option value="Vocabulary" ${linkedSkill==="Vocabulary" ? "selected" : ""}>Vocabulary</option>
-      <option value="Homework" ${linkedSkill==="Homework" ? "selected" : ""}>Homework</option>
-
-    </select>
-
-  `;
+`;
 
 })()}
-          <button
-            onclick="toggleLinkedCourseQuestions('${c.courseId}', ${!linkedVisible})"
-            style="
-              background:${linkedVisible ? '#dc2626' : '#16a34a'};
-              color:#fff;
-              border:none;
-              border-radius:12px;
-              padding:11px;
-              font-weight:900;
-              cursor:pointer;
-              width:100%;
-              margin-bottom:12px;
-            "
-          >
-            ${linkedVisible ? '□ Hide From Students' : '□️ Show To Students'}
-          </button>
 
-          <div style="
-            display:grid;
-            grid-template-columns:repeat(2,1fr);
-            gap:8px;
-          ">
+<button
+  onclick="toggleLinkedCourseQuestions('${c.courseId}', ${!linkedVisible})"
+  style="
+    background:${linkedVisible ? '#dc2626' : '#16a34a'};
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:11px;
+    font-weight:900;
+    cursor:pointer;
+    width:100%;
+    margin-bottom:12px;
+  "
+>
+  ${linkedVisible ? '□ Hide From Students' : '□️ Show To Students'}
+</button>
 
-            <div class="skill-box">
-              Listening<br>
-              <span style="font-size:22px">${Number(c.skills?.Listening || 0)}</span>
-            </div>
+<div style="
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+">
 
-            <div class="skill-box">
-              Homework<br>
-              <span style="font-size:22px">${Number(c.skills?.Homework || 0)}</span>
-            </div>
+  <div class="skill-box">
+    Listening<br>
+    <span style="font-size:22px">
+      ${Number(c.skills?.Listening || 0)}
+    </span>
+  </div>
 
-            <div class="skill-box">
-              Grammar ✍️<br>
-              <span style="font-size:22px">${Number(c.skills?.Grammar || 0)}</span>
-            </div>
+  <div class="skill-box">
+    Homework<br>
+    <span style="font-size:22px">
+      ${Number(c.skills?.Homework || 0)}
+    </span>
+  </div>
 
-            <div class="skill-box">
-              Reading<br>
-              <span style="font-size:22px">${Number(c.skills?.Reading || 0)}</span>
-            </div>
+  <div class="skill-box">
+    Grammar ✍️<br>
+    <span style="font-size:22px">
+      ${Number(c.skills?.Grammar || 0)}
+    </span>
+  </div>
 
-          </div>
+  <div class="skill-box">
+    Reading<br>
+    <span style="font-size:22px">
+      ${Number(c.skills?.Reading || 0)}
+    </span>
+  </div>
+
+</div>
 
         </div>
 
@@ -4774,49 +5079,233 @@ function toggleWholeGroup(groupName, checked){
   syncGroupCheck(groupName);
 }
 async function saveGroupSkill(
-  groupName,
+  encodedGroup,
   skill,
-  courseId
+  courseId,
+  selectElement = null
 ){
 
-  const examId = CURRENT_PREVIEW_EXAM;
+  const examId =
+    CURRENT_PREVIEW_EXAM;
 
-  if(!examId) return;
+  if(!examId){
 
-  const examRef =
-    db.collection("exams").doc(examId);
+    alert("Choose the exam first");
 
-  const examDoc =
-    await examRef.get();
+    if(selectElement){
+      selectElement.value =
+        selectElement.dataset.oldValue || "";
+    }
 
-  const examData =
-    examDoc.data() || {};
-
-  const map =
-    examData.groupSkillsByCourse || {};
-
-  const targetCourseId =
-    courseId || CURRENT_COURSE_ID;
-
-  if(!map[targetCourseId]){
-    map[targetCourseId] = {};
+    return;
   }
 
-  map[targetCourseId][decodeURIComponent(groupName)] =
-    skill;
+  const groupName =
+    decodeURIComponent(encodedGroup || "");
 
-  await examRef.update({
-    groupSkillsByCourse: map
-  });
-await loadQuestions();
+  if(!groupName){
 
-  console.log(
-    "✅ saved",
-    targetCourseId,
-    skill
-  );
+    alert("Group not found");
 
-}function syncSortBottom(val){
+    if(selectElement){
+      selectElement.value =
+        selectElement.dataset.oldValue || "";
+    }
+
+    return;
+  }
+
+  try{
+
+    // ======================================
+    // 🔒 جلب جميع أسئلة المجموعة
+    // ======================================
+
+    const qSnap =
+      await db.collection("questions")
+        .where("examId", "==", examId)
+        .get();
+
+    const groupHasLockedQuestion =
+      qSnap.docs.some(doc => {
+
+        const q =
+          doc.data() || {};
+
+        const questionGroup =
+          String(q.group || "General").trim();
+
+        return (
+          questionGroup ===
+            String(groupName).trim()
+          &&
+          q.locked === true
+        );
+
+      });
+
+    // ======================================
+    // ❌ منع تغيير المهارة
+    // ======================================
+
+    if(groupHasLockedQuestion){
+
+      alert(
+        "🔒 لا يمكن تعديل المهارة لأن المجموعة تحتوي على سؤال مقفل"
+      );
+
+      if(selectElement){
+
+        selectElement.value =
+          selectElement.dataset.oldValue || "";
+
+      }
+
+      await loadQuestions();
+
+      return;
+    }
+
+    // ======================================
+    // ✅ جلب الاختبار
+    // ======================================
+
+    const examRef =
+      db.collection("exams").doc(examId);
+
+    const examDoc =
+      await examRef.get();
+
+    if(!examDoc.exists){
+
+      alert("Exam not found");
+
+      if(selectElement){
+        selectElement.value =
+          selectElement.dataset.oldValue || "";
+      }
+
+      return;
+    }
+
+    const examData =
+      examDoc.data() || {};
+
+    const map =
+      examData.groupSkillsByCourse || {};
+
+const targetCourseId =
+  courseId || CURRENT_COURSE_ID;
+
+if(!targetCourseId){
+
+  alert("Choose the course first");
+
+  if(selectElement){
+    selectElement.value =
+      selectElement.dataset.oldValue || "";
+  }
+
+  return;
+}
+
+if(!map[targetCourseId]){
+  map[targetCourseId] = {};
+}
+
+map[targetCourseId][groupName] =
+  skill || "";
+
+    await examRef.update({
+      groupSkillsByCourse: map,
+      updatedAt:
+        firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // حفظ القيمة الجديدة كقيمة أصلية
+    if(selectElement){
+
+      selectElement.dataset.oldValue =
+        skill || "";
+
+    }
+
+    await loadQuestions();
+
+    showSkillSavedToast(skill);
+
+  }catch(err){
+
+    console.error(
+      "SAVE GROUP SKILL ERROR:",
+      err
+    );
+
+    alert(
+      "❌ فشل حفظ المهارة: " +
+      (
+        err?.message ||
+        String(err)
+      )
+    );
+
+    if(selectElement){
+
+      selectElement.value =
+        selectElement.dataset.oldValue || "";
+
+    }
+
+  }
+
+}
+function showSkillSavedToast(skill){
+
+  const oldToast =
+    document.getElementById(
+      "skillSavedToast"
+    );
+
+  if(oldToast){
+    oldToast.remove();
+  }
+
+  const toast =
+    document.createElement("div");
+
+  toast.id =
+    "skillSavedToast";
+
+  toast.innerHTML = `
+    ✅ Skill Saved:
+    <b>${esc(skill || "No Skill")}</b>
+  `;
+
+  toast.style.cssText = `
+    position:fixed;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#16a34a;
+    color:#fff;
+    padding:14px 22px;
+    border-radius:16px;
+    font-weight:900;
+    z-index:999999;
+    box-shadow:0 10px 25px rgba(0,0,0,.18);
+    font-size:15px;
+  `;
+
+  document.body.appendChild(toast);
+
+  setTimeout(()=>{
+
+    toast.remove();
+
+  },2000);
+
+}
+function syncSortBottom(val){
   const topSort = document.getElementById("examSortTop");
   if(topSort) topSort.value = val;
 
@@ -6507,76 +6996,7 @@ init();
 </html>
 <script>
 
-async function saveLinkedCourseSkill(
-  questionId,
-  courseId,
-  skill,
-  groupName
-){
 
-  const examId = CURRENT_PREVIEW_EXAM;
-
-  if(!examId) return;
-
-  const examRef =
-    db.collection("exams").doc(examId);
-
-  const examDoc =
-    await examRef.get();
-
-  if(!examDoc.exists) return;
-
-  const examData =
-    examDoc.data() || {};
-
-  const map =
-    examData.groupSkillsByCourse || {};
-
-  // ✅ إنشاء الدورة إذا غير موجودة
-  if(!map[courseId]){
-    map[courseId] = {};
-  }
-
-  // ✅ حفظ المهارة
-  map[courseId][groupName] = skill;
-
-  // ✅ حفظ مباشر
-  await examRef.update({
-    groupSkillsByCourse: map
-  });
-await loadQuestions();
-
-  // ✅ إشعار جميل
-  const toast = document.createElement("div");
-
-  toast.innerHTML = `
-    ✅ Skill Saved:
-    <b>${skill || "No Skill"}</b>
-  `;
-
-  toast.style.cssText = `
-    position:fixed;
-    top:20px;
-    left:50%;
-    transform:translateX(-50%);
-    background:#16a34a;
-    color:#fff;
-    padding:14px 22px;
-    border-radius:16px;
-    font-weight:900;
-    z-index:999999;
-    box-shadow:0 10px 25px rgba(0,0,0,.18);
-    font-size:15px;
-    animation:fadeIn .25s ease;
-  `;
-
-  document.body.appendChild(toast);
-
-  setTimeout(()=>{
-    toast.remove();
-  },2000);
-
-}
 // ✅ إعادة الاختبار لطالب واحد للدورة المرتبطة
 async function resetLinkedCourseOne(
   questionId,
