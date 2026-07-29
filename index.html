@@ -1248,6 +1248,29 @@ button:hover{
     border-radius:1mm !important;
   }
 
+  .modal-q-card .print-match-image{
+    display:block !important;
+    visibility:visible !important;
+    opacity:1 !important;
+    width:auto !important;
+    max-width:70mm !important;
+    height:auto !important;
+    max-height:48mm !important;
+    object-fit:contain !important;
+    margin:0 auto !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  .modal-q-card .print-match-image-bank{
+    display:grid !important;
+    visibility:visible !important;
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:5mm !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
   .modal-q-card video,
   .modal-q-card audio,
   .modal-q-card button,
@@ -9643,51 +9666,184 @@ async function openFullQuestions(examId){
 
           ${
             q.type === "match" && Array.isArray(q.correct)
-            ? q.correct.map((pair,i)=>{
+            ? (()=>{
 
-                const imageUrl =
-                  String(
-                    pair.mediaUrl ||
-                    pair.imageUrl ||
-                    pair.image ||
-                    ""
-                  ).trim();
+                const pairs =
+                  q.correct || [];
+
+                const imagePairs =
+                  pairs.filter(pair =>
+                    Boolean(
+                      String(
+                        pair.mediaUrl ||
+                        pair.imageUrl ||
+                        pair.image ||
+                        ""
+                      ).trim()
+                    )
+                  );
+
+                const textPairs =
+                  pairs.filter(pair =>
+                    !String(
+                      pair.mediaUrl ||
+                      pair.imageUrl ||
+                      pair.image ||
+                      ""
+                    ).trim()
+                  );
 
                 return `
-                  <div
-                    class="question-option"
-                    style="
-                      direction:ltr;
-                      text-align:left;
-                      margin-bottom:10px;
-                    ">
 
-                    ${i+1}. ${esc(pair.left)}
+                  <div class="question-only">
 
-                    <span class="question-only">
-                      ________________________________
-                    </span>
+                    ${pairs.map((pair,i)=>`
+                      <div
+                        class="question-option"
+                        style="
+                          direction:ltr;
+                          text-align:left;
+                          margin-bottom:7px;
+                        ">
+                        ${i+1}. ${esc(pair.left || "")}
+                        ________________________________
+                      </div>
+                    `).join("")}
 
-                    <span class="answer-only">
-                      ${
-                        imageUrl
-                          ? `
-                            <br>
-                            <img
-                              src="${esc(imageUrl)}"
-                              style="
-                                max-width:55mm;
-                                max-height:38mm;
-                                object-fit:contain;
-                                margin:3mm 0 0;
-                              ">
-                          `
-                          : ` = ${esc(pair.right || "")}`
-                      }
-                    </span>
+                    ${
+                      imagePairs.length
+                        ? `
+                          <div
+                            class="print-match-image-bank"
+                            style="
+                              display:grid;
+                              grid-template-columns:repeat(2,1fr);
+                              gap:5mm;
+                              margin-top:5mm;
+                              break-inside:avoid-page;
+                            ">
+
+                            ${imagePairs.map((pair,i)=>{
+
+                              const imageUrl =
+                                String(
+                                  pair.mediaUrl ||
+                                  pair.imageUrl ||
+                                  pair.image ||
+                                  ""
+                                ).trim();
+
+                              return `
+                                <div
+                                  style="
+                                    border:1px solid #9ca3af;
+                                    border-radius:2mm;
+                                    padding:3mm;
+                                    text-align:center;
+                                    break-inside:avoid-page;
+                                  ">
+
+                                  <div
+                                    style="
+                                      margin-bottom:2mm;
+                                      font-weight:900;
+                                      font-size:10pt;
+                                    ">
+                                    ${String.fromCharCode(65+i)}
+                                  </div>
+
+                                  <img
+                                    class="print-match-image"
+                                    src="${esc(imageUrl)}"
+                                    crossorigin="anonymous"
+                                    alt="Matching option ${i+1}"
+                                    style="
+                                      display:block;
+                                      width:auto;
+                                      max-width:70mm;
+                                      height:auto;
+                                      max-height:48mm;
+                                      object-fit:contain;
+                                      margin:0 auto;
+                                    ">
+                                </div>
+                              `;
+                            }).join("")}
+                          </div>
+                        `
+                        : ""
+                    }
+
+                    ${
+                      textPairs.length
+                        ? `
+                          <div style="margin-top:4mm">
+                            ${textPairs.map((pair,i)=>`
+                              <div class="question-option">
+                                ${String.fromCharCode(65+i)}.
+                                ${esc(pair.right || "")}
+                              </div>
+                            `).join("")}
+                          </div>
+                        `
+                        : ""
+                    }
+                  </div>
+
+                  <div class="answer-only answer-key-box">
+
+                    ${pairs.map((pair,i)=>{
+
+                      const imageUrl =
+                        String(
+                          pair.mediaUrl ||
+                          pair.imageUrl ||
+                          pair.image ||
+                          ""
+                        ).trim();
+
+                      return `
+                        <div
+                          class="question-option correct-answer"
+                          style="
+                            direction:ltr;
+                            text-align:left;
+                            margin-bottom:4mm;
+                            break-inside:avoid-page;
+                          ">
+
+                          <strong>
+                            ${i+1}. ${esc(pair.left || "")}
+                          </strong>
+
+                          ${
+                            imageUrl
+                              ? `
+                                <img
+                                  class="print-match-image"
+                                  src="${esc(imageUrl)}"
+                                  crossorigin="anonymous"
+                                  alt="Correct matching image"
+                                  style="
+                                    display:block;
+                                    width:auto;
+                                    max-width:65mm;
+                                    height:auto;
+                                    max-height:42mm;
+                                    object-fit:contain;
+                                    margin:3mm 0 0;
+                                  ">
+                              `
+                              : `
+                                = ${esc(pair.right || "")}
+                              `
+                          }
+                        </div>
+                      `;
+                    }).join("")}
                   </div>
                 `;
-              }).join("")
+              })()
 
             : q.type === "text"
             ? `
@@ -9775,7 +9931,60 @@ async function openFullQuestions(examId){
   }
 }
 
-function printQuestionsPDF(mode = "questions"){
+async function waitForPrintImages(){
+
+  const images = [
+    ...document.querySelectorAll(
+      "#questionsModal img"
+    )
+  ];
+
+  if(!images.length){
+    return;
+  }
+
+  await Promise.all(
+    images.map(img =>
+      new Promise(resolve=>{
+
+        if(
+          img.complete &&
+          img.naturalWidth > 0
+        ){
+          resolve();
+          return;
+        }
+
+        const finish = ()=>{
+          resolve();
+        };
+
+        img.addEventListener(
+          "load",
+          finish,
+          {
+            once:true
+          }
+        );
+
+        img.addEventListener(
+          "error",
+          finish,
+          {
+            once:true
+          }
+        );
+
+        setTimeout(
+          finish,
+          5000
+        );
+      })
+    )
+  );
+}
+
+async function printQuestionsPDF(mode = "questions"){
 
   const modal = document.getElementById("questionsModal");
   const questionsWrap = document.getElementById("modalQuestionsWrap");
@@ -9827,9 +10036,15 @@ function printQuestionsPDF(mode = "questions"){
 
   window.addEventListener("afterprint", cleanup, { once:true });
 
+  await waitForPrintImages();
+
+  /*
+    Give the browser a short moment to finish layout
+    after all Cloudinary/URL images are loaded.
+  */
   setTimeout(()=>{
     window.print();
-  },350);
+  },500);
 }
 
 function closeQuestionsModal(){
