@@ -1333,6 +1333,34 @@ button:hover{
   body.print-answers .answer-only{display:block !important}
   body.print-answers .question-only{display:none !important}
 }
+
+/* =========================================
+   QUESTION ORDER + COPY MANAGER
+========================================= */
+.question-management-toolbar{
+  display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;
+  padding:12px;border:1px solid #cfe0ef;border-radius:16px;
+  background:#f8fbff;
+}
+.question-management-toolbar button{flex:1;min-width:190px;margin:0}
+.pro-question-card[draggable="true"]{cursor:grab}
+.pro-question-card.question-dragging{opacity:.45;transform:scale(.98)}
+.pro-question-card.question-drag-over{outline:4px solid rgba(14,165,233,.28);outline-offset:3px}
+.question-drag-handle{font-size:20px;cursor:grab;user-select:none;padding:4px 9px;border-radius:10px;background:rgba(255,255,255,.18)}
+.question-order-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.question-order-actions button{width:auto!important;margin:0!important;padding:7px 11px!important;font-size:12px!important;background:rgba(255,255,255,.17)!important;border:1px solid rgba(255,255,255,.35)!important}
+.copy-bank-modal{position:fixed;inset:0;background:rgba(15,23,42,.72);display:none;align-items:center;justify-content:center;z-index:100000;padding:18px}
+.copy-bank-modal.show{display:flex}
+.copy-bank-box{width:min(1050px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.copy-bank-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.copy-bank-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:15px}
+.copy-bank-question{border:1px solid #dbeafe;border-radius:16px;padding:13px;background:#f8fbff}
+.copy-bank-question label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-weight:800}
+.copy-bank-question input[type="checkbox"]{width:20px;height:20px;margin:3px 0 0;flex:0 0 auto}
+.copy-bank-footer{position:sticky;bottom:0;display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding:12px;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border:1px solid #dbeafe;border-radius:16px}
+.copy-bank-footer button{flex:1;min-width:180px;margin:0}
+@media(max-width:700px){.question-order-actions{width:100%}.question-order-actions button{flex:1}.copy-bank-grid{grid-template-columns:1fr}}
+
 </style>
 
 </head>
@@ -1872,6 +1900,36 @@ button:hover{
 
 </div>
 
+
+<!-- Question Copy Bank Modal -->
+<div id="questionCopyBankModal" class="copy-bank-modal" onclick="closeQuestionCopyBank(event)">
+  <div class="copy-bank-box" onclick="event.stopPropagation()">
+    <div class="copy-bank-head">
+      <div>
+        <div style="font-size:23px;font-weight:900;color:#164478">Copy Questions From Previous Exams</div>
+        <div class="small">Select one or more questions, then copy them to the currently opened exam.</div>
+      </div>
+      <button type="button" onclick="closeQuestionCopyBank()" style="width:auto;margin:0;background:#ef4444">✕ Close</button>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <select id="copyBankExamFilter" onchange="renderQuestionCopyBank()">
+        <option value="">All Exams</option>
+      </select>
+      <input id="copyBankSearch" placeholder="Search question, exam or group..." oninput="renderQuestionCopyBank()">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <button type="button" onclick="toggleAllCopyBankQuestions(true)" style="width:auto;background:#16a34a">Select All Visible</button>
+      <button type="button" onclick="toggleAllCopyBankQuestions(false)" style="width:auto;background:#64748b">Clear Selection</button>
+    </div>
+    <div id="questionCopyBankCount" class="note">0 questions selected</div>
+    <div id="questionCopyBankList" class="copy-bank-grid"></div>
+    <div class="copy-bank-footer">
+      <button type="button" onclick="copySelectedBankQuestions()" style="background:#17a673">Copy Selected To My Exam</button>
+      <button type="button" onclick="closeQuestionCopyBank()" style="background:#64748b">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 firebase.initializeApp({
    apiKey:"AIzaSyCCFBvZosI8dwShZjxvZzI-SU5igEbcOKk",
@@ -1964,7 +2022,7 @@ function esc(str){
 
     // تنظيف الرموز الغريبة فقط
     .replace(/□/g, "")
-    .replace(/�/g, "")
+    .replace(/ /g, "")
 
     // حماية HTML
     .replaceAll("&","&amp;")
@@ -5194,6 +5252,17 @@ async function loadQuestions(){
       `;
 
     }
+questionsList.innerHTML += `
+  <div class="question-management-toolbar">
+    <button type="button" onclick="openQuestionCopyBank()" style="background:#8b5cf6">
+      <i class="fa-solid fa-copy"></i> Copy From Previous Exams
+    </button>
+    <button type="button" onclick="normalizeCurrentQuestionOrder()" style="background:#0ea5e9">
+      <i class="fa-solid fa-arrow-down-1-9"></i> Renumber Questions
+    </button>
+  </div>
+`;
+
 const snap =
   await db.collection("questions")
     .where("examId","==",selectedExamId)
@@ -5271,9 +5340,17 @@ questionsList.innerHTML += `
 
 `;
 
-questions.sort((a,b)=>
-  Number(a.order || 0) -
-  Number(b.order || 0)
+questions.sort((a,b)=>{
+  const ao = Number(a.order || 0);
+  const bo = Number(b.order || 0);
+  if(ao !== bo) return ao - bo;
+  const at = a.createdAt?.seconds || 0;
+  const bt = b.createdAt?.seconds || 0;
+  return at - bt;
+});
+
+const questionNumberMap = new Map(
+  questions.map((item, idx) => [item.id, idx + 1])
 );
 
 const homeworkCount =
@@ -6113,15 +6190,24 @@ ${
 
 questionsList.innerHTML += `
 
-<div class="pro-question-card">
+<div class="pro-question-card"
+  draggable="true"
+  data-question-id="${q.id}"
+  data-question-order="${Number(q.order || 0)}"
+>
 
   <div class="pro-question-head">
 
-    <div style="font-weight:900">
-      Question ${index + 1}
+    <div style="font-weight:900;display:flex;align-items:center;gap:9px">
+      <span class="question-drag-handle" title="Drag to move">☰</span>
+      Question ${questionNumberMap.get(q.id) || (index + 1)}
     </div>
 
-<div></div>
+    <div class="question-order-actions">
+      <button type="button" onclick="event.stopPropagation();moveQuestionByStep('${q.id}',-1)" title="Move up">⬆ Up</button>
+      <button type="button" onclick="event.stopPropagation();moveQuestionByStep('${q.id}',1)" title="Move down">⬇ Down</button>
+      <button type="button" onclick="event.stopPropagation();duplicateQuestion('${q.id}')" title="Copy this question">📄 Copy</button>
+    </div>
 
   </div>
 
@@ -6494,6 +6580,8 @@ questionsList.innerHTML += `
 
 });
     });
+
+    initializeQuestionDragDrop();
 
   }catch(err){
     console.error(err);
@@ -8782,6 +8870,250 @@ async function init(){
   await loadExamBank(); // □ مهم جدًا
   toggleQuestionType();
 }
+
+/* =========================================
+   QUESTION ORDER / DRAG / COPY FUNCTIONS
+========================================= */
+let QUESTION_DRAG_ID = "";
+let QUESTION_COPY_BANK = [];
+
+function cleanQuestionForCopy(source, targetExamId, orderValue){
+  const q = source || {};
+  const copy = {
+    examId: targetExamId,
+    question: q.question || "",
+    passage: q.passage || "",
+    options: Array.isArray(q.options) ? JSON.parse(JSON.stringify(q.options)) : [],
+    correct: Array.isArray(q.correct) ? [...q.correct] : (q.correct ?? ""),
+    degree: Number(q.degree || 1),
+    type: q.type || "mcq",
+    mediaType: q.mediaType || "none",
+    mediaUrl: q.mediaUrl || "",
+    group: q.group || "General",
+    showMedia: q.showMedia !== false,
+    order: Number(orderValue || 0),
+    isMain: q.isMain === true,
+    locked: false,
+    createdBy: CURRENT_USER || "",
+    copiedFromQuestionId: q.id || "",
+    copiedFromExamId: q.examId || "",
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(Array.isArray(q.matchingPairs)) copy.matchingPairs = JSON.parse(JSON.stringify(q.matchingPairs));
+  if(Array.isArray(q.pairs)) copy.pairs = JSON.parse(JSON.stringify(q.pairs));
+  if(Array.isArray(q.answers)) copy.answers = JSON.parse(JSON.stringify(q.answers));
+
+  // The copied question belongs to the currently selected course context.
+  if(CURRENT_COURSE_ID){
+    copy.coursesUsed = [{
+      courseId: CURRENT_COURSE_ID,
+      TrainingCourse: CURRENT_COURSE_NAME || "",
+      Trainer: CURRENT_TRAINER || "",
+      Period: CURRENT_PERIOD || ""
+    }];
+  }else{
+    copy.coursesUsed = Array.isArray(q.coursesUsed)
+      ? JSON.parse(JSON.stringify(q.coursesUsed))
+      : [];
+  }
+
+  return copy;
+}
+
+async function getCurrentExamQuestionsOrdered(){
+  if(!CURRENT_PREVIEW_EXAM) return [];
+  const snap = await db.collection("questions")
+    .where("examId","==",CURRENT_PREVIEW_EXAM)
+    .get();
+  return snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>{
+    const diff = Number(a.order || 0) - Number(b.order || 0);
+    if(diff) return diff;
+    return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+  });
+}
+
+async function saveQuestionOrderByIds(ids){
+  if(!Array.isArray(ids) || !ids.length) return;
+  const chunks = [];
+  for(let i=0;i<ids.length;i+=450) chunks.push(ids.slice(i,i+450));
+  let offset = 0;
+  for(const part of chunks){
+    const batch = db.batch();
+    part.forEach((id,index)=>{
+      batch.update(db.collection("questions").doc(id),{
+        order: offset + index + 1,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    offset += part.length;
+  }
+}
+
+async function normalizeCurrentQuestionOrder(showMessage=true){
+  if(!CURRENT_PREVIEW_EXAM) return alert("اختر الاختبار أولاً");
+  const items = await getCurrentExamQuestionsOrdered();
+  await saveQuestionOrderByIds(items.map(q=>q.id));
+  await loadQuestions();
+  if(showMessage) alert("✅ تم تحديث ترتيب وترقيم جميع الأسئلة تلقائياً");
+}
+
+async function moveQuestionByStep(questionId, direction){
+  const items = await getCurrentExamQuestionsOrdered();
+  const index = items.findIndex(q=>q.id===questionId);
+  if(index < 0) return;
+  const target = index + Number(direction || 0);
+  if(target < 0 || target >= items.length) return;
+  [items[index],items[target]] = [items[target],items[index]];
+  await saveQuestionOrderByIds(items.map(q=>q.id));
+  await loadQuestions();
+  requestAnimationFrame(()=>document.querySelector(`[data-question-id="${questionId}"]`)?.scrollIntoView({behavior:"smooth",block:"center"}));
+}
+
+function initializeQuestionDragDrop(){
+  const cards = [...document.querySelectorAll("#questionsList .pro-question-card[data-question-id]")];
+  cards.forEach(card=>{
+    card.addEventListener("dragstart", e=>{
+      QUESTION_DRAG_ID = card.dataset.questionId || "";
+      card.classList.add("question-dragging");
+      if(e.dataTransfer){
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain",QUESTION_DRAG_ID);
+      }
+    });
+    card.addEventListener("dragend",()=>{
+      QUESTION_DRAG_ID = "";
+      document.querySelectorAll(".question-dragging,.question-drag-over").forEach(el=>el.classList.remove("question-dragging","question-drag-over"));
+    });
+    card.addEventListener("dragover",e=>{
+      e.preventDefault();
+      if(card.dataset.questionId !== QUESTION_DRAG_ID) card.classList.add("question-drag-over");
+    });
+    card.addEventListener("dragleave",()=>card.classList.remove("question-drag-over"));
+    card.addEventListener("drop",async e=>{
+      e.preventDefault();
+      card.classList.remove("question-drag-over");
+      const targetId = card.dataset.questionId;
+      const sourceId = QUESTION_DRAG_ID || e.dataTransfer?.getData("text/plain");
+      if(!sourceId || !targetId || sourceId===targetId) return;
+      const items = await getCurrentExamQuestionsOrdered();
+      const from = items.findIndex(q=>q.id===sourceId);
+      const to = items.findIndex(q=>q.id===targetId);
+      if(from<0 || to<0) return;
+      const [moved] = items.splice(from,1);
+      items.splice(to,0,moved);
+      await saveQuestionOrderByIds(items.map(q=>q.id));
+      await loadQuestions();
+      requestAnimationFrame(()=>document.querySelector(`[data-question-id="${sourceId}"]`)?.scrollIntoView({behavior:"smooth",block:"center"}));
+    });
+  });
+}
+
+async function duplicateQuestion(questionId){
+  if(!CURRENT_PREVIEW_EXAM) return alert("اختر الاختبار أولاً");
+  const ref = db.collection("questions").doc(questionId);
+  const doc = await ref.get();
+  if(!doc.exists) return alert("السؤال غير موجود");
+  const items = await getCurrentExamQuestionsOrdered();
+  const sourceIndex = items.findIndex(q=>q.id===questionId);
+  const newRef = await db.collection("questions").add(
+    cleanQuestionForCopy({id:doc.id,...doc.data()},CURRENT_PREVIEW_EXAM,sourceIndex+2)
+  );
+  const ids = items.map(q=>q.id);
+  ids.splice(sourceIndex+1,0,newRef.id);
+  await saveQuestionOrderByIds(ids);
+  await loadQuestions();
+  requestAnimationFrame(()=>document.querySelector(`[data-question-id="${newRef.id}"]`)?.scrollIntoView({behavior:"smooth",block:"center"}));
+  alert("✅ تم نسخ السؤال ووضعه بعد السؤال الأصلي");
+}
+
+async function openQuestionCopyBank(){
+  if(!CURRENT_PREVIEW_EXAM) return alert("اختر الاختبار الذي تريد النسخ إليه أولاً");
+  const modal = document.getElementById("questionCopyBankModal");
+  const list = document.getElementById("questionCopyBankList");
+  list.innerHTML = `<div class="empty">Loading questions...</div>`;
+  modal.classList.add("show");
+  document.body.style.overflow = "hidden";
+
+  const [qSnap,eSnap] = await Promise.all([
+    db.collection("questions").get(),
+    db.collection("exams").get()
+  ]);
+  const exams = {};
+  eSnap.forEach(d=>exams[d.id]={id:d.id,...d.data()});
+  QUESTION_COPY_BANK = qSnap.docs
+    .map(d=>({id:d.id,...d.data(),examTitle:exams[d.data().examId]?.title || "Untitled Exam"}))
+    .filter(q=>q.examId && q.examId !== CURRENT_PREVIEW_EXAM)
+    .sort((a,b)=>String(a.examTitle).localeCompare(String(b.examTitle)) || Number(a.order||0)-Number(b.order||0));
+
+  const select = document.getElementById("copyBankExamFilter");
+  const unique = [...new Map(QUESTION_COPY_BANK.map(q=>[q.examId,{id:q.examId,title:q.examTitle}])).values()]
+    .sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+  select.innerHTML = `<option value="">All Exams</option>` + unique.map(e=>`<option value="${esc(e.id)}">${esc(e.title)}</option>`).join("");
+  renderQuestionCopyBank();
+}
+
+function closeQuestionCopyBank(event){
+  if(event && event.target?.id !== "questionCopyBankModal") return;
+  document.getElementById("questionCopyBankModal")?.classList.remove("show");
+  document.body.style.overflow = "";
+}
+
+function renderQuestionCopyBank(){
+  const examId = document.getElementById("copyBankExamFilter")?.value || "";
+  const search = (document.getElementById("copyBankSearch")?.value || "").trim().toLowerCase();
+  const visible = QUESTION_COPY_BANK.filter(q=>{
+    if(examId && q.examId !== examId) return false;
+    if(!search) return true;
+    return `${q.question||""} ${q.examTitle||""} ${q.group||""}`.toLowerCase().includes(search);
+  });
+  const box = document.getElementById("questionCopyBankList");
+  box.innerHTML = visible.length ? visible.map((q,index)=>`
+    <div class="copy-bank-question">
+      <label>
+        <input type="checkbox" class="copy-bank-check" value="${q.id}" onchange="updateQuestionCopyBankCount()">
+        <span>
+          <span class="badge type">${esc(q.examTitle)}</span>
+          <span class="badge degree">${Number(q.degree||0)} Marks</span>
+          <span class="badge used">${esc(q.group||"General")}</span>
+          <div style="margin-top:9px;line-height:1.8">${esc(q.question || "(No question text)")}</div>
+        </span>
+      </label>
+    </div>`).join("") : `<div class="empty">No matching questions</div>`;
+  updateQuestionCopyBankCount();
+}
+
+function toggleAllCopyBankQuestions(checked){
+  document.querySelectorAll("#questionCopyBankList .copy-bank-check").forEach(cb=>cb.checked=checked);
+  updateQuestionCopyBankCount();
+}
+
+function updateQuestionCopyBankCount(){
+  const count = document.querySelectorAll("#questionCopyBankList .copy-bank-check:checked").length;
+  const el = document.getElementById("questionCopyBankCount");
+  if(el) el.textContent = `${count} question${count===1?"":"s"} selected`;
+}
+
+async function copySelectedBankQuestions(){
+  if(!CURRENT_PREVIEW_EXAM) return alert("اختر الاختبار أولاً");
+  const ids = [...document.querySelectorAll("#questionCopyBankList .copy-bank-check:checked")].map(cb=>cb.value);
+  if(!ids.length) return alert("حدد سؤالاً واحداً على الأقل");
+  const current = await getCurrentExamQuestionsOrdered();
+  let nextOrder = current.length + 1;
+  const newIds = [];
+  for(const id of ids){
+    const source = QUESTION_COPY_BANK.find(q=>q.id===id);
+    if(!source) continue;
+    const ref = await db.collection("questions").add(cleanQuestionForCopy(source,CURRENT_PREVIEW_EXAM,nextOrder++));
+    newIds.push(ref.id);
+  }
+  await saveQuestionOrderByIds([...current.map(q=>q.id),...newIds]);
+  closeQuestionCopyBank();
+  await loadQuestions();
+  alert(`✅ تم نسخ ${newIds.length} سؤال إلى أسئلتي وترقيمها تلقائياً`);
+}
+
 async function deleteQuestion(id){
 
   if(!id){
