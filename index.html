@@ -5817,9 +5817,9 @@ async function processTextToQuestions(text){
 
   try{
 
-    // =====================================================
-    // 1) جلب بيانات الاختبار
-    // =====================================================
+    /* =========================================
+       1) جلب الاختبار
+    ========================================= */
 
     const examRef =
       db.collection("exams").doc(examId);
@@ -5836,9 +5836,9 @@ async function processTextToQuestions(text){
       examDoc.data() || {};
 
 
-    // =====================================================
-    // 2) الدورات المرتبطة بالاختبار
-    // =====================================================
+    /* =========================================
+       2) الدورات المرتبطة
+    ========================================= */
 
     const coursesUsed =
       Array.isArray(examData.coursesData)
@@ -5860,39 +5860,39 @@ async function processTextToQuestions(text){
         : [];
 
 
-    // =====================================================
-    // 3) تنظيف النص
-    // لا يعتمد على وجود المسافات
-    // =====================================================
+    /* =========================================
+       3) تنظيف النص
+    ========================================= */
 
     let cleanedText =
       String(text || "")
 
-        // توحيد نهاية الأسطر
+        .replace(/\u0000/g, "")
+
         .replace(/\r\n?/g, "\n")
 
-        // تحويل المسافة الخاصة إلى مسافة عادية
         .replace(/\u00A0/g, " ")
 
-        // حذف رموز Word المخفية
         .replace(
           /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,
           ""
         )
 
-        // تحويل Tab إلى مسافة
         .replace(/\t/g, " ")
 
-        // حذف علامات التعداد
-        .replace(/[●•▪■]/g, "")
-
-        // توحيد الأقواس
         .replace(/[（]/g, "(")
+
         .replace(/[）]/g, ")")
 
-        // توحيد علامات الاقتباس
         .replace(/[“”]/g, '"')
+
         .replace(/[‘’]/g, "'")
+
+        .replace(/[ \t]+$/gm, "")
+
+        .replace(/^[ \t]+/gm, "")
+
+        .replace(/\n{4,}/g, "\n\n\n")
 
         .trim();
 
@@ -5906,303 +5906,583 @@ async function processTextToQuestions(text){
     }
 
 
-    // =====================================================
-    // 4) حماية الأرقام العشرية
-    // مثل:
-    // 11.30
-    // 10.00
-    // =====================================================
-
-    cleanedText = cleanedText.replace(
-      /(\d+)\.(\d+)/g,
-      "$1__DECIMAL_DOT__$2"
-    );
-
-
-    // =====================================================
-    // 5) وضع علامة قبل أرقام الأسئلة
-    //
-    // يقبل:
-    // 1. Question
-    // 1.Question
-    // 1 ) Question
-    // 1)Question
-    // 1-Question
-    // 1 : Question
-    //
-    // كما يقبل السؤال الملتصق بالخيار السابق:
-    // d) gone2. They...
-    // =====================================================
-
-    cleanedText = cleanedText.replace(
-
-      /(^|[^0-9])(\d{1,3})\s*[\.\)\-:]\s*/g,
-
-      function(
-        fullMatch,
-        before,
-        questionNumber
-      ){
-
-        return (
-          before +
-          "\n__QUESTION_START__" +
-          questionNumber +
-          "__"
-        );
-
-      }
-
-    );
-
-
-    // =====================================================
-    // 6) تقسيم النص إلى كتل أسئلة
-    // =====================================================
-
-    const questionBlocks =
+    const lines =
       cleanedText
-
-        .split("__QUESTION_START__")
-
-        .map(block =>
-          String(block || "").trim()
+        .split("\n")
+        .map(line =>
+          String(line || "").trim()
         )
-
         .filter(Boolean);
 
 
-    console.log(
-      "WORD CLEANED TEXT:",
-      cleanedText
-    );
+    /* =========================================
+       أدوات التحليل
+    ========================================= */
 
-    console.log(
-      "QUESTION BLOCKS:",
-      questionBlocks
-    );
+    function cleanLine(value){
+
+      return String(value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    }
 
 
-    // =====================================================
-    // 7) تحليل كل سؤال وخياراته
-    // =====================================================
+    function countWords(value){
+
+      return cleanLine(value)
+        .split(/\s+/)
+        .filter(Boolean)
+        .length;
+
+    }
+
+
+    function hasCorrectMarker(value){
+
+      const source =
+        String(value || "");
+
+      return (
+
+        source.includes("*") ||
+
+        /\(correct\)|\[correct\]|\{correct\}/i.test(source)
+
+      );
+
+    }
+
+
+    function removeCorrectMarker(value){
+
+      return cleanLine(
+
+        String(value || "")
+
+          .replace(/\*/g, "")
+
+          .replace(
+            /\(correct\)|\[correct\]|\{correct\}/gi,
+            ""
+          )
+
+      );
+
+    }
+
+
+    function looksLikeQuestion(value){
+
+      const valueText =
+        cleanLine(value);
+
+      if(!valueText){
+        return false;
+      }
+
+      if(
+        /^(\*)?\s*[a-hA-H]\s*(\*)?\s*[\)\.\-:]/.test(
+          valueText
+        )
+      ){
+        return false;
+      }
+
+      const plain =
+        valueText
+          .replace(/\*/g, "")
+          .trim();
+
+      return (
+
+        valueText.includes("?") ||
+
+        valueText.includes("؟") ||
+
+        /_{2,}/.test(valueText) ||
+
+        /\bchoose\b/i.test(valueText) ||
+
+        /\bcomplete\b/i.test(valueText) ||
+
+        /\bwhich\b/i.test(valueText) ||
+
+        /\bwhat\b/i.test(valueText) ||
+
+        /\bwhere\b/i.test(valueText) ||
+
+        /\bwho\b/i.test(valueText) ||
+
+        /\bwhen\b/i.test(valueText) ||
+
+        /\bwhy\b/i.test(valueText) ||
+
+        /\bhow\b/i.test(valueText) ||
+
+        /\bselect\b/i.test(valueText) ||
+
+        /\bfill\b/i.test(valueText) ||
+
+        /\bcorrect\b/i.test(valueText) ||
+
+        countWords(plain) >= 4
+
+      );
+
+    }
+
+
+    function isTimeOrDecimal(value){
+
+      const valueText =
+        cleanLine(value);
+
+      return (
+
+        /^\d{1,2}\s*:\s*\d{1,2}\s*(?:am|pm)?$/i.test(
+          valueText
+        ) ||
+
+        /^\d{1,2}\s*\.\s*\d{1,2}\s*(?:am|pm)?$/i.test(
+          valueText
+        ) ||
+
+        /^\d{1,2}\s*(?:am|pm)$/i.test(
+          valueText
+        )
+
+      );
+
+    }
+
+
+    function parseNumberedLine(value){
+
+      const valueText =
+        cleanLine(value);
+
+      if(
+        !valueText ||
+        isTimeOrDecimal(valueText)
+      ){
+        return null;
+      }
+
+      const match =
+        valueText.match(
+          /^(\d{1,4})\s*[\.\)\-:]\s*(.*)$/
+        );
+
+      if(!match){
+        return null;
+      }
+
+      return {
+
+        number:
+          Number(match[1]),
+
+        text:
+          cleanLine(match[2])
+
+      };
+
+    }
+
+
+    function parseLetterOption(value){
+
+      const valueText =
+        cleanLine(value);
+
+      const match =
+        valueText.match(
+          /^(\*)?\s*([a-hA-H])\s*(\*)?\s*[\)\.\-:]\s*(.*)$/
+        );
+
+      if(!match){
+        return null;
+      }
+
+      return {
+
+        letter:
+          String(match[2] || "")
+            .toLowerCase(),
+
+        text:
+          cleanLine(match[4]),
+
+        correct:
+          Boolean(match[1] || match[3]) ||
+          hasCorrectMarker(match[4])
+
+      };
+
+    }
+
+
+    /* =========================================
+       4) تحليل الأسئلة
+    ========================================= */
 
     const parsedQuestions = [];
 
+    let currentQuestion = null;
 
-    for(const rawBlock of questionBlocks){
+    let lastQuestionNumber = null;
 
-      let block =
-        String(rawBlock || "")
 
-          // إعادة النقاط العشرية
-          .replace(
-            /__DECIMAL_DOT__/g,
-            "."
-          )
+    function startQuestion(number, questionText){
 
-          .trim();
-
-
-      // الكتلة يجب أن تبدأ مثل:
-      // 1__Sara...
-      const numberMatch =
-        block.match(
-          /^(\d{1,3})__(.*)$/s
-        );
-
-
-      if(!numberMatch){
-        continue;
-      }
-
-
-      const questionNumber =
-        Number(numberMatch[1]);
-
-
-      let content =
-        String(numberMatch[2] || "")
-          .trim();
-
-
-      if(!content){
-        continue;
-      }
-
-
-      // ===================================================
-      // معرفة مواقع الخيارات
-      //
-      // لا تعتمد على وجود المسافة:
-      //
-      // a) go
-      // a)go
-      // a . go
-      // a.go
-      // a-go
-      // A)go
-      // ===================================================
-
-      const optionRegex =
-        /([a-dA-D])\s*[\)\.\-:]\s*/g;
-
-
-      const optionMatches =
-        Array.from(
-          content.matchAll(optionRegex)
-        );
-
-
-      console.log(
-        "OPTION MATCHES:",
-        {
-          questionNumber,
-          content,
-          count:
-            optionMatches.length
-        }
-      );
-
-
-      if(optionMatches.length < 2){
-
-        console.warn(
-          "OPTIONS NOT FOUND:",
-          {
-            questionNumber,
-            content
-          }
-        );
-
-        continue;
-
-      }
-
-
-      // ===================================================
-      // النص الموجود قبل أول خيار هو السؤال
-      // ===================================================
-
-      const firstOptionPosition =
-        optionMatches[0].index;
-
-
-      let questionText =
-        content
-          .substring(
-            0,
-            firstOptionPosition
-          )
-
-          .replace(/\s+/g, " ")
-
-          .trim();
-
-
-      if(!questionText){
-
-        console.warn(
-          "EMPTY QUESTION:",
-          content
-        );
-
-        continue;
-
-      }
-
-
-      // ===================================================
-      // استخراج الخيارات
-      // ===================================================
-
-      const options = [];
-
-
-      for(
-        let optionIndex = 0;
-        optionIndex < optionMatches.length;
-        optionIndex++
-      ){
-
-        const currentMatch =
-          optionMatches[optionIndex];
-
-
-        const optionStart =
-          currentMatch.index +
-          currentMatch[0].length;
-
-
-        const optionEnd =
-          optionMatches[optionIndex + 1]
-            ? optionMatches[optionIndex + 1].index
-            : content.length;
-
-
-        let optionText =
-          content
-            .substring(
-              optionStart,
-              optionEnd
-            )
-
-            .replace(/\s+/g, " ")
-
-            .trim();
-
-
-        if(optionText){
-
-          options.push({
-
-            letter:
-              String(currentMatch[1] || "")
-                .toLowerCase(),
-
-            text:
-              optionText
-
-          });
-
-        }
-
-      }
-
-
-      if(options.length < 2){
-
-        console.warn(
-          "NOT ENOUGH OPTIONS:",
-          {
-            questionText,
-            options
-          }
-        );
-
-        continue;
-
-      }
-
-
-      parsedQuestions.push({
+      currentQuestion = {
 
         number:
-          questionNumber,
+          Number(number),
 
         question:
-          questionText,
+          cleanLine(questionText),
 
-        options:
-          options
+        options: [],
+
+        optionMode:
+          null,
+
+        nextNumericOption:
+          1
+
+      };
+
+      lastQuestionNumber =
+        Number(number);
+
+    }
+
+
+    function addOption(optionText, isCorrect){
+
+      if(!currentQuestion){
+        return;
+      }
+
+      const cleanedOption =
+        cleanLine(optionText);
+
+      if(!cleanedOption){
+        return;
+      }
+
+      currentQuestion.options.push({
+
+        text:
+          cleanedOption,
+
+        correct:
+          isCorrect === true ||
+          hasCorrectMarker(cleanedOption)
 
       });
 
     }
 
 
+    function finalizeQuestion(){
+
+      if(!currentQuestion){
+        return;
+      }
+
+      const questionText =
+        cleanLine(currentQuestion.question);
+
+      const options =
+        currentQuestion.options
+          .map(option => ({
+
+            text:
+              removeCorrectMarker(option.text),
+
+            correct:
+              option.correct === true ||
+              hasCorrectMarker(option.text)
+
+          }))
+          .filter(option =>
+            option.text
+          );
+
+      const correctCount =
+        options.filter(option =>
+          option.correct === true
+        ).length;
+
+      if(
+        questionText &&
+        options.length >= 2 &&
+        correctCount === 1
+      ){
+
+        parsedQuestions.push({
+
+          number:
+            currentQuestion.number,
+
+          question:
+            questionText,
+
+          options:
+            options
+
+        });
+
+      }else{
+
+        console.warn(
+          "SKIPPED PARSED QUESTION:",
+          {
+            questionNumber:
+              currentQuestion.number,
+
+            question:
+              questionText,
+
+            optionMode:
+              currentQuestion.optionMode,
+
+            options:
+              options,
+
+            correctCount:
+              correctCount
+          }
+        );
+
+      }
+
+      currentQuestion = null;
+
+    }
+
+
+    for(
+      let lineIndex = 0;
+      lineIndex < lines.length;
+      lineIndex++
+    ){
+
+      const line =
+        cleanLine(lines[lineIndex]);
+
+      if(!line){
+        continue;
+      }
+
+
+      /* =====================================
+         خيار بالحروف:
+         a) Answer
+         b) Answer
+      ===================================== */
+
+      const letterOption =
+        parseLetterOption(line);
+
+      if(
+        currentQuestion &&
+        letterOption
+      ){
+
+        currentQuestion.optionMode =
+          "letter";
+
+        addOption(
+          letterOption.text,
+          letterOption.correct
+        );
+
+        continue;
+      }
+
+
+      /* =====================================
+         سطر رقمي:
+         سؤال أو خيار Word تلقائي
+      ===================================== */
+
+      const numberedLine =
+        parseNumberedLine(line);
+
+      if(numberedLine){
+
+        const number =
+          numberedLine.number;
+
+        const numberedText =
+          numberedLine.text;
+
+
+        /*
+          إذا كنا بالفعل داخل خيارات رقمية:
+          1. Answer
+          2. Answer
+          3. Answer
+        */
+
+        if(
+          currentQuestion &&
+          currentQuestion.optionMode === "numeric" &&
+          number === currentQuestion.nextNumericOption
+        ){
+
+          addOption(
+            numberedText,
+            hasCorrectMarker(numberedText)
+          );
+
+          currentQuestion.nextNumericOption++;
+
+          continue;
+        }
+
+
+        /*
+          بعد سؤال حالي، إذا ظهر رقم 1
+          فهو غالبًا أول خيار رقمي من Word.
+        */
+
+        if(
+          currentQuestion &&
+          currentQuestion.optionMode === null &&
+          number === 1 &&
+          !looksLikeQuestion(numberedText)
+        ){
+
+          currentQuestion.optionMode =
+            "numeric";
+
+          currentQuestion.nextNumericOption =
+            2;
+
+          addOption(
+            numberedText,
+            hasCorrectMarker(numberedText)
+          );
+
+          continue;
+        }
+
+
+        /*
+          إذا السؤال له خيارات بالحروف ثم ظهر رقم السؤال التالي.
+        */
+
+        const expectedQuestionNumber =
+          lastQuestionNumber === null
+            ? number
+            : lastQuestionNumber + 1;
+
+
+        const isQuestionStart =
+          (
+            lastQuestionNumber === null ||
+            number === expectedQuestionNumber
+          )
+          &&
+          looksLikeQuestion(numberedText);
+
+
+        if(isQuestionStart){
+
+          finalizeQuestion();
+
+          startQuestion(
+            number,
+            numberedText
+          );
+
+          continue;
+        }
+
+
+        /*
+          قد يكون أول خيار رقمي طويلًا،
+          وليس بالضرورة قصيرًا.
+        */
+
+        if(
+          currentQuestion &&
+          currentQuestion.optionMode === null &&
+          number === 1
+        ){
+
+          currentQuestion.optionMode =
+            "numeric";
+
+          currentQuestion.nextNumericOption =
+            2;
+
+          addOption(
+            numberedText,
+            hasCorrectMarker(numberedText)
+          );
+
+          continue;
+        }
+
+
+        /*
+          إذا كنا داخل خيارات رقمية وانتهى تسلسل الخيارات
+          ثم ظهر رقم السؤال التالي.
+        */
+
+        if(
+          currentQuestion &&
+          currentQuestion.optionMode === "numeric" &&
+          number === lastQuestionNumber + 1 &&
+          looksLikeQuestion(numberedText)
+        ){
+
+          finalizeQuestion();
+
+          startQuestion(
+            number,
+            numberedText
+          );
+
+          continue;
+        }
+
+      }
+
+
+      /* =====================================
+         إذا لم يوجد سؤال حالي
+      ===================================== */
+
+      if(!currentQuestion){
+        continue;
+      }
+
+
+      /*
+        Word قد يحذف بادئة الخيار تمامًا،
+        وفي هذه الحالة نعتبر السطر إجابة.
+      */
+
+      addOption(
+        line,
+        hasCorrectMarker(line)
+      );
+
+    }
+
+
+    finalizeQuestion();
+
+
     console.log(
-      "PARSED QUESTIONS:",
+      "FINAL PARSED QUESTIONS:",
       parsedQuestions
     );
 
@@ -6211,8 +6491,7 @@ async function processTextToQuestions(text){
 
       alert(
         "⚠️ لم يتم التعرف على الأسئلة.\n\n" +
-        "افتح Console وابحث عن:\n" +
-        "QUESTION BLOCKS و OPTION MATCHES"
+        "تأكد من وجود نجمة * بجانب إجابة صحيحة واحدة لكل سؤال."
       );
 
       return;
@@ -6220,9 +6499,9 @@ async function processTextToQuestions(text){
     }
 
 
-    // =====================================================
-    // 8) معرفة آخر ترتيب موجود
-    // =====================================================
+    /* =========================================
+       5) معرفة آخر ترتيب
+    ========================================= */
 
     const existingSnap =
       await db.collection("questions")
@@ -6241,192 +6520,64 @@ async function processTextToQuestions(text){
 
       const orders =
         existingSnap.docs.map(doc =>
-
-          Number(
-            doc.data().order || 0
-          )
-
+          Number(doc.data().order || 0)
         );
 
-
-      // مهم: ثلاث نقاط
       orderCounter =
         Math.max(...orders, 0);
 
     }
 
 
-    // =====================================================
-    // 9) تجهيز الحفظ
-    // =====================================================
+    /* =========================================
+       6) تجهيز الحفظ
+    ========================================= */
 
     const batch =
       db.batch();
 
-
     const visibleIds = [];
-
 
     let imported = 0;
 
     let skipped = 0;
 
 
-    // =====================================================
-    // 10) إنشاء الأسئلة
-    // =====================================================
-
     for(const item of parsedQuestions){
 
       const questionText =
-        String(item.question || "")
+        cleanLine(item.question);
 
-          .replace(/\s+/g, " ")
-
-          .trim();
-
-
-      const rawOptions =
+      const options =
         item.options
-
           .map(option =>
-
-            String(option.text || "")
-
-              .replace(/\s+/g, " ")
-
-              .trim()
-
+            cleanLine(option.text)
           )
-
           .filter(Boolean);
+
+      const correctIndex =
+        item.options.findIndex(option =>
+          option.correct === true
+        );
 
 
       if(
         !questionText ||
-        rawOptions.length < 2
+        options.length < 2 ||
+        correctIndex < 0 ||
+        correctIndex >= options.length
       ){
 
         skipped++;
 
         console.warn(
-          "SKIPPED QUESTION:",
+          "QUESTION NOT SAVED:",
           item
         );
 
         continue;
-
       }
 
-
-      // ===================================================
-      // 11) تحديد الإجابة الصحيحة
-      // النجمة يمكن أن تكون:
-      //
-      // goes*
-      // *goes
-      // goes *
-      // ===================================================
-
-      let correctIndex = -1;
-
-
-      rawOptions.forEach(
-        (option, index) => {
-
-          const value =
-            String(option || "");
-
-
-          const lower =
-            value.toLowerCase();
-
-
-          if(
-
-            value.includes("*") ||
-
-            lower.includes("(correct)") ||
-
-            lower.includes("[correct]") ||
-
-            lower.includes("{correct}")
-
-          ){
-
-            correctIndex =
-              index;
-
-          }
-
-        }
-      );
-
-
-      if(correctIndex === -1){
-
-        skipped++;
-
-        console.warn(
-          "CORRECT ANSWER NOT FOUND:",
-          {
-            questionText,
-            rawOptions
-          }
-        );
-
-        continue;
-
-      }
-
-
-      // ===================================================
-      // 12) تنظيف الخيارات من النجمة
-      // ===================================================
-
-      const finalOptions =
-        rawOptions.map(option =>
-
-          String(option || "")
-
-            .replace(/\*/g, "")
-
-            .replace(
-              /\(correct\)/gi,
-              ""
-            )
-
-            .replace(
-              /\[correct\]/gi,
-              ""
-            )
-
-            .replace(
-              /\{correct\}/gi,
-              ""
-            )
-
-            .replace(/\s+/g, " ")
-
-            .trim()
-
-        );
-
-
-      if(
-        correctIndex >= finalOptions.length
-      ){
-
-        skipped++;
-
-        continue;
-
-      }
-
-
-      // ===================================================
-      // 13) إنشاء مرجع السؤال
-      // ===================================================
 
       orderCounter++;
 
@@ -6447,7 +6598,7 @@ async function processTextToQuestions(text){
           "",
 
         options:
-          finalOptions,
+          options,
 
         correct:
           correctIndex,
@@ -6514,33 +6665,22 @@ async function processTextToQuestions(text){
     }
 
 
-    // =====================================================
-    // 14) التأكد من وجود أسئلة
-    // =====================================================
-
     if(imported === 0){
 
       alert(
-        "⚠️ تم التعرف على الأسئلة، ولكن لم يتم استيرادها.\n\n" +
-        "تأكد أن النجمة * موجودة بجانب الإجابة الصحيحة."
+        "⚠️ تم تحليل النص ولكن لم يتم حفظ أي سؤال."
       );
 
       return;
-
     }
 
 
-    // =====================================================
-    // 15) حفظ الأسئلة في Firestore
-    // =====================================================
+    /* =========================================
+       7) الحفظ
+    ========================================= */
 
     await batch.commit();
 
-
-    // =====================================================
-    // 16) تحديث visibleQuestions العام
-    // مهم: ثلاث نقاط قبل visibleIds
-    // =====================================================
 
     await examRef.update({
 
@@ -6554,21 +6694,18 @@ async function processTextToQuestions(text){
     });
 
 
-    // =====================================================
-    // 17) تحديث أسئلة الدورة المحددة
-    // =====================================================
+    /* =========================================
+       8) تحديث الدورة المحددة
+    ========================================= */
 
     if(CURRENT_COURSE_ID){
 
       const updatedExamDoc =
         await examRef.get();
 
-
       const latestExamData =
         updatedExamDoc.data() || {};
 
-
-      // مهم: ثلاث نقاط قبل القوس
       const visibleQuestionsByCourse = {
 
         ...(
@@ -6585,15 +6722,12 @@ async function processTextToQuestions(text){
             CURRENT_COURSE_ID
           ]
         )
-
           ? visibleQuestionsByCourse[
               CURRENT_COURSE_ID
             ]
-
           : [];
 
 
-      // مهم: ثلاث نقاط في الأماكن الثلاثة
       visibleQuestionsByCourse[
         CURRENT_COURSE_ID
       ] = [
@@ -6619,9 +6753,9 @@ async function processTextToQuestions(text){
     }
 
 
-    // =====================================================
-    // 18) النتيجة النهائية
-    // =====================================================
+    /* =========================================
+       9) النتيجة
+    ========================================= */
 
     let message =
       `✅ تم استيراد ${imported} سؤال بنجاح`;
@@ -6639,7 +6773,7 @@ async function processTextToQuestions(text){
 
 
     console.log(
-      "IMPORTED IDS:",
+      "IMPORTED QUESTION IDS:",
       visibleIds
     );
 
