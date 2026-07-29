@@ -534,6 +534,68 @@ transform:scale(1);
     font-size:16px;
 
 }
+
+/* =========================================
+   MATCHING: WORD ↔ WORD / WORD ↔ IMAGE
+========================================= */
+#matchingBox{
+  display:none;
+  margin-top:12px;
+}
+#matchingBox.show{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.match-admin-row{
+  border:1px solid #dce6ef;
+  border-radius:16px;
+  padding:14px;
+  background:#f8fbfd;
+}
+.match-admin-row h4{
+  margin:0 0 8px;
+  color:#164478;
+  font-size:15px;
+}
+.match-admin-row label{
+  display:block;
+  margin-top:8px;
+  font-weight:900;
+  color:#164478;
+}
+.match-admin-row input,
+.match-admin-row select{
+  margin-top:6px;
+}
+.match-media-preview{
+  margin-top:9px;
+}
+.match-media-preview img{
+  width:100%;
+  max-height:180px;
+  object-fit:contain;
+  border-radius:12px;
+  border:1px solid #dce6ef;
+  background:#fff;
+}
+.match-upload-status{
+  min-height:18px;
+  margin-top:6px;
+  font-size:12px;
+  font-weight:800;
+  color:#6b7280;
+  overflow-wrap:anywhere;
+}
+.question-url-field{
+  margin-top:10px;
+}
+@media(max-width:750px){
+  #matchingBox.show{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 
 <style id="prudle-modern-design">
@@ -1625,6 +1687,84 @@ button:hover{
   <input id="opt3" placeholder="Option 3">
   <input id="opt4" placeholder="Option 4">
 </div>
+
+<div id="matchingBox">
+  <div class="match-admin-row" data-match-index="0">
+    <h4>Matching Pair 1</h4>
+    <label>Word / Left Item</label>
+    <input class="match-left" placeholder="Example: cat">
+
+    <label>Matching Word / Text</label>
+    <input class="match-right" placeholder="Example: قطة — leave blank when using an image">
+
+    <label>URL</label>
+    <input class="match-image-url" placeholder="Paste image URL"
+      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
+
+    <label>Upload Image</label>
+    <input type="file" class="match-image-file" accept="image/*"
+      onchange="prepareMatchImageFile(this)">
+    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
+    <div class="match-media-preview"></div>
+  </div>
+
+  <div class="match-admin-row" data-match-index="1">
+    <h4>Matching Pair 2</h4>
+    <label>Word / Left Item</label>
+    <input class="match-left" placeholder="Example: dog">
+
+    <label>Matching Word / Text</label>
+    <input class="match-right" placeholder="Example: كلب — leave blank when using an image">
+
+    <label>URL</label>
+    <input class="match-image-url" placeholder="Paste image URL"
+      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
+
+    <label>Upload Image</label>
+    <input type="file" class="match-image-file" accept="image/*"
+      onchange="prepareMatchImageFile(this)">
+    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
+    <div class="match-media-preview"></div>
+  </div>
+
+  <div class="match-admin-row" data-match-index="2">
+    <h4>Matching Pair 3</h4>
+    <label>Word / Left Item</label>
+    <input class="match-left" placeholder="Enter the left item">
+
+    <label>Matching Word / Text</label>
+    <input class="match-right" placeholder="Enter matching text or leave blank for an image">
+
+    <label>URL</label>
+    <input class="match-image-url" placeholder="Paste image URL"
+      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
+
+    <label>Upload Image</label>
+    <input type="file" class="match-image-file" accept="image/*"
+      onchange="prepareMatchImageFile(this)">
+    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
+    <div class="match-media-preview"></div>
+  </div>
+
+  <div class="match-admin-row" data-match-index="3">
+    <h4>Matching Pair 4</h4>
+    <label>Word / Left Item</label>
+    <input class="match-left" placeholder="Enter the left item">
+
+    <label>Matching Word / Text</label>
+    <input class="match-right" placeholder="Enter matching text or leave blank for an image">
+
+    <label>URL</label>
+    <input class="match-image-url" placeholder="Paste image URL"
+      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
+
+    <label>Upload Image</label>
+    <input type="file" class="match-image-file" accept="image/*"
+      onchange="prepareMatchImageFile(this)">
+    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
+    <div class="match-media-preview"></div>
+  </div>
+</div>
     <div id="correctBox">
       <input id="correct" type="number" min="0" placeholder="The Correct answer No. (0-3)">
     </div>
@@ -1638,13 +1778,19 @@ button:hover{
     <input id="degree" type="number" min="1" placeholder="out of">
 
     <select id="mediaType">
-      <option value="none">No file</option>
-      <option value="image">Picture</option>
+      <option value="none">No Media</option>
+      <option value="image">Image</option>
       <option value="video">Video</option>
       <option value="audio">Audio</option>
     </select>
 
-   <input type="file" id="file" accept="image/*,video/*,audio/*">
+    <input
+      id="mediaUrlInput"
+      class="question-url-field"
+      type="url"
+      placeholder="URL">
+
+    <input type="file" id="file" accept="image/*,video/*,audio/*">
 <div class="actions">
 
   <button onclick="saveQuestion()">
@@ -1855,6 +2001,16 @@ function clearForm(){
   degree.value = "";
   mediaType.value = "none";
   file.value = "";
+
+  const mediaUrlField =
+    document.getElementById("mediaUrlInput");
+
+  if(mediaUrlField){
+    mediaUrlField.value = "";
+  }
+
+  clearMatchingRows();
+
   qType.value = "mcq";
   toggleQuestionType();
 }
@@ -2892,55 +3048,75 @@ function addPassage(){
   alert("✅ تم حفظ القطعة لهذا السؤال");
 }/* ================= نوع السؤال ================= */
 function toggleQuestionType(){
+
   const type = qType.value;
+
+  const matchingBox =
+    document.getElementById("matchingBox");
 
   correctBox.classList.add("hidden");
   orderNote.classList.add("hidden");
   orderPreview.classList.add("hidden");
   optionsBox.classList.remove("hidden");
 
+  if(matchingBox){
+    matchingBox.classList.remove("show");
+  }
+
   correct.value = "";
 
   if(type === "mcq"){
+
     optionsBox.classList.remove("hidden");
     correctBox.classList.remove("hidden");
 
     correct.type = "number";
-    correct.placeholder = "رقم الإجابة الصحيحة (0-3)";
+    correct.placeholder =
+      "Correct answer number (0-3)";
   }
 
   if(type === "order"){
+
     optionsBox.classList.remove("hidden");
     orderNote.classList.remove("hidden");
     orderPreview.classList.remove("hidden");
   }
 
   if(type === "text"){
+
     optionsBox.classList.add("hidden");
     correctBox.classList.remove("hidden");
 
     correct.type = "text";
-    correct.placeholder = "اكتب الإجابة الصحيحة (يمكن كتابة أكثر من إجابة مفصولة , )";
+    correct.placeholder =
+      "Enter the correct answer. Separate alternatives with commas.";
   }
 
   if(type === "match"){
-    optionsBox.classList.remove("hidden");
+
+    optionsBox.classList.add("hidden");
     correctBox.classList.add("hidden");
 
+    if(matchingBox){
+      matchingBox.classList.add("show");
+    }
+
     orderNote.classList.remove("hidden");
-    orderNote.innerHTML = "✳️ اكتب بهذا الشكل: cat=قطة";
+
+    orderNote.innerHTML =
+      "Enter the left word, then add either a matching word/text or an image using URL/upload.";
   }
-if(type === "voice"){
 
-  optionsBox.classList.add("hidden");
+  if(type === "voice"){
 
-  correctBox.classList.add("hidden");
+    optionsBox.classList.add("hidden");
+    correctBox.classList.add("hidden");
+    orderNote.classList.remove("hidden");
 
-  orderNote.classList.remove("hidden");
+    orderNote.innerHTML =
+      "The student will record their voice.";
+  }
 
-  orderNote.innerHTML =
-    "□ سيقوم الطالب بتسجيل صوته";
-}
   updateOrderPreview();
 }function updateOrderPreview(){
   if(qType.value !== "order"){
@@ -2967,6 +3143,316 @@ opt3.addEventListener("input", updateOrderPreview);
 opt4.addEventListener("input", updateOrderPreview);
 
 /* ================= رفع الميديا ================= */
+
+function getMatchingRows(){
+
+  return [
+    ...document.querySelectorAll(
+      "#matchingBox .match-admin-row"
+    )
+  ];
+}
+
+function clearMatchingRows(){
+
+  getMatchingRows().forEach(row=>{
+
+    const left =
+      row.querySelector(".match-left");
+
+    const right =
+      row.querySelector(".match-right");
+
+    const imageUrl =
+      row.querySelector(".match-image-url");
+
+    const fileInput =
+      row.querySelector(".match-image-file");
+
+    const status =
+      row.querySelector(".match-upload-status");
+
+    const preview =
+      row.querySelector(".match-media-preview");
+
+    if(left) left.value = "";
+    if(right) right.value = "";
+    if(imageUrl) imageUrl.value = "";
+    if(fileInput) fileInput.value = "";
+
+    if(status){
+      status.textContent =
+        "Use text, an image URL, or upload an image.";
+    }
+
+    if(preview){
+      preview.innerHTML = "";
+    }
+  });
+}
+
+function prepareMatchImageFile(fileInput){
+
+  const row =
+    fileInput?.closest(
+      ".match-admin-row"
+    );
+
+  const fileObj =
+    fileInput?.files?.[0];
+
+  if(!row || !fileObj){
+    return;
+  }
+
+  if(
+    !String(fileObj.type || "")
+      .toLowerCase()
+      .startsWith("image/")
+  ){
+
+    fileInput.value = "";
+
+    alert(
+      "Matching media must be an image."
+    );
+
+    return;
+  }
+
+  const status =
+    row.querySelector(
+      ".match-upload-status"
+    );
+
+  if(status){
+    status.textContent =
+      `Selected: ${fileObj.name}. The image will upload when the question is saved.`;
+  }
+}
+
+function updateMatchAdminPreview(row){
+
+  if(!row){
+    return;
+  }
+
+  const imageUrl =
+    row.querySelector(
+      ".match-image-url"
+    )?.value
+      ?.trim() ||
+    "";
+
+  const preview =
+    row.querySelector(
+      ".match-media-preview"
+    );
+
+  if(!preview){
+    return;
+  }
+
+  preview.innerHTML =
+    imageUrl
+      ? `
+        <img
+          src="${esc(imageUrl)}"
+          alt="Matching image">
+      `
+      : "";
+}
+
+async function collectMatchingPairs(){
+
+  const pairs = [];
+
+  const rows =
+    getMatchingRows();
+
+  for(
+    let index = 0;
+    index < rows.length;
+    index++
+  ){
+
+    const row =
+      rows[index];
+
+    const left =
+      row.querySelector(
+        ".match-left"
+      )?.value
+        ?.trim() ||
+      "";
+
+    const right =
+      row.querySelector(
+        ".match-right"
+      )?.value
+        ?.trim() ||
+      "";
+
+    const imageUrlInput =
+      row.querySelector(
+        ".match-image-url"
+      );
+
+    const fileInput =
+      row.querySelector(
+        ".match-image-file"
+      );
+
+    const status =
+      row.querySelector(
+        ".match-upload-status"
+      );
+
+    let imageUrl =
+      imageUrlInput?.value
+        ?.trim() ||
+      "";
+
+    const fileObj =
+      fileInput?.files?.[0];
+
+    const rowHasAnyValue =
+      Boolean(
+        left ||
+        right ||
+        imageUrl ||
+        fileObj
+      );
+
+    if(!rowHasAnyValue){
+      continue;
+    }
+
+    if(!left){
+
+      throw new Error(
+        `Matching Pair ${index + 1}: enter the left word.`
+      );
+    }
+
+    if(fileObj){
+
+      if(
+        !String(fileObj.type || "")
+          .toLowerCase()
+          .startsWith("image/")
+      ){
+
+        throw new Error(
+          `Matching Pair ${index + 1}: only image files are supported.`
+        );
+      }
+
+      if(status){
+        status.innerHTML =
+          `<i class="fa-solid fa-spinner fa-spin"></i> Uploading image...`;
+      }
+
+      imageUrl =
+        await uploadFileToCloudinary(
+          fileObj
+        );
+
+      if(imageUrlInput){
+        imageUrlInput.value =
+          imageUrl;
+      }
+
+      if(fileInput){
+        fileInput.value = "";
+      }
+
+      if(status){
+        status.innerHTML =
+          `<i class="fa-solid fa-circle-check"></i> Image uploaded successfully.`;
+      }
+
+      updateMatchAdminPreview(
+        row
+      );
+    }
+
+    if(!right && !imageUrl){
+
+      throw new Error(
+        `Matching Pair ${index + 1}: enter matching text or add an image URL/file.`
+      );
+    }
+
+    pairs.push({
+      left:left,
+      right:right,
+      mediaType:
+        imageUrl
+          ? "image"
+          : "none",
+      mediaUrl:imageUrl,
+      imageUrl:imageUrl
+    });
+  }
+
+  if(pairs.length < 2){
+
+    throw new Error(
+      "Add at least two valid matching pairs."
+    );
+  }
+
+  return pairs;
+}
+
+function renderMatchingPairAdmin(pair){
+
+  const imageUrl =
+    String(
+      pair?.mediaUrl ||
+      pair?.imageUrl ||
+      pair?.image ||
+      ""
+    ).trim();
+
+  const rightText =
+    String(
+      pair?.right ||
+      ""
+    ).trim();
+
+  return `
+    <li style="
+      direction:ltr;
+      text-align:left;
+      margin-bottom:10px;
+    ">
+      <strong>${esc(pair?.left || "")}</strong>
+      =
+      ${
+        imageUrl
+          ? `
+            <div style="margin-top:7px">
+              <img
+                src="${esc(imageUrl)}"
+                alt="Matching image"
+                style="
+                  max-width:170px;
+                  max-height:130px;
+                  object-fit:contain;
+                  border-radius:10px;
+                  border:1px solid #dce6ef;
+                  background:#fff;
+                ">
+            </div>
+          `
+          : esc(rightText)
+      }
+    </li>
+  `;
+}
+
 async function uploadFileToCloudinary(fileObj){
   if(!fileObj) throw new Error("لا يوجد ملف");
 
@@ -3043,13 +3529,14 @@ async function saveQuestion(){
   }
 
   if(
-    (type === "mcq" ||
-     type === "order" ||
-     type === "match")
-     &&
-     options.length < 2
+    (
+      type === "mcq" ||
+      type === "order"
+    )
+    &&
+    options.length < 2
   ){
-    return alert("أدخل خيارين على الأقل");
+    return alert("Enter at least two options.");
   }
 
   if(deg <= 0){
@@ -3082,24 +3569,18 @@ async function saveQuestion(){
   // ================= MATCH =================
   else if(type === "match"){
 
-    const pairs = options.map(op=>{
+    try{
 
-      const [a,b] = op.split("=");
+      correctAnswer =
+        await collectMatchingPairs();
 
-      if(!a || !b) return null;
+    }catch(error){
 
-      return {
-        left: a.trim(),
-        right: b.trim()
-      };
-
-    }).filter(v=>v);
-
-    if(pairs.length < 2){
-      return alert("اكتب خيارات التوصيل بهذا الشكل: cat=قطة");
+      return alert(
+        error?.message ||
+        "Invalid matching pairs."
+      );
     }
-
-    correctAnswer = pairs;
   }
 
   // ================= MCQ =================
@@ -3133,8 +3614,16 @@ async function saveQuestion(){
 
 
   // ================= MEDIA =================
-  let mediaUrl = "";
-  let finalMediaType = media;
+  let mediaUrl =
+    String(
+      document.getElementById("mediaUrlInput")?.value ||
+      ""
+    ).trim();
+
+  let finalMediaType =
+    mediaUrl
+      ? media
+      : "none";
 
   if(fileObj){
 
@@ -3168,6 +3657,18 @@ async function saveQuestion(){
     }
   }
 
+  if(
+    mediaUrl &&
+    (
+      !finalMediaType ||
+      finalMediaType === "none"
+    )
+  ){
+    return alert(
+      "Choose the media type for the URL."
+    );
+  }
+
   // =========================================================
   // ======================== UPDATE =========================
   // =========================================================
@@ -3195,7 +3696,14 @@ locked:
         oldData.passage ||
         "",
 
-      options: options,
+      options:
+        type === "match"
+          ? correctAnswer.map(pair =>
+              pair.mediaUrl
+                ? `${pair.left}=[Image]`
+                : `${pair.left}=${pair.right}`
+            )
+          : options,
 
       correct: correctAnswer,
 
@@ -3204,14 +3712,12 @@ locked:
       type: type,
 
       mediaType:
-        fileObj
+        mediaUrl
           ? finalMediaType
-          : (oldData.mediaType || "none"),
+          : "none",
 
       mediaUrl:
-        fileObj
-          ? mediaUrl
-          : (oldData.mediaUrl || ""),
+        mediaUrl || "",
 
       group: group,
 
@@ -3385,12 +3891,25 @@ order: newOrder,
     // □ أهم إضافة
     passage: CURRENT_PASSAGE || "",
 
-    options: options,
+    options:
+      type === "match"
+        ? correctAnswer.map(pair =>
+            pair.mediaUrl
+              ? `${pair.left}=[Image]`
+              : `${pair.left}=${pair.right}`
+          )
+        : options,
+
     correct: correctAnswer,
     degree: deg,
     type: type,
-    mediaType: fileObj ? finalMediaType : "none",
-    mediaUrl: mediaUrl,
+    mediaType:
+      mediaUrl
+        ? finalMediaType
+        : "none",
+
+    mediaUrl:
+      mediaUrl || "",
 
     group: group,
     showMedia: true,
@@ -3471,6 +3990,16 @@ async function editQuestion(id){
   qType.value = q.type || "mcq";
   mediaType.value = q.mediaType || "none";
 
+  const mediaUrlField =
+    document.getElementById("mediaUrlInput");
+
+  if(mediaUrlField){
+    mediaUrlField.value =
+      q.mediaUrl || "";
+  }
+
+  clearMatchingRows();
+
   if(q.type === "mcq"){
     correct.value = q.correct;
   }
@@ -3480,12 +4009,63 @@ async function editQuestion(id){
   }
 
   else if(q.type === "match"){
-    const pairs = Array.isArray(q.correct) ? q.correct : [];
 
-    opt1.value = pairs[0] ? `${pairs[0].left}=${pairs[0].right}` : "";
-    opt2.value = pairs[1] ? `${pairs[1].left}=${pairs[1].right}` : "";
-    opt3.value = pairs[2] ? `${pairs[2].left}=${pairs[2].right}` : "";
-    opt4.value = pairs[3] ? `${pairs[3].left}=${pairs[3].right}` : "";
+    const pairs =
+      Array.isArray(q.correct)
+        ? q.correct
+        : [];
+
+    const rows =
+      getMatchingRows();
+
+    rows.forEach((row,index)=>{
+
+      const pair =
+        pairs[index] ||
+        {};
+
+      const imageUrl =
+        String(
+          pair.mediaUrl ||
+          pair.imageUrl ||
+          pair.image ||
+          ""
+        ).trim();
+
+      const left =
+        row.querySelector(
+          ".match-left"
+        );
+
+      const right =
+        row.querySelector(
+          ".match-right"
+        );
+
+      const imageUrlInput =
+        row.querySelector(
+          ".match-image-url"
+        );
+
+      if(left){
+        left.value =
+          pair.left || "";
+      }
+
+      if(right){
+        right.value =
+          pair.right || "";
+      }
+
+      if(imageUrlInput){
+        imageUrlInput.value =
+          imageUrl;
+      }
+
+      updateMatchAdminPreview(
+        row
+      );
+    });
 
     correct.value = "";
   }
@@ -3563,14 +4143,54 @@ if(old.type === "order"){
   correctAnswer = [...updatedOptions];
 }
   else if(old.type === "match"){
-    correctAnswer = (updatedOptions || []).map(op=>{
-      const [left, right] = String(op).split("=");
-      if(!left || !right) return null;
-      return {
-        left: left.trim(),
-        right: right.trim()
-      };
-    }).filter(Boolean);
+
+    /*
+      Matching questions that contain images are edited
+      through the main Add / Edit form so their URLs are preserved.
+    */
+    const oldPairs =
+      Array.isArray(old.correct)
+        ? old.correct
+        : [];
+
+    const hasImagePairs =
+      oldPairs.some(pair =>
+        Boolean(
+          pair?.mediaUrl ||
+          pair?.imageUrl ||
+          pair?.image
+        )
+      );
+
+    if(hasImagePairs){
+
+      correctAnswer =
+        oldPairs;
+
+    }else{
+
+      correctAnswer =
+        (updatedOptions || [])
+          .map(op=>{
+
+            const [left,right] =
+              String(op)
+                .split("=");
+
+            if(!left || !right){
+              return null;
+            }
+
+            return {
+              left:left.trim(),
+              right:right.trim(),
+              mediaType:"none",
+              mediaUrl:"",
+              imageUrl:""
+            };
+          })
+          .filter(Boolean);
+    }
   }
 
   await db.collection("questions").doc(id).update({
@@ -5433,11 +6053,14 @@ ${
 
   else if(q.type === "match"){
     optionsHtml = Array.isArray(q.correct)
-      ? q.correct.map(pair=>`
-        <li style="direction:ltr;text-align:left">
-          ${esc(pair.left)} = ${esc(pair.right)}
-        </li>
-      `).join("")
+      ? q.correct
+          .map(
+            pair =>
+              renderMatchingPairAdmin(
+                pair
+              )
+          )
+          .join("")
       : "";
   }
 
@@ -9020,13 +9643,51 @@ async function openFullQuestions(examId){
 
           ${
             q.type === "match" && Array.isArray(q.correct)
-            ? q.correct.map((pair,i)=>`
-              <div class="question-option" style="direction:ltr;text-align:left;">
-                ${i+1}. ${esc(pair.left)}
-                <span class="question-only"> ________________________________</span>
-                <span class="answer-only"> = ${esc(pair.right)}</span>
-              </div>
-            `).join("")
+            ? q.correct.map((pair,i)=>{
+
+                const imageUrl =
+                  String(
+                    pair.mediaUrl ||
+                    pair.imageUrl ||
+                    pair.image ||
+                    ""
+                  ).trim();
+
+                return `
+                  <div
+                    class="question-option"
+                    style="
+                      direction:ltr;
+                      text-align:left;
+                      margin-bottom:10px;
+                    ">
+
+                    ${i+1}. ${esc(pair.left)}
+
+                    <span class="question-only">
+                      ________________________________
+                    </span>
+
+                    <span class="answer-only">
+                      ${
+                        imageUrl
+                          ? `
+                            <br>
+                            <img
+                              src="${esc(imageUrl)}"
+                              style="
+                                max-width:55mm;
+                                max-height:38mm;
+                                object-fit:contain;
+                                margin:3mm 0 0;
+                              ">
+                          `
+                          : ` = ${esc(pair.right || "")}`
+                      }
+                    </span>
+                  </div>
+                `;
+              }).join("")
 
             : q.type === "text"
             ? `
