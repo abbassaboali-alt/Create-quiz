@@ -903,6 +903,7 @@ button:hover{
   background:#6d28d9 !important;
 }
 .print-header,
+.print-instructions,
 .print-footer{
   display:none;
 }
@@ -999,6 +1000,41 @@ button:hover{
     color:#164478 !important;
     break-after:avoid-page !important;
     page-break-after:avoid !important;
+  }
+
+  .print-instructions{
+    display:block !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:6mm 7mm !important;
+    border:1.5px solid #4b5563 !important;
+    border-radius:2mm !important;
+    background:#fff !important;
+    color:#111827 !important;
+    direction:ltr !important;
+    text-align:left !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    break-after:page !important;
+    page-break-after:always !important;
+  }
+
+  .print-instructions-title{
+    text-align:center !important;
+    font-size:13pt !important;
+    font-weight:900 !important;
+    margin:0 0 4mm !important;
+    text-decoration:underline !important;
+  }
+
+  .print-instructions ul{
+    margin:0 !important;
+    padding-left:7mm !important;
+  }
+
+  .print-instructions li{
+    font-size:9.5pt !important;
+    line-height:1.35 !important;
+    margin:0 0 2mm !important;
   }
 
   .print-header-title{
@@ -8733,6 +8769,24 @@ async function openFullQuestions(examId){
           <div class="print-student-line">Student ID:</div>
         </div>
 
+      </div>
+
+      <div class="print-instructions">
+        <div class="print-instructions-title">Exam instructions</div>
+        <ul>
+          <li><strong>No food or drinks</strong> are allowed in the examination room.</li>
+          <li><strong>No electronic devices</strong> (iPods, cell phones, MP3 players, etc.) are allowed during the examination at any time. You will be dismissed from the examination room if you are seen with one out.</li>
+          <li><strong>No pencil cases</strong> are allowed; only bring the writing materials you need into the examination room.</li>
+          <li><strong>If you have a problem or question,</strong> please raise your hand and quietly wait for your teacher.</li>
+          <li><strong>Do not open</strong> the examination booklet until directed to do so.</li>
+          <li>Ensure that you have the correct examination in front of you.</li>
+          <li><strong>Do not talk</strong> during the exam.</li>
+          <li><strong>Use a blue pen</strong> to answer your questions.</li>
+          <li>Write your full name clearly in the space above when directed to do so.</li>
+          <li>At the end of your examination, refrain from speaking until you are outside the exam room, as there might be other examinations still in progress.</li>
+          <li>Students will be reminded of the remaining time for the exam.</li>
+          <li>Students are not permitted to leave the examination room, even after finishing, until half of the exam duration has passed.</li>
+        </ul>
       </div>
 
       <div
