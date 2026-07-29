@@ -941,6 +941,21 @@ button:hover{
     visibility:hidden !important;
   }
 
+  /* إطار ثابت يتكرر في جميع صفحات A4 */
+  #questionsModal::before{
+    content:"";
+    position:fixed !important;
+    top:-7mm !important;
+    right:-7mm !important;
+    bottom:-7mm !important;
+    left:-7mm !important;
+    border:1.4px solid #8b8b8b !important;
+    box-shadow:inset 0 0 0 .6px #d1d5db !important;
+    pointer-events:none !important;
+    z-index:999999 !important;
+    visibility:visible !important;
+  }
+
   #questionsModal,
   #questionsModal *{
     visibility:visible !important;
