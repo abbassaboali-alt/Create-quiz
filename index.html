@@ -1349,17 +1349,76 @@ button:hover{
 .question-drag-handle{font-size:20px;cursor:grab;user-select:none;padding:4px 9px;border-radius:10px;background:rgba(255,255,255,.18)}
 .question-order-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .question-order-actions button{width:auto!important;margin:0!important;padding:7px 11px!important;font-size:12px!important;background:rgba(255,255,255,.17)!important;border:1px solid rgba(255,255,255,.35)!important}
-.copy-bank-modal{position:fixed;inset:0;background:rgba(15,23,42,.72);display:none;align-items:center;justify-content:center;z-index:100000;padding:18px}
+.copy-bank-modal{
+  position:fixed;inset:0;background:rgba(15,23,42,.76);display:none;
+  align-items:center;justify-content:center;z-index:100000;padding:14px;
+}
 .copy-bank-modal.show{display:flex}
-.copy-bank-box{width:min(1050px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
-.copy-bank-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.copy-bank-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:15px}
-.copy-bank-question{border:1px solid #dbeafe;border-radius:16px;padding:13px;background:#f8fbff}
-.copy-bank-question label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-weight:800}
-.copy-bank-question input[type="checkbox"]{width:20px;height:20px;margin:3px 0 0;flex:0 0 auto}
-.copy-bank-footer{position:sticky;bottom:0;display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding:12px;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border:1px solid #dbeafe;border-radius:16px}
-.copy-bank-footer button{flex:1;min-width:180px;margin:0}
-@media(max-width:700px){.question-order-actions{width:100%}.question-order-actions button{flex:1}.copy-bank-grid{grid-template-columns:1fr}}
+.copy-bank-box{
+  width:min(1120px,97vw);height:min(91vh,900px);background:#fff;border-radius:24px;
+  padding:0;box-shadow:0 28px 80px rgba(0,0,0,.34);display:flex;flex-direction:column;
+  overflow:hidden;direction:ltr;
+}
+.copy-bank-head{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:20px 22px 14px;border-bottom:1px solid #e4edf7;background:#fff;
+}
+.copy-bank-head-title{font-size:24px;font-weight:900;color:#164478;line-height:1.3}
+.copy-bank-controls{padding:14px 22px 0;background:#fff}
+.copy-bank-filter-row{display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,360px);gap:12px}
+.copy-bank-filter-row input,.copy-bank-filter-row select{margin:0;min-height:52px}
+.copy-bank-actions-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.copy-bank-actions-row button{width:auto!important;margin:0!important;min-width:170px}
+.copy-bank-summary{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-top:12px;padding:11px 15px;border:1px solid #cfe2f6;border-radius:14px;
+  background:#eef6ff;color:#164478;font-weight:900;
+}
+.copy-bank-grid{
+  display:flex;flex-direction:column;gap:12px;padding:14px 22px 18px;margin:0;
+  overflow:auto;flex:1;background:#f7faff;
+}
+.copy-bank-question{
+  border:1.5px solid #cfe1f5;border-radius:18px;padding:14px 16px;background:#fff;
+  box-shadow:0 5px 16px rgba(22,68,120,.05);transition:.18s;cursor:pointer;
+}
+.copy-bank-question:hover{border-color:#80b5ec;box-shadow:0 9px 24px rgba(22,68,120,.10);transform:translateY(-1px)}
+.copy-bank-question.selected{border-color:#17a673;background:#f1fcf7;box-shadow:0 0 0 3px rgba(23,166,115,.10)}
+.copy-bank-question-top{display:flex;align-items:flex-start;gap:12px}
+.copy-bank-question-check{width:23px!important;height:23px!important;margin:4px 0 0!important;flex:0 0 auto;accent-color:#17a673}
+.copy-bank-question-content{flex:1;min-width:0}
+.copy-bank-question-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.copy-bank-q-number{display:inline-flex;align-items:center;justify-content:center;min-width:46px;padding:6px 12px;border-radius:999px;background:#164478;color:#fff;font-size:13px;font-weight:900}
+.copy-bank-question-title{font-size:18px;font-weight:900;color:#102f50;line-height:1.65;text-align:left;direction:ltr;overflow-wrap:anywhere}
+.copy-bank-source{margin-top:7px;font-size:12px;color:#64748b;font-weight:700;text-align:left;direction:ltr}
+.copy-bank-passage{margin-top:11px;padding:12px;border:1px solid #b9d8f5;border-radius:13px;background:#eef6ff;color:#163b63;line-height:1.75;text-align:left;direction:ltr}
+.copy-bank-options{display:grid;gap:7px;margin-top:11px}
+.copy-bank-option{padding:9px 11px;border:1px solid #dce5ef;border-radius:11px;background:#f8fafc;color:#26384d;font-size:13px;font-weight:700;text-align:left;direction:ltr}
+.copy-bank-option.correct{border-color:#17a673;background:#dcfce7;color:#166534}
+.copy-bank-match-row{display:grid;grid-template-columns:1fr 32px 1fr;gap:8px;align-items:center;padding:9px;border:1px solid #dce5ef;border-radius:11px;background:#f8fafc;margin-top:7px;text-align:left;direction:ltr}
+.copy-bank-match-row img{width:90px;height:70px;object-fit:contain;border-radius:9px;background:#fff;border:1px solid #e5e7eb}
+.copy-bank-media{margin-top:11px}
+.copy-bank-media img,.copy-bank-media video{display:block;max-width:100%;max-height:260px;object-fit:contain;border-radius:13px;border:1px solid #dce5ef;background:#fff}
+.copy-bank-media audio{width:100%}
+.copy-bank-footer{
+  position:relative;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;
+  padding:13px 20px;background:rgba(255,255,255,.98);border-top:1px solid #dbe7f3;
+  box-shadow:0 -8px 24px rgba(22,68,120,.07);
+}
+.copy-bank-insert-options{display:flex;gap:12px;align-items:center;flex-wrap:wrap;flex:1;min-width:280px;color:#164478;font-weight:800}
+.copy-bank-insert-options label{display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.copy-bank-insert-options input{width:18px;height:18px;margin:0;accent-color:#164478}
+.copy-bank-footer button{width:auto!important;min-width:220px;margin:0!important}
+@media(max-width:760px){
+  .question-order-actions{width:100%}.question-order-actions button{flex:1}
+  .copy-bank-box{width:100%;height:95vh;border-radius:18px}
+  .copy-bank-head{padding:14px}.copy-bank-head-title{font-size:19px}
+  .copy-bank-controls,.copy-bank-grid{padding-left:12px;padding-right:12px}
+  .copy-bank-filter-row{grid-template-columns:1fr}
+  .copy-bank-question-title{font-size:16px}
+  .copy-bank-footer{padding:11px}.copy-bank-footer button{flex:1;min-width:150px}
+  .copy-bank-insert-options{width:100%;min-width:0}
+}
 
 </style>
 
@@ -1906,26 +1965,44 @@ button:hover{
   <div class="copy-bank-box" onclick="event.stopPropagation()">
     <div class="copy-bank-head">
       <div>
-        <div style="font-size:23px;font-weight:900;color:#164478">Copy Questions From Previous Exams</div>
-        <div class="small">Select one or more questions, then copy them to the currently opened exam.</div>
+        <div class="copy-bank-head-title"><i class="fa-solid fa-copy"></i> Copy Questions From Previous Exams</div>
+        <div class="small">Review the full question, select one or more questions, then copy them to the currently opened exam.</div>
       </div>
-      <button type="button" onclick="closeQuestionCopyBank()" style="width:auto;margin:0;background:#ef4444">✕ Close</button>
+      <button type="button" onclick="closeQuestionCopyBank()" style="width:auto;margin:0;background:#ef4444"><i class="fa-solid fa-xmark"></i> Close</button>
     </div>
-    <div class="row" style="margin-top:14px">
-      <select id="copyBankExamFilter" onchange="renderQuestionCopyBank()">
-        <option value="">All Exams</option>
-      </select>
-      <input id="copyBankSearch" placeholder="Search question, exam or group..." oninput="renderQuestionCopyBank()">
+
+    <div class="copy-bank-controls">
+      <div class="copy-bank-filter-row">
+        <input id="copyBankSearch" placeholder="Search question, exam or group..." oninput="renderQuestionCopyBank()">
+        <select id="copyBankExamFilter" onchange="renderQuestionCopyBank()">
+          <option value="">All Exams</option>
+        </select>
+      </div>
+
+      <div class="copy-bank-actions-row">
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button type="button" onclick="toggleAllCopyBankQuestions(true)" style="background:#16a34a"><i class="fa-solid fa-square-check"></i> Select All Visible</button>
+          <button type="button" onclick="toggleAllCopyBankQuestions(false)" style="background:#64748b"><i class="fa-solid fa-trash-can"></i> Clear Selection</button>
+        </div>
+      </div>
+
+      <div class="copy-bank-summary">
+        <span id="questionCopyBankCount">0 questions selected</span>
+        <span id="questionCopyBankFound">Total Found: 0 Questions</span>
+      </div>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-      <button type="button" onclick="toggleAllCopyBankQuestions(true)" style="width:auto;background:#16a34a">Select All Visible</button>
-      <button type="button" onclick="toggleAllCopyBankQuestions(false)" style="width:auto;background:#64748b">Clear Selection</button>
-    </div>
-    <div id="questionCopyBankCount" class="note">0 questions selected</div>
+
     <div id="questionCopyBankList" class="copy-bank-grid"></div>
+
     <div class="copy-bank-footer">
-      <button type="button" onclick="copySelectedBankQuestions()" style="background:#17a673">Copy Selected To My Exam</button>
+      <div class="copy-bank-insert-options">
+        <strong>Insert copied questions:</strong>
+        <label><input type="radio" name="copyInsertPosition" value="end" checked> At the end</label>
+        <label><input type="radio" name="copyInsertPosition" value="after"> After current question</label>
+        <label><input type="radio" name="copyInsertPosition" value="beginning"> At beginning</label>
+      </div>
       <button type="button" onclick="closeQuestionCopyBank()" style="background:#64748b">Cancel</button>
+      <button type="button" onclick="copySelectedBankQuestions()" style="background:#17a673"><i class="fa-solid fa-copy"></i> Copy Selected To My Exam</button>
     </div>
   </div>
 </div>
@@ -8876,6 +8953,7 @@ async function init(){
 ========================================= */
 let QUESTION_DRAG_ID = "";
 let QUESTION_COPY_BANK = [];
+let QUESTION_COPY_SELECTED = new Set();
 
 function cleanQuestionForCopy(source, targetExamId, orderValue){
   const q = source || {};
@@ -9030,8 +9108,10 @@ async function duplicateQuestion(questionId){
 
 async function openQuestionCopyBank(){
   if(!CURRENT_PREVIEW_EXAM) return alert("اختر الاختبار الذي تريد النسخ إليه أولاً");
+
   const modal = document.getElementById("questionCopyBankModal");
   const list = document.getElementById("questionCopyBankList");
+  QUESTION_COPY_SELECTED = new Set();
   list.innerHTML = `<div class="empty">Loading questions...</div>`;
   modal.classList.add("show");
   document.body.style.overflow = "hidden";
@@ -9040,17 +9120,32 @@ async function openQuestionCopyBank(){
     db.collection("questions").get(),
     db.collection("exams").get()
   ]);
+
   const exams = {};
   eSnap.forEach(d=>exams[d.id]={id:d.id,...d.data()});
+
   QUESTION_COPY_BANK = qSnap.docs
-    .map(d=>({id:d.id,...d.data(),examTitle:exams[d.data().examId]?.title || "Untitled Exam"}))
+    .map(d=>({
+      id:d.id,
+      ...d.data(),
+      examTitle:exams[d.data().examId]?.title || "Untitled Exam"
+    }))
     .filter(q=>q.examId && q.examId !== CURRENT_PREVIEW_EXAM)
-    .sort((a,b)=>String(a.examTitle).localeCompare(String(b.examTitle)) || Number(a.order||0)-Number(b.order||0));
+    .sort((a,b)=>
+      String(a.examTitle).localeCompare(String(b.examTitle)) ||
+      Number(a.order||0)-Number(b.order||0)
+    );
 
   const select = document.getElementById("copyBankExamFilter");
-  const unique = [...new Map(QUESTION_COPY_BANK.map(q=>[q.examId,{id:q.examId,title:q.examTitle}])).values()]
-    .sort((a,b)=>String(a.title).localeCompare(String(b.title)));
-  select.innerHTML = `<option value="">All Exams</option>` + unique.map(e=>`<option value="${esc(e.id)}">${esc(e.title)}</option>`).join("");
+  const unique = [...new Map(
+    QUESTION_COPY_BANK.map(q=>[q.examId,{id:q.examId,title:q.examTitle}])
+  ).values()].sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+
+  select.innerHTML = `<option value="">All Exams</option>` +
+    unique.map(e=>`<option value="${esc(e.id)}">${esc(e.title)}</option>`).join("");
+
+  const search = document.getElementById("copyBankSearch");
+  if(search) search.value = "";
   renderQuestionCopyBank();
 }
 
@@ -9060,58 +9155,172 @@ function closeQuestionCopyBank(event){
   document.body.style.overflow = "";
 }
 
+function getCopyQuestionTypeLabel(type){
+  const map = {
+    mcq:"Multiple Choice",
+    match:"Matching",
+    order:"Rearrange",
+    text:"Text Answer",
+    voice:"Voice Recording"
+  };
+  return map[type] || String(type || "Question");
+}
+
+function renderCopyQuestionDetails(q){
+  let html = "";
+
+  if(q.passage){
+    html += `<div class="copy-bank-passage"><strong>Reading Passage</strong><br>${esc(q.passage)}</div>`;
+  }
+
+  if(q.showMedia !== false && q.mediaUrl){
+    if(q.mediaType === "image"){
+      html += `<div class="copy-bank-media"><img src="${esc(q.mediaUrl)}" alt="Question image"></div>`;
+    }else if(q.mediaType === "video"){
+      html += `<div class="copy-bank-media"><video controls src="${esc(q.mediaUrl)}"></video></div>`;
+    }else if(q.mediaType === "audio"){
+      html += `<div class="copy-bank-media"><audio controls src="${esc(q.mediaUrl)}"></audio></div>`;
+    }
+  }
+
+  if(q.type === "mcq"){
+    const correctIndex = Number(q.correct);
+    html += `<div class="copy-bank-options">${(q.options || []).map((op,index)=>`
+      <div class="copy-bank-option ${index === correctIndex ? "correct" : ""}">
+        ${String.fromCharCode(65 + index)}. ${esc(op)}
+        ${index === correctIndex ? `<i class="fa-solid fa-square-check" style="margin-left:6px"></i>` : ""}
+      </div>`).join("")}</div>`;
+  }else if(q.type === "order"){
+    html += `<div class="copy-bank-options">${(q.options || []).map((op,index)=>`
+      <div class="copy-bank-option"><strong>${index+1}.</strong> ${esc(op)}</div>`).join("")}</div>`;
+  }else if(q.type === "match"){
+    html += `<div style="margin-top:10px">${(q.correct || []).map(pair=>{
+      const media = pair?.mediaUrl || pair?.imageUrl || pair?.image || "";
+      const right = media
+        ? `<img src="${esc(media)}" alt="Matching image">`
+        : `<span>${esc(pair?.right || "")}</span>`;
+      return `<div class="copy-bank-match-row"><span>${esc(pair?.left || "")}</span><strong>↔</strong>${right}</div>`;
+    }).join("")}</div>`;
+  }else if(q.type === "text"){
+    html += `<div class="copy-bank-option correct" style="margin-top:10px"><strong>Correct answer:</strong> ${esc(q.correct || "")}</div>`;
+  }else if(q.type === "voice"){
+    html += `<div class="copy-bank-option" style="margin-top:10px"><i class="fa-solid fa-microphone"></i> Student records a voice answer.</div>`;
+  }
+
+  return html;
+}
+
+function toggleCopyBankQuestion(questionId,event){
+  if(event?.target?.closest("audio,video,button,a")) return;
+
+  const checkbox = document.querySelector(`.copy-bank-check[value="${CSS.escape(questionId)}"]`);
+  if(event?.target !== checkbox && checkbox){
+    checkbox.checked = !checkbox.checked;
+  }
+
+  if(checkbox?.checked) QUESTION_COPY_SELECTED.add(questionId);
+  else QUESTION_COPY_SELECTED.delete(questionId);
+
+  updateQuestionCopyBankCount();
+  checkbox?.closest(".copy-bank-question")?.classList.toggle("selected",checkbox.checked);
+}
+
 function renderQuestionCopyBank(){
   const examId = document.getElementById("copyBankExamFilter")?.value || "";
   const search = (document.getElementById("copyBankSearch")?.value || "").trim().toLowerCase();
+
   const visible = QUESTION_COPY_BANK.filter(q=>{
     if(examId && q.examId !== examId) return false;
     if(!search) return true;
-    return `${q.question||""} ${q.examTitle||""} ${q.group||""}`.toLowerCase().includes(search);
+    return `${q.question||""} ${q.examTitle||""} ${q.group||""} ${q.type||""}`
+      .toLowerCase().includes(search);
   });
+
   const box = document.getElementById("questionCopyBankList");
-  box.innerHTML = visible.length ? visible.map((q,index)=>`
-    <div class="copy-bank-question">
-      <label>
-        <input type="checkbox" class="copy-bank-check" value="${q.id}" onchange="updateQuestionCopyBankCount()">
-        <span>
-          <span class="badge type">${esc(q.examTitle)}</span>
-          <span class="badge degree">${Number(q.degree||0)} Marks</span>
-          <span class="badge used">${esc(q.group||"General")}</span>
-          <div style="margin-top:9px;line-height:1.8">${esc(q.question || "(No question text)")}</div>
-        </span>
-      </label>
-    </div>`).join("") : `<div class="empty">No matching questions</div>`;
+  const found = document.getElementById("questionCopyBankFound");
+  if(found) found.textContent = `Total Found: ${visible.length} Question${visible.length===1?"":"s"}`;
+
+  box.innerHTML = visible.length ? visible.map((q,index)=>{
+    const checked = QUESTION_COPY_SELECTED.has(q.id);
+    return `
+      <div class="copy-bank-question ${checked ? "selected" : ""}" onclick='toggleCopyBankQuestion(${JSON.stringify(q.id)},event)'>
+        <div class="copy-bank-question-top">
+          <input
+            type="checkbox"
+            class="copy-bank-check copy-bank-question-check"
+            value="${esc(q.id)}"
+            ${checked ? "checked" : ""}
+            onchange='toggleCopyBankQuestion(${JSON.stringify(q.id)},event)'>
+
+          <div class="copy-bank-question-content">
+            <div class="copy-bank-question-meta">
+              <span class="copy-bank-q-number">Q${index+1}</span>
+              <span class="badge type">${esc(getCopyQuestionTypeLabel(q.type))}</span>
+              <span class="badge degree">Marks: ${Number(q.degree||0)}</span>
+              <span class="badge used">${esc(q.group||"General")}</span>
+            </div>
+
+            <div class="copy-bank-question-title">${esc(q.question || "(No question text)")}</div>
+            <div class="copy-bank-source">From: ${esc(q.examTitle || "Untitled Exam")}</div>
+            ${renderCopyQuestionDetails(q)}
+          </div>
+        </div>
+      </div>`;
+  }).join("") : `<div class="empty">No matching questions</div>`;
+
   updateQuestionCopyBankCount();
 }
 
 function toggleAllCopyBankQuestions(checked){
-  document.querySelectorAll("#questionCopyBankList .copy-bank-check").forEach(cb=>cb.checked=checked);
+  document.querySelectorAll("#questionCopyBankList .copy-bank-check").forEach(cb=>{
+    cb.checked = checked;
+    if(checked) QUESTION_COPY_SELECTED.add(cb.value);
+    else QUESTION_COPY_SELECTED.delete(cb.value);
+    cb.closest(".copy-bank-question")?.classList.toggle("selected",checked);
+  });
   updateQuestionCopyBankCount();
 }
 
 function updateQuestionCopyBankCount(){
-  const count = document.querySelectorAll("#questionCopyBankList .copy-bank-check:checked").length;
+  const count = QUESTION_COPY_SELECTED.size;
   const el = document.getElementById("questionCopyBankCount");
-  if(el) el.textContent = `${count} question${count===1?"":"s"} selected`;
+  if(el) el.textContent = `Selected Questions: ${count}`;
 }
 
 async function copySelectedBankQuestions(){
   if(!CURRENT_PREVIEW_EXAM) return alert("اختر الاختبار أولاً");
-  const ids = [...document.querySelectorAll("#questionCopyBankList .copy-bank-check:checked")].map(cb=>cb.value);
+
+  const ids = [...QUESTION_COPY_SELECTED];
   if(!ids.length) return alert("حدد سؤالاً واحداً على الأقل");
+
   const current = await getCurrentExamQuestionsOrdered();
-  let nextOrder = current.length + 1;
+  const position = document.querySelector('input[name="copyInsertPosition"]:checked')?.value || "end";
+
+  let insertIndex = current.length;
+  if(position === "beginning"){
+    insertIndex = 0;
+  }else if(position === "after" && EDIT_QUESTION_ID){
+    const editedIndex = current.findIndex(q=>q.id === EDIT_QUESTION_ID);
+    insertIndex = editedIndex >= 0 ? editedIndex + 1 : current.length;
+  }
+
   const newIds = [];
   for(const id of ids){
     const source = QUESTION_COPY_BANK.find(q=>q.id===id);
     if(!source) continue;
-    const ref = await db.collection("questions").add(cleanQuestionForCopy(source,CURRENT_PREVIEW_EXAM,nextOrder++));
+    const ref = await db.collection("questions").add(
+      cleanQuestionForCopy(source,CURRENT_PREVIEW_EXAM,1)
+    );
     newIds.push(ref.id);
   }
-  await saveQuestionOrderByIds([...current.map(q=>q.id),...newIds]);
+
+  const finalIds = current.map(q=>q.id);
+  finalIds.splice(insertIndex,0,...newIds);
+  await saveQuestionOrderByIds(finalIds);
+
   closeQuestionCopyBank();
   await loadQuestions();
-  alert(`✅ تم نسخ ${newIds.length} سؤال إلى أسئلتي وترقيمها تلقائياً`);
+  alert(`✅ تم نسخ ${newIds.length} سؤال وترتيبها تلقائياً`);
 }
 
 async function deleteQuestion(id){
