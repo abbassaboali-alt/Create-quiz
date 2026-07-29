@@ -876,6 +876,207 @@ button:hover{
 }
 </style>
 
+
+<style id="prudle-a4-print-design">
+/* =========================================
+   A4 QUESTIONS PRINT DESIGN
+========================================= */
+.print-questions-btn{
+  width:auto !important;
+  margin:0 !important;
+  padding:10px 18px !important;
+  border-radius:12px !important;
+  background:#17a673 !important;
+  color:#fff !important;
+  border:none !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+  white-space:nowrap;
+}
+.print-questions-btn:hover{
+  background:#12805a !important;
+}
+.print-header,
+.print-footer{
+  display:none;
+}
+
+@page{
+  size:A4 portrait;
+  margin:12mm;
+}
+
+@media print{
+  html,
+  body{
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+    width:auto !important;
+    min-height:auto !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  body *{
+    visibility:hidden !important;
+  }
+
+  #questionsModal,
+  #questionsModal *{
+    visibility:visible !important;
+  }
+
+  #questionsModal{
+    position:absolute !important;
+    inset:0 !important;
+    display:block !important;
+    width:100% !important;
+    min-height:100% !important;
+    background:#fff !important;
+    overflow:visible !important;
+    padding:0 !important;
+  }
+
+  #questionsModal .modal-box{
+    width:100% !important;
+    max-width:none !important;
+    height:auto !important;
+    max-height:none !important;
+    overflow:visible !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    padding:0 !important;
+    margin:0 !important;
+    background:#fff !important;
+  }
+
+  #questionsModal .modal-header,
+  #modalPrintToolbar,
+  #modalQuestionSearch,
+  .modal-search-toolbar,
+  .print-questions-btn{
+    display:none !important;
+  }
+
+  #modalQuestions,
+  #modalQuestionsWrap{
+    display:block !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    direction:ltr !important;
+  }
+
+  .print-header{
+    display:block !important;
+    width:100% !important;
+    margin:0 0 8mm !important;
+    padding:7mm !important;
+    border:2px solid #164478 !important;
+    border-radius:5mm !important;
+    text-align:center !important;
+    direction:ltr !important;
+    background:#f8fbff !important;
+    color:#164478 !important;
+    break-after:avoid-page !important;
+    page-break-after:avoid !important;
+  }
+
+  .print-header-title{
+    font-size:20pt !important;
+    font-weight:900 !important;
+    margin-bottom:3mm !important;
+  }
+
+  .print-header-meta{
+    display:grid !important;
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:3mm !important;
+    margin-top:4mm !important;
+    font-size:10pt !important;
+    color:#374151 !important;
+  }
+
+  .print-student-info{
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:5mm !important;
+    margin-top:6mm !important;
+  }
+
+  .print-student-line{
+    height:9mm !important;
+    border-bottom:1px solid #64748b !important;
+    text-align:left !important;
+    font-size:10pt !important;
+    padding-top:2mm !important;
+  }
+
+  .modal-q-card{
+    display:block !important;
+    width:100% !important;
+    margin:0 0 6mm !important;
+    padding:5mm !important;
+    border:1.5px solid #bfd3ea !important;
+    border-radius:4mm !important;
+    background:#fff !important;
+    box-shadow:none !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  .modal-q-card img{
+    display:block !important;
+    max-width:145mm !important;
+    max-height:75mm !important;
+    width:auto !important;
+    height:auto !important;
+    object-fit:contain !important;
+    margin:4mm auto !important;
+    border-radius:3mm !important;
+  }
+
+  .modal-q-card video,
+  .modal-q-card audio,
+  .modal-q-card button,
+  .modal-q-card input,
+  .modal-q-card select,
+  .modal-q-card textarea{
+    display:none !important;
+  }
+
+  .modal-q-card,
+  .modal-q-card div,
+  .modal-q-card span,
+  .modal-q-card li{
+    font-size:10.5pt !important;
+    line-height:1.55 !important;
+  }
+
+  .modal-q-card ul,
+  .modal-q-card ol{
+    margin-top:3mm !important;
+    margin-bottom:0 !important;
+    padding-left:8mm !important;
+  }
+
+  .modal-q-card li{
+    margin-bottom:2mm !important;
+  }
+
+  .print-footer{
+    display:block !important;
+    text-align:center !important;
+    margin-top:7mm !important;
+    padding-top:3mm !important;
+    border-top:1px solid #cbd5e1 !important;
+    color:#64748b !important;
+    font-size:9pt !important;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -1289,12 +1490,28 @@ button:hover{
 
         <div class="modal-header">
 
-            <span id="modalTitle"></span>
+          <span id="modalTitle"></span>
 
-            <button onclick="closeQuestionsModal()">
-                ✕
+          <div style="display:flex;align-items:center;gap:10px;">
 
+            <button
+              type="button"
+              class="print-questions-btn"
+              onclick="printQuestionsPDF()"
+            >
+              <i class="fa-solid fa-file-pdf"></i>
+              Print PDF
             </button>
+
+            <button
+              type="button"
+              onclick="closeQuestionsModal()"
+              style="width:auto;margin:0;background:#ef4444;padding:10px 18px;"
+            >
+              ✕
+            </button>
+
+          </div>
 
         </div>
 
@@ -1353,6 +1570,7 @@ let SELECTED_QUESTION_COURSE = "";
 let EDIT_QUESTION_ID = null;
 
 let CURRENT_PREVIEW_EXAM = "";
+let CURRENT_PRINT_EXAM_DATA = null;
 let CURRENT_COURSE_ID = "";
 let CURRENT_COURSE_NAME = "";
 let CURRENT_TRAINER = "";
@@ -8311,11 +8529,43 @@ async function openFullQuestions(examId){
       .doc(examId)
       .get();
 
-    const examTitle = examDoc.exists
-      ? examDoc.data().title || "Questions"
-      : "Questions";
+    const examData = examDoc.exists
+      ? (examDoc.data() || {})
+      : {};
 
-    title.innerHTML = "□ " + esc(examTitle);
+    const examTitle = examData.title || "Questions";
+
+    const coursesData = Array.isArray(examData.coursesData)
+      ? examData.coursesData
+      : [];
+
+    const courseNames = coursesData
+      .map(c => c.TrainingCourse || "")
+      .filter(Boolean)
+      .join(" / ");
+
+    const trainerNames = coursesData
+      .map(c => c.Trainer || "")
+      .filter(Boolean)
+      .join(" / ");
+
+    const periods = coursesData
+      .map(c => c.Period || "")
+      .filter(Boolean)
+      .join(" / ");
+
+    CURRENT_PRINT_EXAM_DATA = {
+      examId: examId,
+      title: examTitle,
+      course: courseNames,
+      trainer: trainerNames,
+      period: periods,
+      duration: Number(examData.duration || 0)
+    };
+
+    title.innerHTML =
+      '<i class="fa-solid fa-list-check"></i> ' +
+      esc(examTitle);
 
     const snap = await db.collection("questions")
       .where("examId","==",examId)
@@ -8341,25 +8591,54 @@ async function openFullQuestions(examId){
       ...doc.data()
     }));
 
-    questions.sort((a,b)=>
+    questions.sort((a,b)=>(
       Number(a.order || 0) - Number(b.order || 0)
-    );
+    ));
 
     let html = `
-      <div style="
-        direction:ltr;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:10px;
-        flex-wrap:wrap;
-        margin-bottom:20px;
-        position:sticky;
-        top:0;
-        background:#fff;
-        z-index:10;
-        padding-bottom:12px;
-      ">
+
+      <div class="print-header">
+
+        <div class="print-header-title">
+          Prudle Institute
+        </div>
+
+        <div style="font-size:15pt;font-weight:900;color:#111827;">
+          ${esc(examTitle)}
+        </div>
+
+        <div class="print-header-meta">
+          <div><b>Course:</b> ${esc(courseNames || "-")}</div>
+          <div><b>Trainer:</b> ${esc(trainerNames || "-")}</div>
+          <div><b>Period:</b> ${esc(periods || "-")}</div>
+          <div><b>Total Questions:</b> ${questions.length}</div>
+        </div>
+
+        <div class="print-student-info">
+          <div class="print-student-line">Student Name:</div>
+          <div class="print-student-line">Student ID:</div>
+        </div>
+
+      </div>
+
+      <div
+        id="modalPrintToolbar"
+        class="modal-search-toolbar"
+        style="
+          direction:ltr;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:10px;
+          flex-wrap:wrap;
+          margin-bottom:20px;
+          position:sticky;
+          top:0;
+          background:#fff;
+          z-index:10;
+          padding-bottom:12px;
+        "
+      >
 
         <input
           id="modalQuestionSearch"
@@ -8501,9 +8780,7 @@ async function openFullQuestions(examId){
 
                 ${
                   q.mediaType === "audio"
-                  ? `<audio controls src="${q.mediaUrl}" style="
-                      width:100%;
-                    "></audio>`
+                  ? `<audio controls src="${q.mediaUrl}" style="width:100%;"></audio>`
                   : ""
                 }
               </div>
@@ -8572,7 +8849,13 @@ async function openFullQuestions(examId){
       `;
     });
 
-    html += `</div>`;
+    html += `
+      </div>
+
+      <div class="print-footer">
+        Prudle Institute — Exams and Quizzes
+      </div>
+    `;
 
     body.innerHTML = html;
 
@@ -8596,6 +8879,43 @@ async function openFullQuestions(examId){
       </div>
     `;
   }
+}
+
+function printQuestionsPDF(){
+
+  const modal = document.getElementById("questionsModal");
+  const questionsWrap = document.getElementById("modalQuestionsWrap");
+
+  if(!modal || !questionsWrap || !questionsWrap.children.length){
+    alert("افتح أسئلة الاختبار أولًا");
+    return;
+  }
+
+  document.querySelectorAll(".modal-q-card").forEach(card=>{
+    card.style.display = "block";
+  });
+
+  const oldTitle = document.title;
+
+  const examTitle =
+    CURRENT_PRINT_EXAM_DATA?.title ||
+    "Prudle Questions";
+
+  document.title =
+    String(examTitle)
+      .replace(/[\\/:*?"<>|]/g, "")
+      .trim() ||
+    "Prudle Questions";
+
+  setTimeout(()=>{
+
+    window.print();
+
+    setTimeout(()=>{
+      document.title = oldTitle;
+    },500);
+
+  },350);
 }
 
 function closeQuestionsModal(){
