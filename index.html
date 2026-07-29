@@ -879,7 +879,7 @@ button:hover{
 
 <style id="prudle-a4-print-design">
 /* =========================================
-   A4 QUESTIONS PRINT DESIGN
+   PRUDLE A4 PRINT — FULL BORDER ON EVERY PAGE
 ========================================= */
 .print-questions-btn{
   width:auto !important;
@@ -893,21 +893,10 @@ button:hover{
   cursor:pointer !important;
   white-space:nowrap;
 }
-.print-questions-btn:hover{
-  background:#12805a !important;
-}
-.print-answers-btn{
-  background:#8b5cf6 !important;
-}
-.print-answers-btn:hover{
-  background:#6d28d9 !important;
-}
-.print-header,
-.print-instructions,
-.print-footer{
-  display:none;
-}
-
+.print-questions-btn:hover{background:#12805a !important}
+.print-answers-btn{background:#8b5cf6 !important}
+.print-answers-btn:hover{background:#6d28d9 !important}
+.print-header,.print-instructions,.print-footer{display:none}
 .print-logo{
   width:34mm;
   height:34mm;
@@ -915,55 +904,29 @@ button:hover{
   display:block;
   margin:0 auto 3mm;
 }
+.print-mode-label{display:none}
 
-.print-mode-label{
-  display:none;
-}
-
+/* الإطار يقع على بُعد 6 مم فقط من حافة ورقة A4 */
 @page{
   size:A4 portrait;
-  margin:18mm;
+  margin:6mm;
 }
 
 @media print{
-  html,
-  body{
+  html,body{
     margin:0 !important;
     padding:0 !important;
-    background:#fff !important;
     width:auto !important;
     min-height:auto !important;
+    background:#fff !important;
     -webkit-print-color-adjust:exact !important;
     print-color-adjust:exact !important;
   }
 
-  body *{
-    visibility:hidden !important;
-  }
-
-  /* إطار كامل من الجهات الأربع، ويُعاد على كل صفحة مطبوعة */
-  #questionsModal::before{
-    content:"";
-    position:fixed !important;
-
-    /* توسيع الإطار خارج مساحة المحتوى ليظهر قريبًا من حدود ورقة A4 */
-    top:-8mm !important;
-    right:-8mm !important;
-    bottom:-8mm !important;
-    left:-8mm !important;
-
-    border:1.4px solid #6f6f6f !important;
-    box-shadow:inset 0 0 0 .6px #c7c7c7 !important;
-    background:transparent !important;
-    pointer-events:none !important;
-    z-index:999999 !important;
-    visibility:visible !important;
-  }
+  body *{visibility:hidden !important}
 
   #questionsModal,
-  #questionsModal *{
-    visibility:visible !important;
-  }
+  #questionsModal *{visibility:visible !important}
 
   #questionsModal{
     position:absolute !important;
@@ -971,10 +934,31 @@ button:hover{
     display:block !important;
     width:100% !important;
     min-height:100% !important;
-    background:#fff !important;
-    overflow:visible !important;
+    margin:0 !important;
     padding:0 !important;
+    overflow:visible !important;
+    background:#fff !important;
     border:0 !important;
+  }
+
+  /*
+     إطار ثابت يتكرر تلقائيًا في كل صفحة مطبوعة.
+     وضعه داخل مساحة @page يجعل الحدود الأربع كاملة وغير مقصوصة.
+  */
+  #questionsModal::before{
+    content:"";
+    position:fixed !important;
+    top:0 !important;
+    right:0 !important;
+    bottom:0 !important;
+    left:0 !important;
+    border:1.5px solid #4b4b4b !important;
+    border-radius:5mm !important;
+    box-shadow:inset 0 0 0 .45px #b9b9b9 !important;
+    background:transparent !important;
+    pointer-events:none !important;
+    z-index:999999 !important;
+    visibility:visible !important;
   }
 
   #questionsModal .modal-box{
@@ -982,11 +966,12 @@ button:hover{
     max-width:none !important;
     height:auto !important;
     max-height:none !important;
+    margin:0 !important;
+    padding:0 !important;
     overflow:visible !important;
+    border:0 !important;
     border-radius:0 !important;
     box-shadow:none !important;
-    padding:0 !important;
-    margin:0 !important;
     background:#fff !important;
   }
 
@@ -998,12 +983,12 @@ button:hover{
     display:none !important;
   }
 
+  /* مسافة ثابتة بين الإطار ومحتوى جميع الصفحات */
   #modalQuestions{
     display:block !important;
     width:100% !important;
     margin:0 !important;
-    /* مسافة واسعة وواضحة بين الإطار والمحتوى */
-    padding:8mm !important;
+    padding:8mm 9mm 9mm !important;
     direction:ltr !important;
     position:relative !important;
     z-index:1 !important;
@@ -1017,27 +1002,82 @@ button:hover{
     direction:ltr !important;
   }
 
+  /* الصفحة الأولى: بدون إطار مستقل، لأن إطار الصفحة الخارجي يحيط بها كاملة */
   .print-header{
     display:block !important;
     width:100% !important;
-    margin:0 0 8mm !important;
-    padding:7mm !important;
-    border:2px solid #164478 !important;
-    border-radius:5mm !important;
+    margin:0 0 7mm !important;
+    padding:3mm 5mm 2mm !important;
+    border:0 !important;
+    border-radius:0 !important;
     text-align:center !important;
     direction:ltr !important;
-    background:#f8fbff !important;
-    color:#164478 !important;
+    background:#fff !important;
+    color:#1f2937 !important;
     break-after:avoid-page !important;
     page-break-after:avoid !important;
   }
 
+  .print-logo{
+    display:block !important;
+    width:30mm !important;
+    height:30mm !important;
+    object-fit:contain !important;
+    margin:0 auto 2mm !important;
+  }
+
+  .print-header-title{
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:20pt !important;
+    font-weight:900 !important;
+    color:#1f2937 !important;
+    margin-bottom:3mm !important;
+  }
+
+  .print-mode-label{
+    display:block !important;
+    margin-top:3mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.5pt !important;
+    font-weight:900 !important;
+    color:#374151 !important;
+  }
+
+  .print-header-meta{
+    display:grid !important;
+    grid-template-columns:repeat(2,1fr) !important;
+    column-gap:13mm !important;
+    row-gap:3mm !important;
+    margin-top:5mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10pt !important;
+    color:#374151 !important;
+    text-align:left !important;
+  }
+
+  .print-student-info{
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:7mm !important;
+    margin-top:7mm !important;
+  }
+
+  .print-student-line{
+    height:8mm !important;
+    padding-top:1.5mm !important;
+    border-bottom:1px solid #64748b !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10pt !important;
+    text-align:left !important;
+  }
+
+  /* تعليمات الاختبار داخل الصفحة الأولى، ثم تبدأ الأسئلة في صفحة جديدة */
   .print-instructions{
     display:block !important;
     width:100% !important;
     margin:0 !important;
-    padding:6mm 7mm !important;
-    border:1.5px solid #4b5563 !important;
+    padding:5mm 7mm !important;
+    border:1px solid #6b7280 !important;
     border-radius:2mm !important;
     background:#fff !important;
     color:#111827 !important;
@@ -1049,10 +1089,10 @@ button:hover{
   }
 
   .print-instructions-title{
+    margin:0 0 3mm !important;
     text-align:center !important;
     font-size:13pt !important;
     font-weight:900 !important;
-    margin:0 0 4mm !important;
     text-decoration:underline !important;
   }
 
@@ -1062,63 +1102,72 @@ button:hover{
   }
 
   .print-instructions li{
-    font-size:9.5pt !important;
-    line-height:1.35 !important;
-    margin:0 0 2mm !important;
+    margin:0 0 1.8mm !important;
+    font-size:9.3pt !important;
+    line-height:1.3 !important;
   }
 
-  .print-header-title{
-    font-size:20pt !important;
-    font-weight:900 !important;
-    margin-bottom:3mm !important;
-  }
-
-  .print-header-meta{
-    display:grid !important;
-    grid-template-columns:repeat(2,1fr) !important;
-    gap:3mm !important;
-    margin-top:4mm !important;
-    font-size:10pt !important;
-    color:#374151 !important;
-  }
-
-  .print-student-info{
-    display:grid !important;
-    grid-template-columns:1fr 1fr !important;
-    gap:5mm !important;
-    margin-top:6mm !important;
-  }
-
-  .print-student-line{
-    height:9mm !important;
-    border-bottom:1px solid #64748b !important;
-    text-align:left !important;
-    font-size:10pt !important;
-    padding-top:2mm !important;
-  }
-
+  /* بطاقات الأسئلة مضغوطة مثل مستند Word */
   .modal-q-card{
     display:block !important;
     width:100% !important;
-    margin:0 0 6mm !important;
-    padding:5mm !important;
-    border:1.5px solid #bfd3ea !important;
-    border-radius:4mm !important;
+    margin:0 0 3.5mm !important;
+    padding:2.8mm 2mm 3.5mm !important;
+    border:0 !important;
+    border-bottom:1px solid #a9a9a9 !important;
+    border-radius:0 !important;
     background:#fff !important;
     box-shadow:none !important;
     break-inside:avoid-page !important;
     page-break-inside:avoid !important;
   }
 
+  .modal-q-card:last-child{border-bottom:0 !important}
+
+  .modal-q-card > div:first-child{
+    margin-bottom:2mm !important;
+    align-items:center !important;
+  }
+
+  .modal-q-card > div:first-child > div{
+    padding:1.1mm 3mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:9pt !important;
+    line-height:1.1 !important;
+  }
+
+  .modal-q-card .question-print-title{
+    margin-bottom:2mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11.5pt !important;
+    font-weight:700 !important;
+    line-height:1.3 !important;
+    text-align:left !important;
+    color:#111 !important;
+  }
+
+  .modal-q-card .question-option{
+    padding:.75mm 1.5mm !important;
+    margin-top:.4mm !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:#fff !important;
+    color:#111 !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.3pt !important;
+    font-weight:600 !important;
+    line-height:1.24 !important;
+  }
+
   .modal-q-card img{
     display:block !important;
-    max-width:145mm !important;
+    max-width:140mm !important;
     max-height:75mm !important;
     width:auto !important;
     height:auto !important;
     object-fit:contain !important;
-    margin:4mm auto !important;
-    border-radius:3mm !important;
+    margin:3mm auto !important;
+    border-radius:1mm !important;
   }
 
   .modal-q-card video,
@@ -1130,62 +1179,45 @@ button:hover{
     display:none !important;
   }
 
-  .modal-q-card,
-  .modal-q-card div,
-  .modal-q-card span,
-  .modal-q-card li{
-    font-size:10.5pt !important;
-    line-height:1.55 !important;
-  }
-
-  .modal-q-card ul,
-  .modal-q-card ol{
-    margin-top:3mm !important;
+  .modal-q-card ul,.modal-q-card ol{
+    margin-top:2mm !important;
     margin-bottom:0 !important;
-    padding-left:8mm !important;
+    padding-left:7mm !important;
   }
 
   .modal-q-card li{
-    margin-bottom:2mm !important;
+    margin-bottom:1.5mm !important;
+    font-size:10.3pt !important;
+    line-height:1.3 !important;
   }
 
   .print-footer{
     display:block !important;
+    margin-top:5mm !important;
+    padding-top:2mm !important;
+    border-top:0 !important;
     text-align:center !important;
-    margin-top:7mm !important;
-    padding-top:3mm !important;
-    border-top:1px solid #cbd5e1 !important;
     color:#64748b !important;
-    font-size:9pt !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:8.5pt !important;
   }
 
-  .print-logo{
-    display:block !important;
-    width:31mm !important;
-    height:31mm !important;
-    object-fit:contain !important;
-    margin:0 auto 2mm !important;
-  }
-
-  .print-mode-label{
-    display:block !important;
-    margin-top:3mm !important;
-    font-size:11pt !important;
-    font-weight:900 !important;
-    color:#991b1b !important;
-  }
-
+  /* وضع الأسئلة فقط: لا تظهر أي إجابة أو تلميح */
   body.print-questions .correct-answer{
     background:#fff !important;
-    border-color:#d1d5db !important;
+    border-color:transparent !important;
     color:#111827 !important;
   }
 
   body.print-questions .correct-answer .correct-mark,
-  body.print-questions .answer-key-box{
+  body.print-questions .answer-key-box,
+  body.print-questions .answer-only{
     display:none !important;
   }
 
+  body.print-questions .question-only{display:block !important}
+
+  /* وضع الأسئلة والإجابات */
   body.print-answers .correct-answer{
     background:#dcfce7 !important;
     border-color:#16a34a !important;
@@ -1197,68 +1229,9 @@ button:hover{
     display:inline !important;
   }
 
-  /* ضمان عدم ظهور أي إجابة في ملف الأسئلة */
-  body.print-questions .answer-only{
-    display:none !important;
-  }
-
-  body.print-questions .question-only{
-    display:block !important;
-  }
-
-  body.print-answers .answer-only{
-    display:block !important;
-  }
-
-  body.print-answers .question-only{
-    display:none !important;
-  }
-
-  /* تنسيق أصغر ومقارب لمستند Word */
-  .modal-q-card{
-    padding:2.8mm 3mm !important;
-    margin:0 0 3mm !important;
-    border:0 !important;
-    border-radius:0 !important;
-    background:#fff !important;
-  }
-
-  .modal-q-card .question-print-title{
-    font-family:Arial,Helvetica,sans-serif !important;
-    font-size:11.5pt !important;
-    font-weight:700 !important;
-    line-height:1.3 !important;
-    text-align:left !important;
-    color:#111 !important;
-    margin-bottom:2mm !important;
-  }
-
-  .modal-q-card .question-option{
-    font-family:Arial,Helvetica,sans-serif !important;
-    padding:.8mm 1.5mm !important;
-    margin-top:.5mm !important;
-    border:0 !important;
-    border-radius:0 !important;
-    background:#fff !important;
-    color:#111 !important;
-    font-size:10.5pt !important;
-    font-weight:600 !important;
-    line-height:1.25 !important;
-  }
-
-  /* شارات السؤال أصغر حتى لا تلامس الإطار */
-  .modal-q-card > div:first-child{
-    margin-bottom:2mm !important;
-    align-items:center !important;
-  }
-
-  .modal-q-card > div:first-child > div{
-    padding:1.2mm 3mm !important;
-    font-size:9.5pt !important;
-    line-height:1.1 !important;
-  }
+  body.print-answers .answer-only{display:block !important}
+  body.print-answers .question-only{display:none !important}
 }
-
 </style>
 
 </head>
