@@ -58,7 +58,7 @@ function logout(){
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
 
 <style>
 *{box-sizing:border-box}
@@ -535,12 +535,353 @@ transform:scale(1);
 
 }
 </style>
+
+<style id="prudle-modern-design">
+:root{
+  --blue:#164478;
+  --blue2:#2467a5;
+  --gold:#f4b942;
+  --green:#17a673;
+  --red:#e74c3c;
+  --purple:#8b5cf6;
+  --bg:#f3f7fb;
+  --card:#ffffff;
+  --text:#18324b;
+  --muted:#6b7b8d;
+  --border:#dce6ef;
+  --shadow:0 12px 35px rgba(31,70,102,.09);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:"Poppins","Tajawal",sans-serif;
+  background:
+    radial-gradient(circle at 10% 5%,rgba(36,103,165,.14),transparent 24%),
+    radial-gradient(circle at 90% 95%,rgba(244,185,66,.15),transparent 25%),
+    var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+.page{
+  width:min(1200px,94%);
+  max-width:none;
+  margin:24px auto 50px;
+  padding:0;
+}
+header{
+  min-height:86px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  border-radius:22px;
+  padding:18px 24px;
+  font-size:25px;
+  box-shadow:0 10px 28px rgba(22,68,120,.22);
+  position:relative;
+  overflow:hidden;
+}
+header::before{
+  content:"";
+  position:absolute;
+  width:190px;
+  height:190px;
+  border-radius:50%;
+  background:rgba(255,255,255,.08);
+  top:-110px;
+  left:-50px;
+}
+header::after{
+  content:"PRUDLE";
+  position:absolute;
+  left:24px;
+  bottom:10px;
+  font-size:11px;
+  letter-spacing:4px;
+  opacity:.55;
+}
+.box{
+  background:rgba(255,255,255,.97);
+  border:1px solid var(--border);
+  border-radius:22px;
+  box-shadow:var(--shadow);
+  padding:22px;
+  margin-top:20px;
+}
+.box h3{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0 0 18px;
+  font-size:21px;
+  color:var(--blue);
+}
+.box h3::after{
+  content:"";
+  height:3px;
+  flex:1;
+  border-radius:999px;
+  background:linear-gradient(90deg,rgba(36,103,165,.22),transparent);
+}
+input,select,textarea{
+  border:1px solid var(--border);
+  border-radius:13px;
+  padding:12px 13px;
+  background:#fff;
+  color:var(--text);
+  font-size:15px;
+  transition:.2s;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--blue2);
+  box-shadow:0 0 0 3px rgba(36,103,165,.11);
+}
+button{
+  border-radius:13px;
+  padding:11px 17px;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  transition:transform .2s,box-shadow .2s,opacity .2s;
+}
+button:hover{
+  opacity:1;
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(22,68,120,.16);
+}
+.logout-badge{
+  position:fixed;
+  top:16px;
+  left:18px;
+  z-index:1000;
+  width:auto!important;
+  margin:0!important;
+  background:rgba(255,255,255,.16)!important;
+  border:1px solid rgba(255,255,255,.35)!important;
+  backdrop-filter:blur(8px);
+}
+.note{
+  background:#eef6fd;
+  border-color:#cfe0ef;
+  color:var(--blue);
+}
+#examPreviewBox,#coursesBox,#examBank{
+  border-color:var(--border)!important;
+  background:#f8fbfd!important;
+}
+.course-select-btn{
+  width:auto!important;
+  min-width:125px;
+  margin:0 0 0 10px!important;
+}
+.course-select-btn.on{
+  background:var(--green)!important;
+}
+.course-select-btn.off{
+  background:#8a9aaa!important;
+}
+.actions button{
+  min-width:150px;
+}
+.import-generator{
+  border:1px solid #cfe0ef;
+  background:linear-gradient(135deg,#f7fbff,#fffaf0);
+}
+.import-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+.import-head-title{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.import-head-icon{
+  width:52px;
+  height:52px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  color:#fff;
+  font-size:23px;
+  box-shadow:0 8px 20px rgba(22,68,120,.18);
+}
+.import-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  border-radius:999px;
+  padding:7px 12px;
+  background:#eaf3fb;
+  color:var(--blue);
+  font-size:12px;
+  font-weight:900;
+}
+.import-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  margin-top:16px;
+}
+.import-field{
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:14px;
+  background:#fff;
+}
+.import-field label{
+  display:block;
+  margin-bottom:8px;
+  font-weight:900;
+  color:var(--blue);
+}
+.import-field input{
+  margin:0;
+}
+.import-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:15px;
+}
+.import-actions button{
+  flex:1;
+  min-width:190px;
+}
+.import-note{
+  padding:12px 14px;
+  border-radius:14px;
+  background:#eef6fd;
+  border:1px solid #cfe0ef;
+  color:var(--blue);
+  font-size:13px;
+  font-weight:700;
+  line-height:1.8;
+  margin-top:14px;
+}
+.import-status{
+  display:none;
+  margin-top:14px;
+  padding:12px 14px;
+  border-radius:14px;
+  font-weight:900;
+}
+.import-status.show{display:block}
+.import-status.info{background:#eef6fd;color:var(--blue)}
+.import-status.success{background:#e8faf2;color:#0b7953}
+.import-status.error{background:#fff0ee;color:#b42318}
+#importedQuestionsStage{
+  display:none;
+  margin-top:18px;
+}
+#importedQuestionsStage.show{display:block}
+.import-stage-toolbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.import-stage-count{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#edf4fa;
+  color:var(--blue);
+  font-weight:900;
+}
+.imported-questions-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(330px,1fr));
+  gap:15px;
+}
+.imported-question-card{
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 8px 24px rgba(22,68,120,.07);
+}
+.imported-question-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  color:#fff;
+}
+.imported-question-body{
+  padding:15px;
+}
+.imported-question-body textarea,
+.imported-question-body input{
+  margin-top:8px;
+}
+.imported-option-row{
+  display:grid;
+  grid-template-columns:42px 1fr;
+  gap:8px;
+  align-items:center;
+}
+.imported-option-row input[type="radio"]{
+  width:20px;
+  height:20px;
+  margin:auto;
+  accent-color:var(--green);
+}
+.imported-option-row.correct-option{
+  background:#eafaf4;
+  border-radius:12px;
+  padding:4px;
+}
+.import-card-actions{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+.import-card-actions button{
+  margin:0;
+}
+.import-save-bar{
+  position:sticky;
+  bottom:12px;
+  z-index:15;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:12px;
+  margin-top:16px;
+  border:1px solid rgba(22,68,120,.15);
+  border-radius:17px;
+  background:rgba(255,255,255,.93);
+  backdrop-filter:blur(12px);
+  box-shadow:0 10px 30px rgba(22,68,120,.16);
+}
+.import-save-bar button{
+  flex:1;
+  min-width:190px;
+}
+@media(max-width:750px){
+  .page{width:95%;margin-top:14px}
+  .box{padding:16px;border-radius:18px}
+  .import-grid{grid-template-columns:1fr}
+  .imported-questions-grid{grid-template-columns:1fr}
+  header{font-size:20px;padding-left:85px}
+  .logout-badge{top:11px;left:10px}
+}
+</style>
+
 </head>
 <body>
 
 <div class="page">
 
-  <header>□ Exams and Quizzes - Prudle</header>
+  <header><i class="fa-solid fa-graduation-cap" style="margin-left:10px"></i> Exams and Quizzes - Prudle</header>
 <!-- □ Previews questions -->
 <div class="box">
 
@@ -656,29 +997,120 @@ transform:scale(1);
 
 </div>
 
-<div class="box">
-  <h3>Quizzes</h3>
 
-  <input type="file"
-         id="wordFile"
-         accept=".doc,.docx,.txt"
-         style="margin-top:10px">
+<div class="box import-generator">
+  <div class="import-head">
+    <div class="import-head-title">
+      <div class="import-head-icon">
+        <i class="fa-solid fa-file-import"></i>
+      </div>
+      <div>
+        <h3 style="margin:0">Import Questions</h3>
+        <div class="small">
+          Import, review and edit questions before saving them to the selected exam.
+        </div>
+      </div>
+    </div>
 
-  <input type="file"
-         id="pdfFile"
-         accept=".pdf"
-         style="margin-top:10px">
+    <div class="import-badge">
+      <i class="fa-solid fa-eye"></i>
+      Preview before save
+    </div>
+  </div>
 
-  <button onclick="importWord()"
-          style="background:#16a34a">
-    □ Upload Word
-  </button>
+  <div class="import-grid">
+    <div class="import-field">
+      <label for="wordFile">
+        <i class="fa-solid fa-file-word"></i>
+        Word / TXT
+      </label>
+      <input
+        type="file"
+        id="wordFile"
+        accept=".docx,.txt"
+      >
+      <button
+        type="button"
+        onclick="importWord()"
+        style="background:#17a673"
+      >
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        Read Word Questions
+      </button>
+    </div>
 
-  <button onclick="importPDF()"
-          style="background:#dc2626">
-    □ Upload PDF
-  </button>
+    <div class="import-field">
+      <label for="pdfFile">
+        <i class="fa-solid fa-file-pdf"></i>
+        PDF
+      </label>
+      <input
+        type="file"
+        id="pdfFile"
+        accept=".pdf"
+      >
+      <button
+        type="button"
+        onclick="importPDF()"
+        style="background:#e74c3c"
+      >
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        Read PDF Questions
+      </button>
+    </div>
+  </div>
 
+  <div class="import-note">
+    <i class="fa-solid fa-circle-info"></i>
+    The file is analyzed first without saving anything. Review the imported questions,
+    edit any question or option, choose the correct answer, then press
+    <strong>Save Imported Questions</strong>.
+    Supported options: <strong>a) b) c) d)</strong> and automatic Word numbering
+    <strong>1. 2. 3. 4.</strong>. Mark one correct answer using <strong>*</strong>.
+  </div>
+
+  <div id="importStatus" class="import-status"></div>
+
+  <div id="importedQuestionsStage">
+    <div class="import-stage-toolbar">
+      <div>
+        <strong style="color:#164478;font-size:18px">
+          Imported Questions Preview
+        </strong>
+        <div class="small">
+          Changes here are temporary until you save.
+        </div>
+      </div>
+
+      <div id="importedQuestionsCount" class="import-stage-count">
+        <i class="fa-solid fa-list-check"></i>
+        0 Questions
+      </div>
+    </div>
+
+    <div id="importedQuestionsPreview" class="imported-questions-grid"></div>
+
+    <div class="import-save-bar">
+      <button
+        type="button"
+        id="saveImportedQuestionsBtn"
+        onclick="saveImportedQuestions()"
+        style="background:#17a673"
+      >
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        Save Imported Questions
+      </button>
+
+      <button
+        type="button"
+        onclick="clearImportedQuestionsStage()"
+        style="background:#6b7b8d"
+      >
+        <i class="fa-solid fa-xmark"></i>
+        Cancel Import
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- □ الفلاتر -->  <select id="branchFilter" onchange="loadCourses()"></select>
@@ -5395,69 +5827,122 @@ alert("✅ The test is open to everyone ");
 }
 async function importPDF(){
 
-  const examId = document.getElementById("examSelect").value;
+  const examId =
+    document.getElementById("examSelect")?.value || "";
 
   if(!examId){
     alert("⚠️ اختر الاختبار أولاً");
     return;
   }
 
-  const file = document.getElementById("pdfFile").files[0];
+  const file =
+    document.getElementById("pdfFile")?.files?.[0];
 
   if(!file){
-    alert("اختر ملف PDF");
+    alert("⚠️ اختر ملف PDF أولاً");
     return;
   }
 
-  const reader = new FileReader();
+  setImportStatus(
+    "info",
+    '<i class="fa-solid fa-spinner fa-spin"></i> Reading PDF file...'
+  );
 
-  reader.onload = async function(){
+  try{
 
-    try{
+    const typedArray =
+      new Uint8Array(
+        await file.arrayBuffer()
+      );
 
-      const typedArray = new Uint8Array(this.result);
-      const pdf = await pdfjsLib.getDocument(typedArray).promise;
+    const pdf =
+      await pdfjsLib
+        .getDocument(typedArray)
+        .promise;
 
-      let fullText = "";
+    let fullText = "";
 
-      for(let i = 1; i <= pdf.numPages; i++){
+    for(
+      let pageNumber = 1;
+      pageNumber <= pdf.numPages;
+      pageNumber++
+    ){
 
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
+      const page =
+        await pdf.getPage(pageNumber);
 
-        let line = "";
-        let lastY = null;
+      const content =
+        await page.getTextContent();
 
-        content.items.forEach(item => {
+      const rows = new Map();
 
-          if(
-            lastY === null ||
-            Math.abs(item.transform[5] - lastY) < 5
-          ){
-            line += item.str + " ";
-          }else{
-            fullText += line + "\n\n";
-            line = item.str + " ";
-          }
+      content.items.forEach(item => {
 
-          lastY = item.transform[5];
+        const y =
+          Math.round(
+            Number(item.transform?.[5] || 0)
+          );
+
+        if(!rows.has(y)){
+          rows.set(y, []);
+        }
+
+        rows.get(y).push({
+          x:
+            Number(item.transform?.[4] || 0),
+          text:
+            String(item.str || "")
         });
 
-        fullText += line + "\n\n";
-      }
+      });
 
-console.log("PDF TEXT:", fullText);
+      const pageLines =
+        [...rows.entries()]
+          .sort((a,b) => b[0] - a[0])
+          .map(([,items]) =>
+            items
+              .sort((a,b) => a.x - b.x)
+              .map(item => item.text)
+              .join(" ")
+              .replace(/\s+/g, " ")
+              .trim()
+          )
+          .filter(Boolean);
 
-await processTextToQuestions(fullText);
-    }catch(err){
+      fullText +=
+        pageLines.join("\n") +
+        "\n\n";
 
-      console.error(err);
-      alert("❌ فشل قراءة PDF");
     }
 
-  };
+    console.log(
+      "PDF IMPORT TEXT:",
+      fullText
+    );
 
-  reader.readAsArrayBuffer(file);
+    processTextToQuestions(
+      fullText,
+      file.name || "PDF"
+    );
+
+  }catch(error){
+
+    console.error(
+      "PDF IMPORT ERROR:",
+      error
+    );
+
+    setImportStatus(
+      "error",
+      "❌ فشل قراءة ملف PDF: " +
+      (
+        error?.message ||
+        String(error)
+      )
+    );
+
+  }
+
 }
 
 function convertWordHtmlToImportText(html){
@@ -5672,11 +6157,8 @@ async function importWord(){
     return;
   }
 
-  const fileInput =
-    document.getElementById("wordFile");
-
   const file =
-    fileInput?.files?.[0];
+    document.getElementById("wordFile")?.files?.[0];
 
   if(!file){
     alert("⚠️ اختر ملف Word أو TXT أولاً");
@@ -5697,118 +6179,184 @@ async function importWord(){
     return;
   }
 
+  setImportStatus(
+    "info",
+    '<i class="fa-solid fa-spinner fa-spin"></i> Reading file...'
+  );
+
   try{
 
-    let text = "";
+    let importedText = "";
 
     window.WORD_HTML = "";
 
-    // =============================================
-    // إذا كان الملف TXT
-    // =============================================
-
     if(isTxt){
 
-      text = await file.text();
+      importedText =
+        await file.text();
 
-    }
+    }else{
 
-    // =============================================
-    // إذا كان الملف Word DOCX
-    // =============================================
+      const arrayBuffer =
+        await file.arrayBuffer();
 
-    else{
+      const htmlResult =
+        await mammoth.convertToHtml({
+          arrayBuffer:
+            arrayBuffer
+        });
 
-const arrayBuffer =
-  await file.arrayBuffer();
+      window.WORD_HTML =
+        htmlResult.value || "";
 
-/* =============================================
-   استخراج HTML أولًا
-   لأن HTML يحافظ على ترقيم Word التلقائي
-============================================= */
+      importedText =
+        wordHtmlToNumberedText(
+          window.WORD_HTML
+        );
 
-const htmlResult =
-  await mammoth.convertToHtml({
-    arrayBuffer: arrayBuffer
-  });
+      if(!String(importedText || "").trim()){
 
-window.WORD_HTML =
-  htmlResult.value || "";
+        const rawResult =
+          await mammoth.extractRawText({
+            arrayBuffer:
+              arrayBuffer
+          });
 
-/* =============================================
-   تحويل HTML إلى نص مع إضافة أرقام القوائم
-============================================= */
+        importedText =
+          rawResult.value || "";
 
-text =
-  wordHtmlToNumberedText(
-    window.WORD_HTML
-  );
-
-/* =============================================
-   احتياط:
-   إذا لم يخرج نص من HTML نستخدم النص الخام
-============================================= */
-
-if(!String(text || "").trim()){
-
-  const rawResult =
-    await mammoth.extractRawText({
-      arrayBuffer: arrayBuffer
-    });
-
-  text =
-    rawResult.value || "";
-}
+      }
 
     }
 
     console.log(
-      "WORD TEXT:",
-      text
+      "WORD IMPORT TEXT:",
+      importedText
     );
 
-    console.log(
-      "WORD HTML:",
-      window.WORD_HTML
-    );
+    if(!String(importedText || "").trim()){
 
-    if(!String(text || "").trim()){
-
-      alert("⚠️ لم يتم العثور على نص داخل الملف");
+      setImportStatus(
+        "error",
+        "⚠️ لم يتم العثور على نص داخل الملف"
+      );
 
       return;
 
     }
 
-    await processTextToQuestions(
-      text
+    processTextToQuestions(
+      importedText,
+      file.name || "Word"
     );
 
-  }catch(err){
+  }catch(error){
 
     console.error(
       "IMPORT WORD ERROR:",
-      err
+      error
     );
 
-    alert(
-      "❌ فشل قراءة الملف:\n" +
+    setImportStatus(
+      "error",
+      "❌ فشل قراءة الملف: " +
       (
-        err?.message ||
-        String(err)
+        error?.message ||
+        String(error)
       )
     );
 
   }
 
 }
-async function processTextToQuestions(text){
+let IMPORTED_QUESTIONS_STAGE = [];
+let IMPORTED_SOURCE_NAME = "";
+
+function setImportStatus(type, message){
+
+  const status =
+    document.getElementById("importStatus");
+
+  if(!status){
+    return;
+  }
+
+  status.className =
+    "import-status show " +
+    String(type || "info");
+
+  status.innerHTML =
+    String(message || "");
+
+}
+
+function clearImportedQuestionsStage(){
+
+  IMPORTED_QUESTIONS_STAGE = [];
+  IMPORTED_SOURCE_NAME = "";
+
+  const stage =
+    document.getElementById(
+      "importedQuestionsStage"
+    );
+
+  const preview =
+    document.getElementById(
+      "importedQuestionsPreview"
+    );
+
+  const count =
+    document.getElementById(
+      "importedQuestionsCount"
+    );
+
+  const status =
+    document.getElementById(
+      "importStatus"
+    );
+
+  if(stage){
+    stage.classList.remove("show");
+  }
+
+  if(preview){
+    preview.innerHTML = "";
+  }
+
+  if(count){
+    count.innerHTML =
+      '<i class="fa-solid fa-list-check"></i> 0 Questions';
+  }
+
+  if(status){
+    status.className =
+      "import-status";
+    status.innerHTML = "";
+  }
+
+  const wordInput =
+    document.getElementById("wordFile");
+
+  const pdfInput =
+    document.getElementById("pdfFile");
+
+  if(wordInput){
+    wordInput.value = "";
+  }
+
+  if(pdfInput){
+    pdfInput.value = "";
+  }
+
+}
+
+function processTextToQuestions(
+  text,
+  sourceName = "Imported File"
+){
 
   const examId =
     document.getElementById("examSelect")?.value || "";
-
-  const group =
-    document.getElementById("groupSelect")?.value || "General";
 
   if(!examId){
     alert("⚠️ اختر الاختبار أولاً");
@@ -5817,116 +6365,19 @@ async function processTextToQuestions(text){
 
   try{
 
-    /* =========================================
-       1) جلب الاختبار
-    ========================================= */
+    function cleanLine(value){
 
-    const examRef =
-      db.collection("exams").doc(examId);
-
-    const examDoc =
-      await examRef.get();
-
-    if(!examDoc.exists){
-      alert("⚠️ الاختبار غير موجود");
-      return;
-    }
-
-    const examData =
-      examDoc.data() || {};
-
-
-    /* =========================================
-       2) الدورات المرتبطة
-    ========================================= */
-
-    const coursesUsed =
-      Array.isArray(examData.coursesData)
-        ? examData.coursesData.map(c => ({
-
-            courseId:
-              c.courseId || "",
-
-            TrainingCourse:
-              c.TrainingCourse || "",
-
-            Trainer:
-              c.Trainer || "",
-
-            Period:
-              c.Period || ""
-
-          }))
-        : [];
-
-
-    /* =========================================
-       3) تنظيف النص
-    ========================================= */
-
-    let cleanedText =
-      String(text || "")
-
+      return String(value || "")
         .replace(/\u0000/g, "")
-
-        .replace(/\r\n?/g, "\n")
-
         .replace(/\u00A0/g, " ")
-
         .replace(
           /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,
           ""
         )
-
-        .replace(/\t/g, " ")
-
-        .replace(/[（]/g, "(")
-
-        .replace(/[）]/g, ")")
-
-        .replace(/[“”]/g, '"')
-
-        .replace(/[‘’]/g, "'")
-
-        .replace(/[ \t]+$/gm, "")
-
-        .replace(/^[ \t]+/gm, "")
-
-        .replace(/\n{4,}/g, "\n\n\n")
-
-        .trim();
-
-
-    if(!cleanedText){
-
-      alert("⚠️ لم يتم العثور على نص داخل الملف");
-
-      return;
-
-    }
-
-
-    const lines =
-      cleanedText
-        .split("\n")
-        .map(line =>
-          String(line || "").trim()
-        )
-        .filter(Boolean);
-
-
-    /* =========================================
-       أدوات التحليل
-    ========================================= */
-
-    function cleanLine(value){
-
-      return String(value || "")
         .replace(/\s+/g, " ")
         .trim();
 
     }
-
 
     function countWords(value){
 
@@ -5937,40 +6388,30 @@ async function processTextToQuestions(text){
 
     }
 
-
     function hasCorrectMarker(value){
 
       const source =
         String(value || "");
 
       return (
-
         source.includes("*") ||
-
         /\(correct\)|\[correct\]|\{correct\}/i.test(source)
-
       );
 
     }
-
 
     function removeCorrectMarker(value){
 
       return cleanLine(
-
         String(value || "")
-
           .replace(/\*/g, "")
-
           .replace(
             /\(correct\)|\[correct\]|\{correct\}/gi,
             ""
           )
-
       );
 
     }
-
 
     function looksLikeQuestion(value){
 
@@ -5995,43 +6436,25 @@ async function processTextToQuestions(text){
           .trim();
 
       return (
-
         valueText.includes("?") ||
-
         valueText.includes("؟") ||
-
         /_{2,}/.test(valueText) ||
-
         /\bchoose\b/i.test(valueText) ||
-
         /\bcomplete\b/i.test(valueText) ||
-
         /\bwhich\b/i.test(valueText) ||
-
         /\bwhat\b/i.test(valueText) ||
-
         /\bwhere\b/i.test(valueText) ||
-
         /\bwho\b/i.test(valueText) ||
-
         /\bwhen\b/i.test(valueText) ||
-
         /\bwhy\b/i.test(valueText) ||
-
         /\bhow\b/i.test(valueText) ||
-
         /\bselect\b/i.test(valueText) ||
-
         /\bfill\b/i.test(valueText) ||
-
         /\bcorrect\b/i.test(valueText) ||
-
         countWords(plain) >= 4
-
       );
 
     }
-
 
     function isTimeOrDecimal(value){
 
@@ -6039,23 +6462,12 @@ async function processTextToQuestions(text){
         cleanLine(value);
 
       return (
-
-        /^\d{1,2}\s*:\s*\d{1,2}\s*(?:am|pm)?$/i.test(
-          valueText
-        ) ||
-
-        /^\d{1,2}\s*\.\s*\d{1,2}\s*(?:am|pm)?$/i.test(
-          valueText
-        ) ||
-
-        /^\d{1,2}\s*(?:am|pm)$/i.test(
-          valueText
-        )
-
+        /^\d{1,2}\s*:\s*\d{1,2}\s*(?:am|pm)?$/i.test(valueText) ||
+        /^\d{1,2}\s*\.\s*\d{1,2}\s*(?:am|pm)?$/i.test(valueText) ||
+        /^\d{1,2}\s*(?:am|pm)$/i.test(valueText)
       );
 
     }
-
 
     function parseNumberedLine(value){
 
@@ -6079,17 +6491,13 @@ async function processTextToQuestions(text){
       }
 
       return {
-
         number:
           Number(match[1]),
-
         text:
           cleanLine(match[2])
-
       };
 
     }
-
 
     function parseLetterOption(value){
 
@@ -6106,52 +6514,76 @@ async function processTextToQuestions(text){
       }
 
       return {
-
         letter:
           String(match[2] || "")
             .toLowerCase(),
-
         text:
           cleanLine(match[4]),
-
         correct:
           Boolean(match[1] || match[3]) ||
           hasCorrectMarker(match[4])
-
       };
 
     }
 
+    let cleanedText =
+      String(text || "")
+        .replace(/\r\n?/g, "\n")
+        .replace(/\u00A0/g, " ")
+        .replace(
+          /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,
+          ""
+        )
+        .replace(/\t/g, " ")
+        .replace(/[（]/g, "(")
+        .replace(/[）]/g, ")")
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'")
+        .replace(
+          /([^\n])\s+([a-hA-H])\s*[\)\.\-:]\s*/g,
+          "$1\n$2) "
+        )
+        .replace(/[ \t]+$/gm, "")
+        .replace(/^[ \t]+/gm, "")
+        .replace(/\n{4,}/g, "\n\n\n")
+        .trim();
 
-    /* =========================================
-       4) تحليل الأسئلة
-    ========================================= */
+    if(!cleanedText){
+
+      setImportStatus(
+        "error",
+        "⚠️ لم يتم العثور على نص داخل الملف"
+      );
+
+      return;
+    }
+
+    const lines =
+      cleanedText
+        .split("\n")
+        .map(cleanLine)
+        .filter(Boolean);
 
     const parsedQuestions = [];
 
     let currentQuestion = null;
-
     let lastQuestionNumber = null;
 
-
-    function startQuestion(number, questionText){
+    function startQuestion(
+      number,
+      questionText
+    ){
 
       currentQuestion = {
-
         number:
           Number(number),
-
         question:
           cleanLine(questionText),
-
         options: [],
-
         optionMode:
           null,
-
         nextNumericOption:
           1
-
       };
 
       lastQuestionNumber =
@@ -6159,8 +6591,10 @@ async function processTextToQuestions(text){
 
     }
 
-
-    function addOption(optionText, isCorrect){
+    function addOption(
+      optionText,
+      isCorrect = false
+    ){
 
       if(!currentQuestion){
         return;
@@ -6174,18 +6608,14 @@ async function processTextToQuestions(text){
       }
 
       currentQuestion.options.push({
-
         text:
-          cleanedOption,
-
+          removeCorrectMarker(cleanedOption),
         correct:
           isCorrect === true ||
           hasCorrectMarker(cleanedOption)
-
       });
 
     }
-
 
     function finalizeQuestion(){
 
@@ -6193,69 +6623,56 @@ async function processTextToQuestions(text){
         return;
       }
 
-      const questionText =
-        cleanLine(currentQuestion.question);
-
       const options =
         currentQuestion.options
           .map(option => ({
-
             text:
               removeCorrectMarker(option.text),
-
             correct:
-              option.correct === true ||
-              hasCorrectMarker(option.text)
-
+              option.correct === true
           }))
           .filter(option =>
             option.text
           );
 
-      const correctCount =
-        options.filter(option =>
-          option.correct === true
-        ).length;
+      const correctIndexes =
+        options
+          .map((option,index) =>
+            option.correct ? index : -1
+          )
+          .filter(index =>
+            index >= 0
+          );
 
       if(
-        questionText &&
-        options.length >= 2 &&
-        correctCount === 1
+        currentQuestion.question &&
+        options.length >= 2
       ){
 
         parsedQuestions.push({
-
           number:
             currentQuestion.number,
-
           question:
-            questionText,
-
+            cleanLine(currentQuestion.question),
           options:
-            options
-
+            options.map(option =>
+              option.text
+            ),
+          correct:
+            correctIndexes.length === 1
+              ? correctIndexes[0]
+              : -1,
+          degree:
+            1,
+          valid:
+            correctIndexes.length === 1
         });
 
       }else{
 
         console.warn(
-          "SKIPPED PARSED QUESTION:",
-          {
-            questionNumber:
-              currentQuestion.number,
-
-            question:
-              questionText,
-
-            optionMode:
-              currentQuestion.optionMode,
-
-            options:
-              options,
-
-            correctCount:
-              correctCount
-          }
+          "IMPORT QUESTION SKIPPED:",
+          currentQuestion
         );
 
       }
@@ -6264,7 +6681,6 @@ async function processTextToQuestions(text){
 
     }
 
-
     for(
       let lineIndex = 0;
       lineIndex < lines.length;
@@ -6272,18 +6688,7 @@ async function processTextToQuestions(text){
     ){
 
       const line =
-        cleanLine(lines[lineIndex]);
-
-      if(!line){
-        continue;
-      }
-
-
-      /* =====================================
-         خيار بالحروف:
-         a) Answer
-         b) Answer
-      ===================================== */
+        lines[lineIndex];
 
       const letterOption =
         parseLetterOption(line);
@@ -6304,12 +6709,6 @@ async function processTextToQuestions(text){
         continue;
       }
 
-
-      /* =====================================
-         سطر رقمي:
-         سؤال أو خيار Word تلقائي
-      ===================================== */
-
       const numberedLine =
         parseNumberedLine(line);
 
@@ -6321,78 +6720,29 @@ async function processTextToQuestions(text){
         const numberedText =
           numberedLine.text;
 
-
-        /*
-          إذا كنا بالفعل داخل خيارات رقمية:
-          1. Answer
-          2. Answer
-          3. Answer
-        */
-
-        if(
-          currentQuestion &&
-          currentQuestion.optionMode === "numeric" &&
-          number === currentQuestion.nextNumericOption
-        ){
-
-          addOption(
-            numberedText,
-            hasCorrectMarker(numberedText)
-          );
-
-          currentQuestion.nextNumericOption++;
-
-          continue;
-        }
-
-
-        /*
-          بعد سؤال حالي، إذا ظهر رقم 1
-          فهو غالبًا أول خيار رقمي من Word.
-        */
-
-        if(
-          currentQuestion &&
-          currentQuestion.optionMode === null &&
-          number === 1 &&
-          !looksLikeQuestion(numberedText)
-        ){
-
-          currentQuestion.optionMode =
-            "numeric";
-
-          currentQuestion.nextNumericOption =
-            2;
-
-          addOption(
-            numberedText,
-            hasCorrectMarker(numberedText)
-          );
-
-          continue;
-        }
-
-
-        /*
-          إذا السؤال له خيارات بالحروف ثم ظهر رقم السؤال التالي.
-        */
-
         const expectedQuestionNumber =
           lastQuestionNumber === null
             ? number
             : lastQuestionNumber + 1;
 
-
-        const isQuestionStart =
+        /*
+          سؤال جديد بعد وجود خيارين أو أكثر.
+          هذا يمنع اعتبار الخيار الرقمي رقم 2 سؤالًا جديدًا
+          بعد وجود الخيار الأول فقط.
+        */
+        const canBeNextQuestion =
           (
             lastQuestionNumber === null ||
             number === expectedQuestionNumber
-          )
-          &&
-          looksLikeQuestion(numberedText);
+          ) &&
+          looksLikeQuestion(numberedText) &&
+          (
+            !currentQuestion ||
+            currentQuestion.options.length >= 2 ||
+            currentQuestion.optionMode === "letter"
+          );
 
-
-        if(isQuestionStart){
+        if(canBeNextQuestion){
 
           finalizeQuestion();
 
@@ -6404,12 +6754,28 @@ async function processTextToQuestions(text){
           continue;
         }
 
+        /*
+          بداية أول سؤال في الملف.
+        */
+        if(
+          !currentQuestion &&
+          looksLikeQuestion(numberedText)
+        ){
+
+          startQuestion(
+            number,
+            numberedText
+          );
+
+          continue;
+        }
 
         /*
-          قد يكون أول خيار رقمي طويلًا،
-          وليس بالضرورة قصيرًا.
+          خيارات Word الرقمية:
+          1. option
+          2. option
+          3. option
         */
-
         if(
           currentQuestion &&
           currentQuestion.optionMode === null &&
@@ -6430,16 +6796,28 @@ async function processTextToQuestions(text){
           continue;
         }
 
-
-        /*
-          إذا كنا داخل خيارات رقمية وانتهى تسلسل الخيارات
-          ثم ظهر رقم السؤال التالي.
-        */
-
         if(
           currentQuestion &&
           currentQuestion.optionMode === "numeric" &&
-          number === lastQuestionNumber + 1 &&
+          number === currentQuestion.nextNumericOption
+        ){
+
+          addOption(
+            numberedText,
+            hasCorrectMarker(numberedText)
+          );
+
+          currentQuestion.nextNumericOption++;
+
+          continue;
+        }
+
+        /*
+          احتياط للسؤال التالي عندما انتهت الخيارات الرقمية.
+        */
+        if(
+          currentQuestion &&
+          number === expectedQuestionNumber &&
           looksLikeQuestion(numberedText)
         ){
 
@@ -6455,21 +6833,13 @@ async function processTextToQuestions(text){
 
       }
 
-
-      /* =====================================
-         إذا لم يوجد سؤال حالي
-      ===================================== */
-
       if(!currentQuestion){
         continue;
       }
 
-
       /*
-        Word قد يحذف بادئة الخيار تمامًا،
-        وفي هذه الحالة نعتبر السطر إجابة.
+        إذا فقد Word بادئة الخيار، نضيف السطر كخيار.
       */
-
       addOption(
         line,
         hasCorrectMarker(line)
@@ -6477,31 +6847,483 @@ async function processTextToQuestions(text){
 
     }
 
-
     finalizeQuestion();
 
+    IMPORTED_QUESTIONS_STAGE =
+      parsedQuestions;
 
-    console.log(
-      "FINAL PARSED QUESTIONS:",
-      parsedQuestions
+    IMPORTED_SOURCE_NAME =
+      String(sourceName || "Imported File");
+
+    renderImportedQuestionsStage();
+
+    const validCount =
+      parsedQuestions.filter(item =>
+        Number(item.correct) >= 0
+      ).length;
+
+    const needsReview =
+      parsedQuestions.length - validCount;
+
+    setImportStatus(
+      parsedQuestions.length
+        ? "success"
+        : "error",
+      parsedQuestions.length
+        ? (
+            `✅ تم استخراج ${parsedQuestions.length} سؤال من ${esc(IMPORTED_SOURCE_NAME)}.` +
+            (
+              needsReview > 0
+                ? ` يوجد ${needsReview} سؤال يحتاج تحديد إجابة صحيحة قبل الحفظ.`
+                : " راجع الأسئلة ثم اضغط زر الحفظ."
+            )
+          )
+        : "⚠️ لم يتم التعرف على أسئلة صالحة داخل الملف."
     );
 
+  }catch(error){
 
-    if(!parsedQuestions.length){
+    console.error(
+      "QUESTION PARSE ERROR:",
+      error
+    );
 
-      alert(
-        "⚠️ لم يتم التعرف على الأسئلة.\n\n" +
-        "تأكد من وجود نجمة * بجانب إجابة صحيحة واحدة لكل سؤال."
+    setImportStatus(
+      "error",
+      "❌ حدث خطأ أثناء تحليل الأسئلة: " +
+      (
+        error?.message ||
+        String(error)
+      )
+    );
+
+  }
+
+}
+
+function renderImportedQuestionsStage(){
+
+  const stage =
+    document.getElementById(
+      "importedQuestionsStage"
+    );
+
+  const preview =
+    document.getElementById(
+      "importedQuestionsPreview"
+    );
+
+  const count =
+    document.getElementById(
+      "importedQuestionsCount"
+    );
+
+  if(!stage || !preview || !count){
+    return;
+  }
+
+  if(!IMPORTED_QUESTIONS_STAGE.length){
+
+    stage.classList.remove("show");
+    preview.innerHTML = "";
+    return;
+
+  }
+
+  stage.classList.add("show");
+
+  count.innerHTML =
+    '<i class="fa-solid fa-list-check"></i> ' +
+    IMPORTED_QUESTIONS_STAGE.length +
+    " Questions";
+
+  let html = "";
+
+  IMPORTED_QUESTIONS_STAGE.forEach(
+    (item, questionIndex) => {
+
+      const hasCorrect =
+        Number(item.correct) >= 0 &&
+        Number(item.correct) < item.options.length;
+
+      html += `
+        <div class="imported-question-card">
+          <div class="imported-question-head">
+            <strong>
+              Question ${questionIndex + 1}
+            </strong>
+
+            <span>
+              ${item.options.length} Options
+            </span>
+          </div>
+
+          <div class="imported-question-body">
+            <label style="font-weight:900;color:#164478">
+              Question
+            </label>
+
+            <textarea
+              id="importQuestion_${questionIndex}"
+              oninput="updateImportedQuestionText(${questionIndex},this.value)"
+              style="min-height:90px"
+            >${esc(item.question)}</textarea>
+
+            <div style="
+              margin-top:12px;
+              font-size:13px;
+              font-weight:900;
+              color:${hasCorrect ? '#17a673' : '#e74c3c'};
+            ">
+              ${
+                hasCorrect
+                  ? '<i class="fa-solid fa-circle-check"></i> Correct answer selected'
+                  : '<i class="fa-solid fa-triangle-exclamation"></i> Select one correct answer'
+              }
+            </div>
+
+            <div style="margin-top:9px">
+      `;
+
+      item.options.forEach(
+        (option, optionIndex) => {
+
+          const checked =
+            Number(item.correct) === optionIndex;
+
+          html += `
+            <div class="
+              imported-option-row
+              ${checked ? "correct-option" : ""}
+            ">
+              <input
+                type="radio"
+                name="importCorrect_${questionIndex}"
+                ${checked ? "checked" : ""}
+                onchange="setImportedCorrectAnswer(
+                  ${questionIndex},
+                  ${optionIndex}
+                )"
+                title="Correct answer"
+              >
+
+              <input
+                type="text"
+                value="${esc(option)}"
+                oninput="updateImportedOption(
+                  ${questionIndex},
+                  ${optionIndex},
+                  this.value
+                )"
+                placeholder="Option ${optionIndex + 1}"
+              >
+            </div>
+          `;
+
+        }
       );
 
-      return;
+      html += `
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <div>
+                <label style="font-size:12px;font-weight:900">
+                  Degree
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value="${Number(item.degree || 1)}"
+                  onchange="updateImportedDegree(
+                    ${questionIndex},
+                    this.value
+                  )"
+                >
+              </div>
+            </div>
+
+            <div class="import-card-actions">
+              <button
+                type="button"
+                onclick="addImportedOption(${questionIndex})"
+                style="background:#2467a5"
+              >
+                <i class="fa-solid fa-plus"></i>
+                Add Option
+              </button>
+
+              <button
+                type="button"
+                onclick="deleteImportedQuestion(${questionIndex})"
+                style="background:#e74c3c"
+              >
+                <i class="fa-solid fa-trash"></i>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
 
     }
+  );
 
+  preview.innerHTML =
+    html;
 
-    /* =========================================
-       5) معرفة آخر ترتيب
-    ========================================= */
+}
+
+function updateImportedQuestionText(
+  questionIndex,
+  value
+){
+
+  const item =
+    IMPORTED_QUESTIONS_STAGE[questionIndex];
+
+  if(!item){
+    return;
+  }
+
+  item.question =
+    String(value || "");
+
+}
+
+function updateImportedOption(
+  questionIndex,
+  optionIndex,
+  value
+){
+
+  const item =
+    IMPORTED_QUESTIONS_STAGE[questionIndex];
+
+  if(
+    !item ||
+    !Array.isArray(item.options)
+  ){
+    return;
+  }
+
+  item.options[optionIndex] =
+    String(value || "");
+
+}
+
+function updateImportedDegree(
+  questionIndex,
+  value
+){
+
+  const item =
+    IMPORTED_QUESTIONS_STAGE[questionIndex];
+
+  if(!item){
+    return;
+  }
+
+  item.degree =
+    Math.max(
+      Number(value || 1),
+      1
+    );
+
+}
+
+function setImportedCorrectAnswer(
+  questionIndex,
+  optionIndex
+){
+
+  const item =
+    IMPORTED_QUESTIONS_STAGE[questionIndex];
+
+  if(!item){
+    return;
+  }
+
+  item.correct =
+    Number(optionIndex);
+
+  item.valid =
+    true;
+
+  renderImportedQuestionsStage();
+
+}
+
+function addImportedOption(
+  questionIndex
+){
+
+  const item =
+    IMPORTED_QUESTIONS_STAGE[questionIndex];
+
+  if(!item){
+    return;
+  }
+
+  if(!Array.isArray(item.options)){
+    item.options = [];
+  }
+
+  item.options.push("");
+
+  renderImportedQuestionsStage();
+
+}
+
+function deleteImportedQuestion(
+  questionIndex
+){
+
+  if(
+    !confirm(
+      "هل تريد حذف هذا السؤال من قائمة الاستيراد؟"
+    )
+  ){
+    return;
+  }
+
+  IMPORTED_QUESTIONS_STAGE.splice(
+    questionIndex,
+    1
+  );
+
+  renderImportedQuestionsStage();
+
+  if(!IMPORTED_QUESTIONS_STAGE.length){
+
+    setImportStatus(
+      "info",
+      "تم حذف جميع الأسئلة المستوردة."
+    );
+
+  }
+
+}
+
+async function saveImportedQuestions(){
+
+  const examId =
+    document.getElementById("examSelect")?.value || "";
+
+  const group =
+    document.getElementById("groupSelect")?.value || "General";
+
+  if(!examId){
+    alert("⚠️ اختر الاختبار أولاً");
+    return;
+  }
+
+  if(!IMPORTED_QUESTIONS_STAGE.length){
+    alert("⚠️ لا توجد أسئلة مستوردة للحفظ");
+    return;
+  }
+
+  const normalizedQuestions =
+    IMPORTED_QUESTIONS_STAGE.map(
+      (item,index) => {
+
+        const question =
+          String(item.question || "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        const options =
+          Array.isArray(item.options)
+            ? item.options.map(option =>
+                String(option || "")
+                  .replace(/\s+/g, " ")
+                  .trim()
+              )
+            : [];
+
+        return {
+          index:
+            index,
+          question:
+            question,
+          options:
+            options,
+          correct:
+            Number(item.correct),
+          degree:
+            Math.max(
+              Number(item.degree || 1),
+              1
+            )
+        };
+
+      }
+    );
+
+  const invalidQuestion =
+    normalizedQuestions.find(item =>
+      !item.question ||
+      item.options.length < 2 ||
+      item.options.some(option => !option) ||
+      !Number.isInteger(item.correct) ||
+      item.correct < 0 ||
+      item.correct >= item.options.length
+    );
+
+  if(invalidQuestion){
+
+    alert(
+      `⚠️ راجع السؤال رقم ${invalidQuestion.index + 1}.\n` +
+      "يجب كتابة السؤال وجميع الخيارات واختيار إجابة صحيحة واحدة."
+    );
+
+    return;
+  }
+
+  const saveButton =
+    document.getElementById(
+      "saveImportedQuestionsBtn"
+    );
+
+  if(saveButton){
+    saveButton.disabled = true;
+    saveButton.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+  }
+
+  setImportStatus(
+    "info",
+    '<i class="fa-solid fa-spinner fa-spin"></i> Saving imported questions...'
+  );
+
+  try{
+
+    const examRef =
+      db.collection("exams").doc(examId);
+
+    const examDoc =
+      await examRef.get();
+
+    if(!examDoc.exists){
+      throw new Error("الاختبار غير موجود");
+    }
+
+    const examData =
+      examDoc.data() || {};
+
+    const coursesUsed =
+      Array.isArray(examData.coursesData)
+        ? examData.coursesData.map(c => ({
+            courseId:
+              c.courseId || "",
+            TrainingCourse:
+              c.TrainingCourse || "",
+            Trainer:
+              c.Trainer || "",
+            Period:
+              c.Period || ""
+          }))
+        : [];
 
     const existingSnap =
       await db.collection("questions")
@@ -6512,9 +7334,7 @@ async function processTextToQuestions(text){
         )
         .get();
 
-
     let orderCounter = 0;
-
 
     if(!existingSnap.empty){
 
@@ -6524,197 +7344,106 @@ async function processTextToQuestions(text){
         );
 
       orderCounter =
-        Math.max(...orders, 0);
+        Math.max(...orders,0);
 
     }
-
-
-    /* =========================================
-       6) تجهيز الحفظ
-    ========================================= */
 
     const batch =
       db.batch();
 
     const visibleIds = [];
 
-    let imported = 0;
-
-    let skipped = 0;
-
-
-    for(const item of parsedQuestions){
-
-      const questionText =
-        cleanLine(item.question);
-
-      const options =
-        item.options
-          .map(option =>
-            cleanLine(option.text)
-          )
-          .filter(Boolean);
-
-      const correctIndex =
-        item.options.findIndex(option =>
-          option.correct === true
-        );
-
-
-      if(
-        !questionText ||
-        options.length < 2 ||
-        correctIndex < 0 ||
-        correctIndex >= options.length
-      ){
-
-        skipped++;
-
-        console.warn(
-          "QUESTION NOT SAVED:",
-          item
-        );
-
-        continue;
-      }
-
+    normalizedQuestions.forEach(item => {
 
       orderCounter++;
-
 
       const questionRef =
         db.collection("questions").doc();
 
-
       const questionData = {
-
         examId:
           examId,
-
         question:
-          questionText,
-
+          item.question,
         passage:
           "",
-
         options:
-          options,
-
+          item.options,
         correct:
-          correctIndex,
-
+          item.correct,
         degree:
-          1,
-
+          item.degree,
         type:
           "mcq",
-
         group:
           group,
-
         skill:
           group,
-
         showMedia:
           false,
-
         mediaType:
           "none",
-
         mediaUrl:
           "",
-
         locked:
           false,
-
         coursesUsed:
           coursesUsed,
-
         order:
           orderCounter,
-
+        importSource:
+          IMPORTED_SOURCE_NAME || "",
         createdAt:
           firebase.firestore
             .FieldValue
             .serverTimestamp()
-
       };
 
-
       if(CURRENT_COURSE_ID){
-
         questionData.courseId =
           CURRENT_COURSE_ID;
-
       }
-
 
       batch.set(
         questionRef,
         questionData
       );
 
-
       visibleIds.push(
         questionRef.id
       );
 
-
-      imported++;
-
-    }
-
-
-    if(imported === 0){
-
-      alert(
-        "⚠️ تم تحليل النص ولكن لم يتم حفظ أي سؤال."
-      );
-
-      return;
-    }
-
-
-    /* =========================================
-       7) الحفظ
-    ========================================= */
+    });
 
     await batch.commit();
 
+    if(visibleIds.length){
 
-    await examRef.update({
+      await examRef.update({
+        visibleQuestions:
+          firebase.firestore
+            .FieldValue
+            .arrayUnion(
+              ...visibleIds
+            )
+      });
 
-      visibleQuestions:
-        firebase.firestore
-          .FieldValue
-          .arrayUnion(
-            ...visibleIds
-          )
-
-    });
-
-
-    /* =========================================
-       8) تحديث الدورة المحددة
-    ========================================= */
+    }
 
     if(CURRENT_COURSE_ID){
 
-      const updatedExamDoc =
+      const latestDoc =
         await examRef.get();
 
-      const latestExamData =
-        updatedExamDoc.data() || {};
+      const latestData =
+        latestDoc.data() || {};
 
       const visibleQuestionsByCourse = {
-
         ...(
-          latestExamData
+          latestData
             .visibleQuestionsByCourse || {}
         )
-
       };
-
 
       const oldIds =
         Array.isArray(
@@ -6727,75 +7456,57 @@ async function processTextToQuestions(text){
             ]
           : [];
 
-
       visibleQuestionsByCourse[
         CURRENT_COURSE_ID
       ] = [
-
         ...new Set([
-
           ...oldIds,
-
           ...visibleIds
-
         ])
-
       ];
 
-
       await examRef.update({
-
         visibleQuestionsByCourse:
           visibleQuestionsByCourse
-
       });
 
     }
 
+    const savedCount =
+      normalizedQuestions.length;
 
-    /* =========================================
-       9) النتيجة
-    ========================================= */
+    clearImportedQuestionsStage();
 
-    let message =
-      `✅ تم استيراد ${imported} سؤال بنجاح`;
-
-
-    if(skipped > 0){
-
-      message +=
-        `\n⚠️ تم تجاوز ${skipped} سؤال`;
-
-    }
-
-
-    alert(message);
-
-
-    console.log(
-      "IMPORTED QUESTION IDS:",
-      visibleIds
+    setImportStatus(
+      "success",
+      `✅ تم حفظ ${savedCount} سؤال بنجاح`
     );
 
-
     await loadQuestions();
-
 
   }catch(error){
 
     console.error(
-      "WORD IMPORT ERROR:",
+      "SAVE IMPORTED QUESTIONS ERROR:",
       error
     );
 
-
-    alert(
-      "❌ حدث خطأ أثناء الاستيراد:\n" +
+    setImportStatus(
+      "error",
+      "❌ فشل حفظ الأسئلة: " +
       (
         error?.message ||
         String(error)
       )
     );
+
+  }finally{
+
+    if(saveButton){
+      saveButton.disabled = false;
+      saveButton.innerHTML =
+        '<i class="fa-solid fa-cloud-arrow-up"></i> Save Imported Questions';
+    }
 
   }
 
