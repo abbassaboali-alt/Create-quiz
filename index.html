@@ -608,7 +608,7 @@ transform:scale(1);
 .fill-builder-toolbar select,.fill-builder-toolbar input{margin:0}
 .fill-builder-toolbar button{width:auto!important;min-width:170px;margin:0!important;background:#17a673!important}
 .fill-items-list{display:grid;gap:12px;margin-top:12px}
-.fill-admin-row{display:grid;grid-template-columns:70px minmax(150px,1fr) minmax(170px,1fr) 120px 52px;gap:9px;align-items:center;padding:12px;border:1px solid #dce6ef;border-radius:15px;background:#fff}
+.fill-admin-row{display:grid;grid-template-columns:10px minmax(150px,1fr) minmax(170px,1fr) 120px 52px;gap:9px;align-items:center;padding:12px;border:1px solid #dce6ef;border-radius:15px;background:#fff}
 .fill-admin-row input,.fill-admin-row select{margin:0}
 .fill-admin-index{font-weight:900;color:#164478;text-align:center}
 .fill-admin-delete{width:44px!important;height:44px!important;margin:0!important;padding:0!important;background:#ef4444!important}
@@ -3366,9 +3366,9 @@ function collectFillItems(){
 
 function updateFillDegreeAndPreview(){
   const rows=getFillRows();
-  rows.forEach((row,index)=>{
+  rows.forEach(row=>{
     const el=row.querySelector('.fill-admin-index');
-    if(el) el.textContent=index+1;
+    if(el) el.textContent="";
     const mode=row.querySelector('.fill-mode')?.value || 'blank';
     const answer=row.querySelector('.fill-answer');
     if(answer){
@@ -3389,13 +3389,36 @@ function renderFillBuilderPreview(){
   const layout=document.getElementById('fillLayout')?.value || 'horizontal';
   const columns=Math.max(1,Math.min(12,Number(document.getElementById('fillColumns')?.value || 10)));
   preview.style.gridTemplateColumns=layout === 'vertical' ? '1fr' : `repeat(${columns},minmax(85px,1fr))`;
-  preview.innerHTML=getFillRows().map((row,index)=>{
+  preview.innerHTML=getFillRows().map(row=>{
     const display=String(row.querySelector('.fill-display')?.value || '').trim();
     const mode=row.querySelector('.fill-mode')?.value || 'blank';
+
     if(layout === 'vertical'){
-      return `<div class="fill-preview-cell ${mode==='blank'?'blank':''}" style="justify-content:flex-start;gap:12px"><strong>${esc(display || String(index+1))}</strong><span>${mode==='blank'?'........................':esc(display)}</span></div>`;
+      if(mode === 'fixed'){
+        return `
+          <div
+            class="fill-preview-cell"
+            style="justify-content:flex-start">
+            ${esc(display)}
+          </div>
+        `;
+      }
+
+      return `
+        <div
+          class="fill-preview-cell blank"
+          style="justify-content:flex-start;gap:12px">
+          ${display ? `<strong>${esc(display)}</strong>` : ""}
+          <span>........................</span>
+        </div>
+      `;
     }
-    return `<div class="fill-preview-cell ${mode==='blank'?'blank':''}">${mode==='blank'?'........':esc(display)}</div>`;
+
+    return `
+      <div class="fill-preview-cell ${mode === 'blank' ? 'blank' : ''}">
+        ${mode === 'blank' ? '........' : esc(display)}
+      </div>
+    `;
   }).join('');
 }
 
