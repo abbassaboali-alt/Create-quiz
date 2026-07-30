@@ -596,6 +596,28 @@ transform:scale(1);
   }
 }
 
+
+/* =========================================
+   FILL IN THE BLANKS BUILDER
+========================================= */
+#fillBlanksBox{display:none;margin-top:14px}
+#fillBlanksBox.show{display:block}
+.fill-builder-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;padding:14px;border:1px solid #cfe0ef;border-radius:16px;background:#f8fbff}
+.fill-builder-toolbar>div{flex:1;min-width:170px}
+.fill-builder-toolbar label{display:block;font-weight:900;color:#164478;margin-bottom:6px}
+.fill-builder-toolbar select,.fill-builder-toolbar input{margin:0}
+.fill-builder-toolbar button{width:auto!important;min-width:170px;margin:0!important;background:#17a673!important}
+.fill-items-list{display:grid;gap:12px;margin-top:12px}
+.fill-admin-row{display:grid;grid-template-columns:70px minmax(150px,1fr) minmax(170px,1fr) 120px 52px;gap:9px;align-items:center;padding:12px;border:1px solid #dce6ef;border-radius:15px;background:#fff}
+.fill-admin-row input,.fill-admin-row select{margin:0}
+.fill-admin-index{font-weight:900;color:#164478;text-align:center}
+.fill-admin-delete{width:44px!important;height:44px!important;margin:0!important;padding:0!important;background:#ef4444!important}
+.fill-degree-note{margin-top:10px;padding:10px 12px;border-radius:12px;background:#ecfdf5;color:#047857;border:1px solid #bbf7d0;font-weight:900}
+.fill-preview-grid{display:grid;gap:8px;margin-top:12px;padding:12px;border:1px solid #dbeafe;border-radius:15px;background:#f8fbff;direction:ltr}
+.fill-preview-cell{min-height:54px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;font-weight:800;text-align:center}
+.fill-preview-cell.blank{border-style:dashed;color:#64748b}
+@media(max-width:800px){.fill-admin-row{grid-template-columns:45px 1fr}.fill-admin-row>*{min-width:0}.fill-admin-delete{grid-column:2}.fill-builder-toolbar{display:grid;grid-template-columns:1fr}}
+
 </style>
 
 <style id="prudle-modern-design">
@@ -1360,10 +1382,64 @@ button:hover{
   overflow:hidden;direction:ltr;
 }
 .copy-bank-head{
-  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
-  padding:20px 22px 14px;border-bottom:1px solid #e4edf7;background:#fff;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:20px;
+  padding:22px 28px;
+  border-bottom:1px solid #e5edf8;
+  background:#fff;
+  flex-wrap:wrap;
 }
-.copy-bank-head-title{font-size:24px;font-weight:900;color:#164478;line-height:1.3}
+.copy-bank-title{
+  flex:1;
+  min-width:260px;
+}
+.copy-bank-title h2{
+  margin:0;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:30px;
+  font-weight:900;
+  color:#164478;
+  line-height:1.2;
+  letter-spacing:-.4px;
+  direction:ltr;
+  text-align:left;
+}
+.copy-bank-title h2 i{
+  font-size:28px;
+  color:#164478;
+  flex:0 0 auto;
+}
+.copy-bank-title p{
+  margin:8px 0 0;
+  font-size:15px;
+  font-weight:600;
+  color:#6b7280;
+  line-height:1.6;
+  direction:ltr;
+  text-align:left;
+}
+.copy-bank-close{
+  width:auto!important;
+  margin:0!important;
+  padding:13px 24px!important;
+  border-radius:14px!important;
+  background:#ef4444!important;
+  color:#fff!important;
+  font-size:16px!important;
+  font-weight:900!important;
+  border:none!important;
+  cursor:pointer;
+  transition:.2s;
+  white-space:nowrap;
+}
+.copy-bank-close:hover{
+  background:#dc2626!important;
+  transform:translateY(-2px);
+}
 .copy-bank-controls{padding:14px 22px 0;background:#fff}
 .copy-bank-filter-row{display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,360px);gap:12px}
 .copy-bank-filter-row input,.copy-bank-filter-row select{margin:0;min-height:52px}
@@ -1412,7 +1488,7 @@ button:hover{
 @media(max-width:760px){
   .question-order-actions{width:100%}.question-order-actions button{flex:1}
   .copy-bank-box{width:100%;height:95vh;border-radius:18px}
-  .copy-bank-head{padding:14px}.copy-bank-head-title{font-size:19px}
+  .copy-bank-head{padding:15px}.copy-bank-title h2{font-size:21px}.copy-bank-title h2 i{font-size:20px}.copy-bank-title p{font-size:13px}.copy-bank-close{width:100%!important}
   .copy-bank-controls,.copy-bank-grid{padding-left:12px;padding-right:12px}
   .copy-bank-filter-row{grid-template-columns:1fr}
   .copy-bank-question-title{font-size:16px}
@@ -1775,6 +1851,7 @@ button:hover{
   <option value="order">Rearrange</option>
   <option value="text">Text Answer</option>
   <option value="match">Matching</option>
+<option value="fill">Fill in the Blanks</option>
 <option value="voice">Voice Recording</option>
 </select>
 <!-- □ هنا تحطه منفصل -->
@@ -1875,6 +1952,27 @@ button:hover{
     <div class="match-media-preview"></div>
   </div>
 </div>
+
+<div id="fillBlanksBox">
+  <div class="fill-builder-toolbar">
+    <div>
+      <label>Layout</label>
+      <select id="fillLayout" onchange="renderFillBuilderPreview()">
+        <option value="horizontal">Horizontal</option>
+        <option value="vertical">Vertical</option>
+      </select>
+    </div>
+    <div>
+      <label>Columns (Horizontal)</label>
+      <input id="fillColumns" type="number" min="1" max="12" value="10" oninput="renderFillBuilderPreview()">
+    </div>
+    <button type="button" onclick="addFillItem()"><i class="fa-solid fa-plus"></i> Add Item</button>
+  </div>
+  <div id="fillItemsList" class="fill-items-list"></div>
+  <div id="fillDegreeNote" class="fill-degree-note">0 blanks = 0 marks</div>
+  <div id="fillBuilderPreview" class="fill-preview-grid"></div>
+</div>
+
     <div id="correctBox">
       <input id="correct" type="number" min="0" placeholder="The Correct answer No. (0-3)">
     </div>
@@ -1964,11 +2062,19 @@ button:hover{
 <div id="questionCopyBankModal" class="copy-bank-modal" onclick="closeQuestionCopyBank(event)">
   <div class="copy-bank-box" onclick="event.stopPropagation()">
     <div class="copy-bank-head">
-      <div>
-        <div class="copy-bank-head-title"><i class="fa-solid fa-copy"></i> Copy Questions From Previous Exams</div>
-        <div class="small">Review the full question, select one or more questions, then copy them to the currently opened exam.</div>
+      <div class="copy-bank-title">
+        <h2>
+          <i class="fa-solid fa-copy"></i>
+          Copy Questions From Previous Exams
+        </h2>
+        <p>
+          Review the full question, select one or more questions, then copy them to the currently opened exam.
+        </p>
       </div>
-      <button type="button" onclick="closeQuestionCopyBank()" style="width:auto;margin:0;background:#ef4444"><i class="fa-solid fa-xmark"></i> Close</button>
+      <button type="button" class="copy-bank-close" onclick="closeQuestionCopyBank()">
+        <i class="fa-solid fa-xmark"></i>
+        Close
+      </button>
     </div>
 
     <div class="copy-bank-controls">
@@ -2168,6 +2274,7 @@ function clearForm(){
   }
 
   clearMatchingRows();
+  resetFillItems();
 
   qType.value = "mcq";
   toggleQuestionType();
@@ -3204,13 +3311,107 @@ function addPassage(){
   CURRENT_PASSAGE = text.trim();
 
   alert("✅ تم حفظ القطعة لهذا السؤال");
-}/* ================= نوع السؤال ================= */
+}
+/* ================= Fill in the Blanks ================= */
+function getFillRows(){
+  return [...document.querySelectorAll("#fillItemsList .fill-admin-row")];
+}
+
+function addFillItem(item={}){
+  const list=document.getElementById("fillItemsList");
+  if(!list) return;
+  const row=document.createElement("div");
+  row.className="fill-admin-row";
+  row.innerHTML=`
+    <div class="fill-admin-index"></div>
+    <input class="fill-display" placeholder="Visible text / label" value="${esc(item.display || item.text || "")}" oninput="updateFillDegreeAndPreview()">
+    <input class="fill-answer" placeholder="Correct answer" value="${esc(item.answer || "")}" oninput="updateFillDegreeAndPreview()">
+    <select class="fill-mode" onchange="updateFillDegreeAndPreview()">
+      <option value="blank" ${(item.mode || (item.answer ? "blank":"fixed")) === "blank" ? "selected":""}>Blank</option>
+      <option value="fixed" ${(item.mode || (item.answer ? "blank":"fixed")) === "fixed" ? "selected":""}>Fixed</option>
+    </select>
+    <button type="button" class="fill-admin-delete" onclick="this.closest('.fill-admin-row').remove();updateFillDegreeAndPreview()"><i class="fa-solid fa-trash"></i></button>`;
+  list.appendChild(row);
+  updateFillDegreeAndPreview();
+}
+
+function resetFillItems(items=[]){
+  const list=document.getElementById("fillItemsList");
+  if(!list) return;
+  list.innerHTML="";
+  (items.length ? items : [
+    {display:"1",mode:"fixed"},
+    {display:"",answer:"",mode:"blank"}
+  ]).forEach(addFillItem);
+  updateFillDegreeAndPreview();
+}
+
+function collectFillItems(){
+  const items=getFillRows().map((row,index)=>{
+    const display=String(row.querySelector('.fill-display')?.value || '').trim();
+    const answer=String(row.querySelector('.fill-answer')?.value || '').trim();
+    const mode=row.querySelector('.fill-mode')?.value === 'fixed' ? 'fixed' : 'blank';
+    if(mode === 'blank' && !answer){
+      throw new Error(`Enter the correct answer for blank ${index+1}.`);
+    }
+    if(mode === 'fixed' && !display){
+      throw new Error(`Enter visible text for fixed item ${index+1}.`);
+    }
+    return {display,answer,mode};
+  });
+  if(!items.length) throw new Error('Add at least one item.');
+  if(!items.some(item=>item.mode === 'blank')) throw new Error('Add at least one blank.');
+  return items;
+}
+
+function updateFillDegreeAndPreview(){
+  const rows=getFillRows();
+  rows.forEach((row,index)=>{
+    const el=row.querySelector('.fill-admin-index');
+    if(el) el.textContent=index+1;
+    const mode=row.querySelector('.fill-mode')?.value || 'blank';
+    const answer=row.querySelector('.fill-answer');
+    if(answer){
+      answer.disabled=mode === 'fixed';
+      if(mode === 'fixed') answer.value='';
+    }
+  });
+  const blankCount=rows.filter(r=>(r.querySelector('.fill-mode')?.value || 'blank') === 'blank').length;
+  const note=document.getElementById('fillDegreeNote');
+  if(note) note.textContent=`${blankCount} blank${blankCount===1?'':'s'} = ${blankCount} mark${blankCount===1?'':'s'}`;
+  if(qType?.value === 'fill') degree.value=blankCount || 0;
+  renderFillBuilderPreview();
+}
+
+function renderFillBuilderPreview(){
+  const preview=document.getElementById('fillBuilderPreview');
+  if(!preview) return;
+  const layout=document.getElementById('fillLayout')?.value || 'horizontal';
+  const columns=Math.max(1,Math.min(12,Number(document.getElementById('fillColumns')?.value || 10)));
+  preview.style.gridTemplateColumns=layout === 'vertical' ? '1fr' : `repeat(${columns},minmax(85px,1fr))`;
+  preview.innerHTML=getFillRows().map((row,index)=>{
+    const display=String(row.querySelector('.fill-display')?.value || '').trim();
+    const mode=row.querySelector('.fill-mode')?.value || 'blank';
+    if(layout === 'vertical'){
+      return `<div class="fill-preview-cell ${mode==='blank'?'blank':''}" style="justify-content:flex-start;gap:12px"><strong>${esc(display || String(index+1))}</strong><span>${mode==='blank'?'........................':esc(display)}</span></div>`;
+    }
+    return `<div class="fill-preview-cell ${mode==='blank'?'blank':''}">${mode==='blank'?'........':esc(display)}</div>`;
+  }).join('');
+}
+
+function getFillBlankCount(items){
+  return (Array.isArray(items)?items:[]).filter(item=>item?.mode === 'blank').length;
+}
+
+/* ================= نوع السؤال ================= */
 function toggleQuestionType(){
 
   const type = qType.value;
 
   const matchingBox =
     document.getElementById("matchingBox");
+  const fillBlanksBox = document.getElementById("fillBlanksBox");
+  degree.readOnly = false;
 
   correctBox.classList.add("hidden");
   orderNote.classList.add("hidden");
@@ -3219,6 +3420,9 @@ function toggleQuestionType(){
 
   if(matchingBox){
     matchingBox.classList.remove("show");
+  }
+  if(fillBlanksBox){
+    fillBlanksBox.classList.remove("show");
   }
 
   correct.value = "";
@@ -3253,6 +3457,7 @@ function toggleQuestionType(){
   if(type === "match"){
 
     optionsBox.classList.add("hidden");
+    degree.readOnly = true;
     correctBox.classList.add("hidden");
 
     if(matchingBox){
@@ -3262,7 +3467,19 @@ function toggleQuestionType(){
     orderNote.classList.remove("hidden");
 
     orderNote.innerHTML =
-      "Enter the left word, then add either a matching word/text or an image using URL/upload.";
+      "Enter the left word, then add either a matching word/text or an image using URL/upload. One mark is assigned to each pair.";
+    collectMatchingPairsForDegree();
+  }
+
+  if(type === "fill"){
+    optionsBox.classList.add("hidden");
+    correctBox.classList.add("hidden");
+    degree.readOnly = true;
+    if(fillBlanksBox) fillBlanksBox.classList.add("show");
+    orderNote.classList.remove("hidden");
+    orderNote.innerHTML = "Choose horizontal or vertical layout. Each blank is worth one mark. Capital and small English letters are treated as the same answer.";
+    if(!getFillRows().length) resetFillItems();
+    updateFillDegreeAndPreview();
   }
 
   if(type === "voice"){
@@ -3643,6 +3860,25 @@ async function uploadFileToCloudinary(fileObj){
 
   return data.secure_url;
 }
+
+function collectMatchingPairsForDegree(){
+  if(qType?.value !== "match") return;
+  const count=getMatchingRows().filter(row=>{
+    const left=String(row.querySelector('.match-left')?.value || '').trim();
+    const right=String(row.querySelector('.match-right')?.value || '').trim();
+    const image=String(row.querySelector('.match-image-url')?.value || '').trim() || row.dataset.uploadedUrl || '';
+    return left && (right || image);
+  }).length;
+  degree.value=count || 0;
+}
+
+document.addEventListener('input',function(event){
+  if(event.target?.closest('#matchingBox')) collectMatchingPairsForDegree();
+});
+document.addEventListener('change',function(event){
+  if(event.target?.closest('#matchingBox')) collectMatchingPairsForDegree();
+});
+
 /* ================= حفظ / تعديل السؤال ================= */
 async function saveQuestion(){
 
@@ -3671,8 +3907,11 @@ async function saveQuestion(){
   const qText = String(question.value || "").trim();
   const options = getOptions();
 
-  const deg   = Number(degree.value || 0);
+  let deg   = Number(degree.value || 0);
   const type  = qType.value;
+  let fillItems = [];
+  let fillLayoutValue = "horizontal";
+  let fillColumnsValue = 10;
   const media = mediaType.value;
 
   const fileObj = file.files[0];
@@ -3697,7 +3936,7 @@ async function saveQuestion(){
     return alert("Enter at least two options.");
   }
 
-  if(deg <= 0){
+  if(deg <= 0 && type !== "match" && type !== "fill"){
     return alert("out of");
   }
 
@@ -3724,6 +3963,20 @@ async function saveQuestion(){
       .filter(v => v);
   }
 
+  // ================= FILL IN THE BLANKS =================
+  else if(type === "fill"){
+    try{
+      fillItems = collectFillItems();
+    }catch(error){
+      return alert(error?.message || "Invalid fill-in-the-blanks items.");
+    }
+    fillLayoutValue = document.getElementById("fillLayout")?.value === "vertical" ? "vertical" : "horizontal";
+    fillColumnsValue = Math.max(1,Math.min(12,Number(document.getElementById("fillColumns")?.value || 10)));
+    correctAnswer = fillItems.filter(item=>item.mode === "blank").map(item=>normalizeTextAnswer(item.answer));
+    deg = correctAnswer.length;
+    degree.value = deg;
+  }
+
   // ================= MATCH =================
   else if(type === "match"){
 
@@ -3731,6 +3984,8 @@ async function saveQuestion(){
 
       correctAnswer =
         await collectMatchingPairs();
+      deg = correctAnswer.length;
+      degree.value = deg;
 
     }catch(error){
 
@@ -3861,9 +4116,14 @@ locked:
                 ? `${pair.left}=[Image]`
                 : `${pair.left}=${pair.right}`
             )
-          : options,
+          : type === "fill"
+            ? fillItems.map(item=>item.mode === "fixed" ? item.display : "[Blank]")
+            : options,
 
       correct: correctAnswer,
+      fillItems: type === "fill" ? fillItems : [],
+      fillLayout: type === "fill" ? fillLayoutValue : "",
+      fillColumns: type === "fill" ? fillColumnsValue : 0,
 
       degree: deg,
 
@@ -3961,25 +4221,23 @@ for(const resultDoc of resultsSnap.docs){
   }
 
   else if(type === "match"){
-
-    let totalPairs = correctAnswer.length;
-    let correctPairs = 0;
-
-    (studentAnswer || []).forEach(ans=>{
-
-      const found = correctAnswer.find(c =>
-        c.left === ans.left &&
-        c.right === ans.right
-      );
-
-      if(found) correctPairs++;
-
+    const answersObject = studentAnswer && typeof studentAnswer === "object" ? studentAnswer : {};
+    correctAnswer.forEach((pair,index)=>{
+      const expected = String(pair.mediaUrl || pair.imageUrl || pair.image || pair.right || "").trim();
+      const received = Array.isArray(studentAnswer)
+        ? String(studentAnswer[index]?.mediaUrl || studentAnswer[index]?.right || studentAnswer[index]?.value || "").trim()
+        : String(answersObject[index] ?? answersObject[String(index)] ?? "").trim();
+      if(received === expected) earned += 1;
     });
+  }
 
-    earned =
-      (correctPairs / totalPairs) *
-      Number(deg || 0);
-
+  else if(type === "fill"){
+    const answerObject = studentAnswer && typeof studentAnswer === "object" ? studentAnswer : {};
+    const blanks = fillItems.filter(item=>item.mode === "blank");
+    blanks.forEach((item,index)=>{
+      const received = normalizeTextAnswer(answerObject[index] ?? answerObject[String(index)] ?? "");
+      if(received === normalizeTextAnswer(item.answer)) earned += 1;
+    });
   }
 
   let details =
@@ -4056,9 +4314,14 @@ order: newOrder,
               ? `${pair.left}=[Image]`
               : `${pair.left}=${pair.right}`
           )
-        : options,
+        : type === "fill"
+          ? fillItems.map(item=>item.mode === "fixed" ? item.display : "[Blank]")
+          : options,
 
     correct: correctAnswer,
+    fillItems: type === "fill" ? fillItems : [],
+    fillLayout: type === "fill" ? fillLayoutValue : "",
+    fillColumns: type === "fill" ? fillColumnsValue : 0,
     degree: deg,
     type: type,
     mediaType:
@@ -4226,6 +4489,16 @@ async function editQuestion(id){
     });
 
     correct.value = "";
+  }
+
+  else if(q.type === "fill"){
+    const layout=document.getElementById("fillLayout");
+    const columns=document.getElementById("fillColumns");
+    if(layout) layout.value=q.fillLayout === "vertical" ? "vertical" : "horizontal";
+    if(columns) columns.value=Number(q.fillColumns || 10);
+    resetFillItems(Array.isArray(q.fillItems) ? q.fillItems : []);
+    degree.value=getFillBlankCount(q.fillItems);
+    correct.value="";
   }
 
   else{
@@ -6239,6 +6512,11 @@ ${
           )
           .join("")
       : "";
+  }
+
+  else if(q.type === "fill"){
+    const items=Array.isArray(q.fillItems)?q.fillItems:[];
+    optionsHtml=items.map((item,i)=>`<li style="direction:ltr;text-align:left">${i+1}. ${item.mode === "blank" ? `<strong>Blank:</strong> ${esc(item.answer || "")}` : `<strong>Fixed:</strong> ${esc(item.display || "")}`}</li>`).join("");
   }
 
   else if(q.type === "text"){
@@ -8981,6 +9259,9 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
   if(Array.isArray(q.matchingPairs)) copy.matchingPairs = JSON.parse(JSON.stringify(q.matchingPairs));
   if(Array.isArray(q.pairs)) copy.pairs = JSON.parse(JSON.stringify(q.pairs));
   if(Array.isArray(q.answers)) copy.answers = JSON.parse(JSON.stringify(q.answers));
+  if(Array.isArray(q.fillItems)) copy.fillItems = JSON.parse(JSON.stringify(q.fillItems));
+  if(q.fillLayout) copy.fillLayout = q.fillLayout;
+  if(q.fillColumns) copy.fillColumns = Number(q.fillColumns);
 
   // The copied question belongs to the currently selected course context.
   if(CURRENT_COURSE_ID){
@@ -9161,6 +9442,7 @@ function getCopyQuestionTypeLabel(type){
     match:"Matching",
     order:"Rearrange",
     text:"Text Answer",
+    fill:"Fill in the Blanks",
     voice:"Voice Recording"
   };
   return map[type] || String(type || "Question");
@@ -9201,6 +9483,9 @@ function renderCopyQuestionDetails(q){
         : `<span>${esc(pair?.right || "")}</span>`;
       return `<div class="copy-bank-match-row"><span>${esc(pair?.left || "")}</span><strong>↔</strong>${right}</div>`;
     }).join("")}</div>`;
+  }else if(q.type === "fill"){
+    const items=Array.isArray(q.fillItems)?q.fillItems:[];
+    html += `<div class="copy-bank-options">${items.map((item,index)=>`<div class="copy-bank-option ${item.mode === "blank" ? "correct" : ""}"><strong>${index+1}.</strong> ${item.mode === "blank" ? `Blank → ${esc(item.answer || "")}` : `Fixed → ${esc(item.display || "")}`}</div>`).join("")}</div>`;
   }else if(q.type === "text"){
     html += `<div class="copy-bank-option correct" style="margin-top:10px"><strong>Correct answer:</strong> ${esc(q.correct || "")}</div>`;
   }else if(q.type === "voice"){
@@ -10608,5 +10893,10 @@ function filterModalQuestions(value){
 
   });
 }
+
+window.addEventListener("DOMContentLoaded",function(){
+  if(document.getElementById("fillItemsList") && !getFillRows().length){
+    resetFillItems();
+  }
+});
 </script>
- 
