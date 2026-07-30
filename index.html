@@ -3390,8 +3390,18 @@ function updateFillDegreeAndPreview(){
   });
   const blankCount=rows.filter(r=>(r.querySelector('.fill-mode')?.value || 'blank') === 'blank').length;
   const note=document.getElementById('fillDegreeNote');
-  if(note) note.textContent=`${blankCount} blank${blankCount===1?'':'s'} = ${blankCount} mark${blankCount===1?'':'s'}`;
-  if(qType?.value === 'fill') degree.value=blankCount || 0;
+  if(note){
+    const totalDegree = Number(document.getElementById("degree")?.value || 0);
+    const eachDegree = blankCount > 0 && totalDegree > 0
+      ? blankCount / totalDegree
+      : 0;
+
+    note.textContent =
+      `${blankCount} blank${blankCount===1?'':'s'} ÷ ` +
+      `${formatMarkNumber(totalDegree)} total marks = ` +
+      `${formatMarkNumber(eachDegree)} marks for each correct part`;
+  }
+
   renderFillBuilderPreview();
 }
 
@@ -3451,13 +3461,13 @@ function renderFillBuilderPreview(){
   if(fillNote){
     const eachDegree =
       blankCount > 0 && totalDegree > 0
-        ? totalDegree / blankCount
+        ? blankCount / totalDegree
         : 0;
 
     fillNote.textContent =
-      `${blankCount} blanks — ` +
-      `${formatMarkNumber(totalDegree)} total marks ÷ ${Math.max(blankCount,1)} = ` +
-      `${formatMarkNumber(eachDegree)} marks for each correct blank`;
+      `${blankCount} blanks ÷ ` +
+      `${formatMarkNumber(totalDegree)} total marks = ` +
+      `${formatMarkNumber(eachDegree)} marks for each correct part`;
   }
 
   updateQuestionDegreeDistributionNote();
@@ -3514,10 +3524,10 @@ function getQuestionDegreeDistributionText(questionData){
 
   const eachDegree =
     totalDegree > 0
-      ? totalDegree / parts
+      ? parts / totalDegree
       : 0;
 
-  return `${parts} ${unitName} — ${formatMarkNumber(totalDegree)} total marks ÷ ${parts} = ${formatMarkNumber(eachDegree)} marks for each correct part`;
+  return `${parts} ${unitName} ÷ ${formatMarkNumber(totalDegree)} total marks = ${formatMarkNumber(eachDegree)} marks for each correct part`;
 }
 
 function updateQuestionDegreeDistributionNote(){
@@ -3593,12 +3603,12 @@ function updateQuestionDegreeDistributionNote(){
 
   const eachDegree =
     totalDegree > 0
-      ? totalDegree / parts
+      ? parts / totalDegree
       : 0;
 
   note.textContent =
-    `${parts} ${unitName} — ` +
-    `${formatMarkNumber(totalDegree)} total marks ÷ ${parts} = ` +
+    `${parts} ${unitName} ÷ ` +
+    `${formatMarkNumber(totalDegree)} total marks = ` +
     `${formatMarkNumber(eachDegree)} marks for each correct part`;
 }
 
@@ -3636,12 +3646,12 @@ function updateQuickDegreeDistributionNote(questionId, questionType){
 
   const eachDegree =
     totalDegree > 0
-      ? totalDegree / parts
+      ? parts / totalDegree
       : 0;
 
   note.textContent =
-    `${parts} parts — ` +
-    `${formatMarkNumber(totalDegree)} total marks ÷ ${parts} = ` +
+    `${parts} parts ÷ ` +
+    `${formatMarkNumber(totalDegree)} total marks = ` +
     `${formatMarkNumber(eachDegree)} marks for each correct part`;
 }
 
@@ -3703,7 +3713,7 @@ function toggleQuestionType(){
   if(type === "match"){
 
     optionsBox.classList.add("hidden");
-    degree.readOnly = true;
+    degree.readOnly = false;
     correctBox.classList.add("hidden");
 
     if(matchingBox){
@@ -3720,7 +3730,7 @@ function toggleQuestionType(){
   if(type === "fill"){
     optionsBox.classList.add("hidden");
     correctBox.classList.add("hidden");
-    degree.readOnly = true;
+    degree.readOnly = false;
     if(fillBlanksBox) fillBlanksBox.classList.add("show");
     orderNote.classList.remove("hidden");
     orderNote.innerHTML = "Choose horizontal or vertical layout. Each blank is worth one mark. Capital and small English letters are treated as the same answer.";
@@ -4115,7 +4125,7 @@ function collectMatchingPairsForDegree(){
     const image=String(row.querySelector('.match-image-url')?.value || '').trim() || row.dataset.uploadedUrl || '';
     return left && (right || image);
   }).length;
-  degree.value=count || 0;
+  updateQuestionDegreeDistributionNote();
 }
 
 document.addEventListener('input',function(event){
@@ -4762,7 +4772,7 @@ async function editQuestion(id){
     if(layout) layout.value=q.fillLayout === "vertical" ? "vertical" : "horizontal";
     if(columns) columns.value=Number(q.fillColumns || 10);
     resetFillItems(Array.isArray(q.fillItems) ? q.fillItems : []);
-    degree.value=getFillBlankCount(q.fillItems);
+    degree.value=q.degree || "";
     correct.value="";
   }
 
