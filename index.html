@@ -1293,6 +1293,63 @@ button:hover{
     page-break-inside:avoid !important;
   }
 
+  /* Fill in the Blanks PDF: horizontal grid / vertical list */
+  .modal-q-card .print-fill-grid{
+    display:grid !important;
+    width:100% !important;
+    margin-top:3mm !important;
+    direction:ltr !important;
+    border-top:1px solid #111 !important;
+    border-left:1px solid #111 !important;
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  .modal-q-card .print-fill-grid.horizontal{
+    grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+  }
+
+  .modal-q-card .print-fill-grid.vertical{
+    grid-template-columns:1fr !important;
+    width:75mm !important;
+    max-width:100% !important;
+  }
+
+  .modal-q-card .print-fill-cell{
+    min-height:18mm !important;
+    padding:2.5mm 2mm !important;
+    border-right:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    text-align:center !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:18pt !important;
+    font-weight:500 !important;
+    color:#111 !important;
+    background:#fff !important;
+    overflow-wrap:anywhere !important;
+  }
+
+  .modal-q-card .print-fill-grid.vertical .print-fill-cell{
+    justify-content:flex-start !important;
+    text-align:left !important;
+    min-height:12mm !important;
+    font-size:14pt !important;
+  }
+
+  .modal-q-card .print-fill-cell.blank{
+    letter-spacing:1.2mm !important;
+  }
+
+  body.print-answers .modal-q-card .print-fill-cell.blank{
+    letter-spacing:0 !important;
+    color:#166534 !important;
+    background:#dcfce7 !important;
+    font-weight:900 !important;
+  }
+
   .modal-q-card video,
   .modal-q-card audio,
   .modal-q-card button,
@@ -10997,6 +11054,73 @@ async function openFullQuestions(examId){
                 Correct answer: ${esc(Array.isArray(q.correct) ? q.correct.join(" / ") : (q.correct || "-"))}
               </div>
             `
+
+            : q.type === "fill" && Array.isArray(q.fillItems)
+            ? (()=>{
+
+                const fillItems = q.fillItems || [];
+                const fillLayout = q.fillLayout === "vertical"
+                  ? "vertical"
+                  : "horizontal";
+
+                const fillColumns = Math.max(
+                  1,
+                  Math.min(12,Number(q.fillColumns || 10))
+                );
+
+                const blankLine = "........";
+
+                const questionCells = fillItems.map(item=>{
+                  const isFixed = item?.mode === "fixed";
+                  const display = String(item?.display || "").trim();
+
+                  return `
+                    <div class="print-fill-cell ${isFixed ? "fixed" : "blank"}">
+                      ${isFixed ? esc(display) : blankLine}
+                    </div>
+                  `;
+                }).join("");
+
+                const answerCells = fillItems.map(item=>{
+                  const isFixed = item?.mode === "fixed";
+                  const display = String(item?.display || "").trim();
+                  const answer = String(item?.answer || "")
+                    .split("|")[0]
+                    .trim();
+
+                  return `
+                    <div class="print-fill-cell ${isFixed ? "fixed" : "blank"}">
+                      ${isFixed ? esc(display) : esc(answer || blankLine)}
+                    </div>
+                  `;
+                }).join("");
+
+                return `
+                  <div class="question-only">
+                    <div
+                      class="print-fill-grid ${fillLayout}"
+                      style="--fill-columns:${fillColumns};grid-template-columns:${
+                        fillLayout === "horizontal"
+                          ? `repeat(${fillColumns},minmax(0,1fr))`
+                          : "1fr"
+                      };">
+                      ${questionCells}
+                    </div>
+                  </div>
+
+                  <div class="answer-only answer-key-box">
+                    <div
+                      class="print-fill-grid ${fillLayout}"
+                      style="--fill-columns:${fillColumns};grid-template-columns:${
+                        fillLayout === "horizontal"
+                          ? `repeat(${fillColumns},minmax(0,1fr))`
+                          : "1fr"
+                      };">
+                      ${answerCells}
+                    </div>
+                  </div>
+                `;
+              })()
 
             : q.type === "order" && Array.isArray(q.options)
             ? `
