@@ -4850,126 +4850,229 @@ await examRef.update({
 }
 /* ================= تعديل السؤال ================= */
 async function editQuestion(id){
-  const doc = await db.collection("questions").doc(id).get();
 
-  if(!doc.exists){
-    alert("السؤال غير موجود");
-    return;
-  }
+  try{
 
-  const q = doc.data();
+    const doc = await db.collection("questions").doc(id).get();
 
-  EDIT_QUESTION_ID = id;
+    if(!doc.exists){
+      alert("السؤال غير موجود");
+      return;
+    }
 
-  question.value = q.question || "";
-  opt1.value = q.options?.[0] || "";
-  opt2.value = q.options?.[1] || "";
-  opt3.value = q.options?.[2] || "";
-  opt4.value = q.options?.[3] || "";
-  degree.value = q.degree || "";
-  qType.value = q.type || "mcq";
-  mediaType.value = q.mediaType || "none";
+    const q = doc.data() || {};
 
-  const mediaUrlField =
-    document.getElementById("mediaUrlInput");
+    EDIT_QUESTION_ID = id;
 
-  if(mediaUrlField){
-    mediaUrlField.value =
-      q.mediaUrl || "";
-  }
+    /* اختيار الاختبار المحفوظ */
+    if(q.examId){
+      examSelect.value = q.examId;
+    }
 
-  clearMatchingRows();
+    /* تحديد النوع أولاً؛ لأن toggleQuestionType يمسح خانة الإجابة */
+    qType.value = q.type || "mcq";
+    toggleQuestionType();
 
-  if(q.type === "mcq"){
-    correct.value = q.correct;
-  }
+    /* البيانات العامة لجميع أنواع الأسئلة */
+    question.value = q.question || "";
+    degree.value = q.degree ?? "";
 
-  else if(q.type === "text"){
-    correct.value = Array.isArray(q.correct) ? q.correct.join(", ") : "";
-  }
+    const groupField = document.getElementById("groupSelect");
+    if(groupField){
+      groupField.value = q.group || "General";
+    }
 
-  else if(q.type === "match"){
+    CURRENT_PASSAGE = String(q.passage || "");
 
-    const pairs =
-      Array.isArray(q.correct)
+    mediaType.value = q.mediaType || (q.mediaUrl ? "image" : "none");
+
+    const mediaUrlField = document.getElementById("mediaUrlInput");
+    if(mediaUrlField){
+      mediaUrlField.value = q.mediaUrl || "";
+    }
+
+    if(file){
+      file.value = "";
+    }
+
+    /* تنظيف الحقول قبل تعبئة النوع المحفوظ */
+    opt1.value = "";
+    opt2.value = "";
+    opt3.value = "";
+    opt4.value = "";
+    correct.value = "";
+    clearMatchingRows();
+
+    const savedOptions = Array.isArray(q.options) ? q.options : [];
+
+    /* Multiple Choice */
+    if(qType.value === "mcq"){
+
+      opt1.value = savedOptions[0] || "";
+      opt2.value = savedOptions[1] || "";
+      opt3.value = savedOptions[2] || "";
+      opt4.value = savedOptions[3] || "";
+
+      correct.value =
+        q.correct !== undefined && q.correct !== null
+          ? String(q.correct)
+          : "";
+    }
+
+    /* Rearrange: الخيارات المحفوظة نفسها هي الترتيب الصحيح */
+    else if(qType.value === "order"){
+
+      const orderedItems =
+        Array.isArray(q.correct) && q.correct.length
+          ? q.correct
+          : savedOptions;
+
+      opt1.value = orderedItems[0] || "";
+      opt2.value = orderedItems[1] || "";
+      opt3.value = orderedItems[2] || "";
+      opt4.value = orderedItems[3] || "";
+
+      updateOrderPreview();
+    }
+
+    /* Text Answer */
+    else if(qType.value === "text"){
+
+      const savedAnswers = Array.isArray(q.correct)
         ? q.correct
-        : [];
+        : (
+            q.correct !== undefined && q.correct !== null
+              ? [q.correct]
+              : []
+          );
 
-    const rows =
-      getMatchingRows();
+      correct.value = savedAnswers
+        .map(value => String(value || "").trim())
+        .filter(Boolean)
+        .join(", ");
+    }
 
-    rows.forEach((row,index)=>{
+    /* Matching: نص مع نص أو نص مع صورة */
+    else if(qType.value === "match"){
 
-      const pair =
-        pairs[index] ||
-        {};
+      let pairs = Array.isArray(q.correct) ? q.correct : [];
 
-      const imageUrl =
-        String(
+      /* دعم الأسئلة القديمة المحفوظة داخل options بصيغة left=right */
+      if(!pairs.length && savedOptions.length){
+        pairs = savedOptions.map(item => {
+          const value = String(item || "");
+          const separatorIndex = value.indexOf("=");
+
+          if(separatorIndex < 0){
+            return {left:value,right:"",mediaUrl:""};
+          }
+
+          return {
+            left:value.slice(0,separatorIndex).trim(),
+            right:value.slice(separatorIndex + 1).trim() === "[Image]"
+              ? ""
+              : value.slice(separatorIndex + 1).trim(),
+            mediaUrl:""
+          };
+        });
+      }
+
+      const rows = getMatchingRows();
+
+      rows.forEach((row,index)=>{
+
+        const pair = pairs[index] || {};
+
+        const leftField = row.querySelector(".match-left");
+        const rightField = row.querySelector(".match-right");
+        const imageUrlInput = row.querySelector(".match-image-url");
+        const status = row.querySelector(".match-upload-status");
+
+        const imageUrl = String(
           pair.mediaUrl ||
           pair.imageUrl ||
           pair.image ||
           ""
         ).trim();
 
-      const left =
-        row.querySelector(
-          ".match-left"
-        );
+        if(leftField){
+          leftField.value = pair.left || "";
+        }
 
-      const right =
-        row.querySelector(
-          ".match-right"
-        );
+        if(rightField){
+          rightField.value = pair.right || "";
+        }
 
-      const imageUrlInput =
-        row.querySelector(
-          ".match-image-url"
-        );
+        if(imageUrlInput){
+          imageUrlInput.value = imageUrl;
+        }
 
-      if(left){
-        left.value =
-          pair.left || "";
+        /* الاحتفاظ بالرابط عند الحفظ حتى لو لم يتم اختيار ملف جديد */
+        row.dataset.uploadedUrl = imageUrl;
+
+        if(status){
+          status.textContent = imageUrl
+            ? "Saved image loaded. You may keep it or replace it."
+            : "Use text, an image URL, or upload an image.";
+        }
+
+        updateMatchAdminPreview(row);
+      });
+
+      collectMatchingPairsForDegree();
+    }
+
+    /* Fill in the Blanks */
+    else if(qType.value === "fill"){
+
+      const layout = document.getElementById("fillLayout");
+      const columns = document.getElementById("fillColumns");
+
+      if(layout){
+        layout.value = q.fillLayout === "vertical"
+          ? "vertical"
+          : "horizontal";
       }
 
-      if(right){
-        right.value =
-          pair.right || "";
+      if(columns){
+        columns.value = Math.max(
+          1,
+          Math.min(12,Number(q.fillColumns || 10))
+        );
       }
 
-      if(imageUrlInput){
-        imageUrlInput.value =
-          imageUrl;
-      }
-
-      updateMatchAdminPreview(
-        row
+      resetFillItems(
+        Array.isArray(q.fillItems)
+          ? q.fillItems
+          : []
       );
-    });
 
-    correct.value = "";
+      updateFillDegreeAndPreview();
+    }
+
+    /* Voice Recording لا يحتوي إجابة نصية */
+    else if(qType.value === "voice"){
+      correct.value = "";
+    }
+
+    updateQuestionDegreeDistributionNote();
+
+    /* نقل المستخدم إلى قسم التعديل بعد تحميل كل القيم */
+    const editBox = qType.closest(".box");
+    if(editBox){
+      editBox.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
+    }
+
+  }catch(error){
+
+    console.error("editQuestion error:",error);
+    alert("تعذر تحميل بيانات السؤال للتعديل");
   }
-
-  else if(q.type === "fill"){
-    const layout=document.getElementById("fillLayout");
-    const columns=document.getElementById("fillColumns");
-    if(layout) layout.value=q.fillLayout === "vertical" ? "vertical" : "horizontal";
-    if(columns) columns.value=Number(q.fillColumns || 10);
-    resetFillItems(Array.isArray(q.fillItems) ? q.fillItems : []);
-    degree.value=q.degree || "";
-    correct.value="";
-  }
-
-  else{
-    correct.value = "";
-  }
-
-  if(q.examId){
-    examSelect.value = q.examId;
-  }
-
-  toggleQuestionType();
 }
+
 async function quickUpdateQuestion(id){
 
   const qDoc = await db.collection("questions").doc(id).get();
