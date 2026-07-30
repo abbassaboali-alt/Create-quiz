@@ -1305,17 +1305,15 @@ button:hover{
     page-break-inside:auto !important;
   }
 
-.modal-q-card .print-fill-grid.horizontal{
-    grid-template-columns:repeat(var(--fill-columns,10),minmax(52px,1fr)) !important;
-    max-width:100% !important;
-}
+  .modal-q-card .print-fill-grid.horizontal{
+    grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+  }
 
-.modal-q-card .print-fill-cell{
-    min-height:13mm !important;
-    padding:1.2mm 1mm !important;
-    font-size:13pt !important;
-    line-height:1.1 !important;
-}
+  .modal-q-card .print-fill-grid.vertical{
+    grid-template-columns:1fr !important;
+    width:75mm !important;
+    max-width:100% !important;
+  }
 
   .modal-q-card .print-fill-cell{
     min-height:18mm !important;
