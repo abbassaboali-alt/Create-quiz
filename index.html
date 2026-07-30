@@ -1483,6 +1483,32 @@ button:hover{
     font-size:8.5pt !important;
   }
 
+  /*
+     حماية إضافية للجوال:
+     الوضع الافتراضي في الطباعة هو إخفاء الإجابات،
+     ولا تظهر إلا إذا كان body يحمل print-answers صراحة.
+  */
+  body:not(.print-answers) .correct-answer{
+    background:#fff !important;
+    border-color:transparent !important;
+    color:#111827 !important;
+  }
+
+  body:not(.print-answers) .correct-answer .correct-mark,
+  body:not(.print-answers) .answer-key-box,
+  body:not(.print-answers) .answer-only,
+  body:not(.print-answers) .correct-badge,
+  body:not(.print-answers) [data-correct-answer],
+  body:not(.print-answers) [data-answer-key]{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  body:not(.print-answers) .question-only{
+    display:block !important;
+    visibility:visible !important;
+  }
+
   /* وضع الأسئلة فقط: لا تظهر أي إجابة أو تلميح */
   body.print-questions .correct-answer{
     background:#fff !important;
@@ -11351,6 +11377,36 @@ async function waitForPrintImages(){
   );
 }
 
+let ACTIVE_PRINT_MODE = "questions";
+let PRINT_OLD_TITLE = "";
+
+function applyQuestionsPrintMode(mode = ACTIVE_PRINT_MODE){
+
+  ACTIVE_PRINT_MODE = mode === "answers"
+    ? "answers"
+    : "questions";
+
+  document.body.classList.remove(
+    "print-questions",
+    "print-answers"
+  );
+
+  document.body.classList.add(
+    ACTIVE_PRINT_MODE === "answers"
+      ? "print-answers"
+      : "print-questions"
+  );
+}
+
+/*
+  بعض متصفحات الجوال تطلق afterprint عند فتح معاينة الطباعة،
+  وليس عند إغلاقها. لذلك نعيد تثبيت الوضع قبل كل عملية طباعة،
+  ولا نحذف كلاس Questions PDF من خلال afterprint.
+*/
+window.addEventListener("beforeprint", ()=>{
+  applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
+});
+
 async function printQuestionsPDF(mode = "questions"){
 
   const modal = document.getElementById("questionsModal");
@@ -11364,9 +11420,8 @@ async function printQuestionsPDF(mode = "questions"){
 
   const printAnswers = mode === "answers";
 
-  document.body.classList.remove("print-questions", "print-answers");
-  document.body.classList.add(
-    printAnswers ? "print-answers" : "print-questions"
+  applyQuestionsPrintMode(
+    printAnswers ? "answers" : "questions"
   );
 
   if(modeLabel){
@@ -11379,7 +11434,7 @@ async function printQuestionsPDF(mode = "questions"){
     card.style.display = "block";
   });
 
-  const oldTitle = document.title;
+  PRINT_OLD_TITLE = document.title;
 
   const examTitle =
     CURRENT_PRINT_EXAM_DATA?.title ||
@@ -11395,21 +11450,29 @@ async function printQuestionsPDF(mode = "questions"){
       .trim() ||
     "Prudle Questions";
 
-  const cleanup = ()=>{
-    document.title = oldTitle;
-    document.body.classList.remove("print-questions", "print-answers");
-    if(modeLabel) modeLabel.textContent = "";
-  };
-
-  window.addEventListener("afterprint", cleanup, { once:true });
+  window.addEventListener(
+    "afterprint",
+    ()=>{
+      /*
+        نستعيد العنوان فقط، ونُبقي كلاس وضع الطباعة؛
+        لأن حذفه هنا يجعل الإجابات تظهر في PDF على الجوال.
+      */
+      setTimeout(()=>{
+        if(PRINT_OLD_TITLE){
+          document.title = PRINT_OLD_TITLE;
+        }
+      },1200);
+    },
+    { once:true }
+  );
 
   await waitForPrintImages();
 
-  /*
-    Give the browser a short moment to finish layout
-    after all Cloudinary/URL images are loaded.
-  */
+  /* إعادة تثبيت الوضع بعد تحميل الصور وقبل فتح الطباعة */
+  applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
+
   setTimeout(()=>{
+    applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
     window.print();
   },500);
 }
@@ -11419,6 +11482,20 @@ function closeQuestionsModal(){
   document.getElementById("questionsModal")
     .style.display = "none";
 
+  document.body.classList.remove(
+    "print-questions",
+    "print-answers"
+  );
+
+  if(PRINT_OLD_TITLE){
+    document.title = PRINT_OLD_TITLE;
+    PRINT_OLD_TITLE = "";
+  }
+
+  const modeLabel = document.getElementById("printModeLabel");
+  if(modeLabel){
+    modeLabel.textContent = "";
+  }
 }
 function filterModalQuestions(value){
 
