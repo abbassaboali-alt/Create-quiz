@@ -11410,12 +11410,7 @@ async function printQuestionsPDF(mode = "questions"){
     after all Cloudinary/URL images are loaded.
   */
   setTimeout(()=>{
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        window.print();
-        setTimeout(cleanup,1000);
-      });
-    });
+    window.print();
   },500);
 }
 
