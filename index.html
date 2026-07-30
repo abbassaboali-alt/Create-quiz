@@ -618,6 +618,107 @@ transform:scale(1);
 .fill-preview-cell.blank{border-style:dashed;color:#64748b}
 @media(max-width:800px){.fill-admin-row{grid-template-columns:45px 1fr}.fill-admin-row>*{min-width:0}.fill-admin-delete{grid-column:2}.fill-builder-toolbar{display:grid;grid-template-columns:1fr}}
 
+
+/* =========================================
+   FILL IN THE BLANKS — MODAL SCREEN PREVIEW
+   Same layout as the PDF
+========================================= */
+#questionsModal .print-fill-grid{
+  width:100%;
+  margin-top:14px;
+  direction:ltr;
+  text-align:center;
+  box-sizing:border-box;
+}
+
+/* Horizontal: connected table based on saved column count */
+#questionsModal .print-fill-grid.horizontal{
+  display:grid;
+  grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr));
+  gap:0;
+  border-top:1px solid #111827;
+  border-left:1px solid #111827;
+  background:#fff;
+  overflow:hidden;
+}
+
+/* Vertical: one item below another */
+#questionsModal .print-fill-grid.vertical{
+  display:grid;
+  grid-template-columns:1fr !important;
+  gap:10px;
+  width:min(520px,100%);
+  border:0;
+  overflow:visible;
+}
+
+#questionsModal .print-fill-cell{
+  min-width:0;
+  min-height:80px;
+  padding:10px 8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#fff;
+  color:#111827;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:25px;
+  font-weight:500;
+  line-height:1.2;
+  box-sizing:border-box;
+}
+
+/* Connected borders like the PDF table */
+#questionsModal .print-fill-grid.horizontal .print-fill-cell{
+  border-right:1px solid #111827;
+  border-bottom:1px solid #111827;
+}
+
+/* Vertical cards */
+#questionsModal .print-fill-grid.vertical .print-fill-cell{
+  min-height:58px;
+  justify-content:flex-start;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  padding:12px 16px;
+  text-align:left;
+}
+
+/* Blank cells in question preview */
+#questionsModal .question-only .print-fill-cell.blank{
+  font-size:21px;
+  letter-spacing:1px;
+}
+
+/* Correct answers in the answers preview */
+#questionsModal .answer-only .print-fill-cell.blank{
+  background:#dcfce7;
+  color:#047857;
+  font-weight:900;
+}
+
+/* Fixed items stay white */
+#questionsModal .print-fill-cell.fixed{
+  background:#fff;
+  color:#111827;
+}
+
+/* Keep the complete horizontal table on smaller screens */
+@media(max-width:900px){
+  #questionsModal .print-fill-grid.horizontal{
+    overflow-x:auto;
+    grid-template-columns:repeat(
+      var(--fill-columns,10),
+      minmax(82px,1fr)
+    ) !important;
+  }
+
+  #questionsModal .print-fill-cell{
+    min-height:70px;
+    font-size:21px;
+  }
+}
+
 </style>
 
 <style id="prudle-modern-design">
