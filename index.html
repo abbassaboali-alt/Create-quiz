@@ -1983,7 +1983,19 @@ button:hover{
 
     <div id="orderPreview" class="note hidden"></div>
 
-    <input id="degree" type="number" min="1" placeholder="out of">
+    <input
+      id="degree"
+      type="number"
+      min="0.01"
+      step="0.01"
+      placeholder="Total question marks"
+      oninput="updateQuestionDegreeDistributionNote()">
+
+    <div
+      id="questionDegreeDistributionNote"
+      class="fill-degree-note"
+      style="display:none">
+    </div>
 
     <select id="mediaType">
       <option value="none">No Media</option>
@@ -3420,16 +3432,227 @@ function renderFillBuilderPreview(){
       </div>
     `;
   }).join('');
+
+  const blankCount =
+    getFillRows()
+      .filter(row=>
+        row.querySelector(".fill-mode")?.value === "blank"
+      )
+      .length;
+
+  const totalDegree =
+    Number(
+      document.getElementById("degree")?.value || 0
+    );
+
+  const fillNote =
+    document.getElementById("fillDegreeNote");
+
+  if(fillNote){
+    const eachDegree =
+      blankCount > 0 && totalDegree > 0
+        ? totalDegree / blankCount
+        : 0;
+
+    fillNote.textContent =
+      `${blankCount} blanks — ` +
+      `${formatMarkNumber(totalDegree)} total marks ÷ ${Math.max(blankCount,1)} = ` +
+      `${formatMarkNumber(eachDegree)} marks for each correct blank`;
+  }
+
+  updateQuestionDegreeDistributionNote();
 }
 
 function getFillBlankCount(items){
   return (Array.isArray(items)?items:[]).filter(item=>item?.mode === 'blank').length;
 }
 
+
+function formatMarkNumber(value){
+  const number = Number(value || 0);
+  if(!Number.isFinite(number)) return "0";
+  return Number(number.toFixed(4)).toString();
+}
+
+function getQuestionGradingParts(questionData){
+  const q = questionData || {};
+
+  if(q.type === "match"){
+    return Math.max(
+      1,
+      Array.isArray(q.correct)
+        ? q.correct.length
+        : 0
+    );
+  }
+
+  if(q.type === "fill"){
+    return Math.max(
+      1,
+      Array.isArray(q.fillItems)
+        ? q.fillItems.filter(item=>item?.mode === "blank").length
+        : 0
+    );
+  }
+
+  return 1;
+}
+
+function getQuestionDegreeDistributionText(questionData){
+  const q = questionData || {};
+  const totalDegree = Number(q.degree || 0);
+  const parts = getQuestionGradingParts(q);
+
+  if(q.type !== "match" && q.type !== "fill"){
+    return `Total: ${formatMarkNumber(totalDegree)} marks`;
+  }
+
+  const unitName =
+    q.type === "match"
+      ? "matching pairs"
+      : "blanks";
+
+  const eachDegree =
+    totalDegree > 0
+      ? totalDegree / parts
+      : 0;
+
+  return `${parts} ${unitName} — ${formatMarkNumber(totalDegree)} total marks ÷ ${parts} = ${formatMarkNumber(eachDegree)} marks for each correct part`;
+}
+
+function updateQuestionDegreeDistributionNote(){
+  const note =
+    document.getElementById("questionDegreeDistributionNote");
+
+  if(!note) return;
+
+  const type =
+    document.getElementById("qType")?.value || "mcq";
+
+  const totalDegree =
+    Number(
+      document.getElementById("degree")?.value || 0
+    );
+
+  let parts = 1;
+  let unitName = "question";
+
+  if(type === "match"){
+    parts = Math.max(
+      1,
+      getMatchingRows()
+        .filter(row=>{
+          const left =
+            String(
+              row.querySelector(".match-left")?.value || ""
+            ).trim();
+
+          const right =
+            String(
+              row.querySelector(".match-right")?.value || ""
+            ).trim();
+
+          const image =
+            String(
+              row.querySelector(".match-image-url")?.value ||
+              row.dataset.uploadedUrl ||
+              ""
+            ).trim();
+
+          return left && (right || image);
+        })
+        .length
+    );
+
+    unitName = "matching pairs";
+  }
+
+  else if(type === "fill"){
+    parts = Math.max(
+      1,
+      getFillRows()
+        .filter(row=>
+          row.querySelector(".fill-mode")?.value === "blank"
+        )
+        .length
+    );
+
+    unitName = "blanks";
+  }
+
+  if(type !== "match" && type !== "fill"){
+    note.style.display = totalDegree > 0 ? "block" : "none";
+    note.textContent =
+      totalDegree > 0
+        ? `Total question marks: ${formatMarkNumber(totalDegree)}`
+        : "";
+    return;
+  }
+
+  note.style.display = "block";
+
+  const eachDegree =
+    totalDegree > 0
+      ? totalDegree / parts
+      : 0;
+
+  note.textContent =
+    `${parts} ${unitName} — ` +
+    `${formatMarkNumber(totalDegree)} total marks ÷ ${parts} = ` +
+    `${formatMarkNumber(eachDegree)} marks for each correct part`;
+}
+
+function updateQuickDegreeDistributionNote(questionId, questionType){
+  const input =
+    document.getElementById(`edit_degree_${questionId}`);
+
+  const note =
+    document.getElementById(`edit_degree_note_${questionId}`);
+
+  if(!input || !note) return;
+
+  const totalDegree =
+    Number(input.value || 0);
+
+  if(questionType !== "match" && questionType !== "fill"){
+    note.textContent =
+      `Total question marks: ${formatMarkNumber(totalDegree)}`;
+    return;
+  }
+
+  const card =
+    input.closest(".pro-question-card");
+
+  let parts = 1;
+
+  if(card){
+    const storedParts =
+      Number(card.dataset.gradingParts || 0);
+
+    if(storedParts > 0){
+      parts = storedParts;
+    }
+  }
+
+  const eachDegree =
+    totalDegree > 0
+      ? totalDegree / parts
+      : 0;
+
+  note.textContent =
+    `${parts} parts — ` +
+    `${formatMarkNumber(totalDegree)} total marks ÷ ${parts} = ` +
+    `${formatMarkNumber(eachDegree)} marks for each correct part`;
+}
+
 /* ================= نوع السؤال ================= */
 function toggleQuestionType(){
 
   const type = qType.value;
+
+  setTimeout(()=>{
+    updateQuestionDegreeDistributionNote();
+  },0);
 
   const matchingBox =
     document.getElementById("matchingBox");
@@ -3959,8 +4182,8 @@ async function saveQuestion(){
     return alert("Enter at least two options.");
   }
 
-  if(deg <= 0 && type !== "match" && type !== "fill"){
-    return alert("out of");
+  if(deg <= 0){
+    return alert("Insert the total marks for this question.");
   }
 
   let correctAnswer;
@@ -3995,9 +4218,13 @@ async function saveQuestion(){
     }
     fillLayoutValue = document.getElementById("fillLayout")?.value === "vertical" ? "vertical" : "horizontal";
     fillColumnsValue = Math.max(1,Math.min(12,Number(document.getElementById("fillColumns")?.value || 10)));
-    correctAnswer = fillItems.filter(item=>item.mode === "blank").map(item=>normalizeTextAnswer(item.answer));
-    deg = correctAnswer.length;
-    degree.value = deg;
+    correctAnswer = fillItems
+      .filter(item=>item.mode === "blank")
+      .map(item=>normalizeTextAnswer(item.answer));
+
+    if(deg <= 0){
+      return alert("Insert the total marks for this question.");
+    }
   }
 
   // ================= MATCH =================
@@ -4007,8 +4234,10 @@ async function saveQuestion(){
 
       correctAnswer =
         await collectMatchingPairs();
-      deg = correctAnswer.length;
-      degree.value = deg;
+
+      if(deg <= 0){
+        return alert("Insert the total marks for this question.");
+      }
 
     }catch(error){
 
@@ -4346,6 +4575,19 @@ order: newOrder,
     fillLayout: type === "fill" ? fillLayoutValue : "",
     fillColumns: type === "fill" ? fillColumnsValue : 0,
     degree: deg,
+
+    gradingParts:
+      type === "match"
+        ? correctAnswer.length
+        : type === "fill"
+          ? correctAnswer.length
+          : 1,
+
+    partDegree:
+      type === "match" || type === "fill"
+        ? Number((deg / Math.max(correctAnswer.length,1)).toFixed(6))
+        : deg,
+
     type: type,
     mediaType:
       mediaUrl
@@ -4647,11 +4889,35 @@ if(old.type === "order"){
     }
   }
 
+  const gradingParts =
+    old.type === "match"
+      ? Math.max(
+          1,
+          Array.isArray(correctAnswer)
+            ? correctAnswer.length
+            : 0
+        )
+      : old.type === "fill"
+        ? Math.max(
+            1,
+            Array.isArray(old.fillItems)
+              ? old.fillItems.filter(item=>item?.mode === "blank").length
+              : 0
+          )
+        : 1;
+
+  const partDegree =
+    old.type === "match" || old.type === "fill"
+      ? Number((newDegree / gradingParts).toFixed(6))
+      : newDegree;
+
   await db.collection("questions").doc(id).update({
     question: newQuestion,
-options: updatedOptions,
+    options: updatedOptions,
     passage: newPassage,
     degree: newDegree,
+    gradingParts: gradingParts,
+    partDegree: partDegree,
     correct: correctAnswer,
     updatedAt: new Date()
   });
@@ -6603,7 +6869,14 @@ questionsList.innerHTML += `
     font-size:20px;
     font-weight:900;
   ">
-    ⭐ ${q.degree || 0} Marks
+    ⭐ ${formatMarkNumber(q.degree || 0)} Marks
+    ${
+      q.type === "match" || q.type === "fill"
+        ? `<div style="font-size:12px;margin-top:4px">
+            ${esc(getQuestionDegreeDistributionText(q))}
+          </div>`
+        : ""
+    }
   </div>
 </div>
 
@@ -6747,9 +7020,19 @@ questionsList.innerHTML += `
       id="edit_degree_${q.id}"
       class="pro-edit-input"
       type="number"
+      min="0.01"
+      step="0.01"
       value="${Number(q.degree || 0)}"
-      placeholder="Degree"
+      placeholder="Total question marks"
+      oninput="updateQuickDegreeDistributionNote('${q.id}', '${q.type}')"
     >
+
+    <div
+      id="edit_degree_note_${q.id}"
+      class="fill-degree-note"
+      style="margin-top:8px">
+      ${getQuestionDegreeDistributionText(q)}
+    </div>
 
     <input
       id="edit_correct_${q.id}"
