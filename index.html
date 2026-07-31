@@ -618,6 +618,16 @@ transform:scale(1);
 .fill-preview-cell.blank{border-style:dashed;color:#64748b}
 @media(max-width:800px){.fill-admin-row{grid-template-columns:45px 1fr}.fill-admin-row>*{min-width:0}.fill-admin-delete{grid-column:2}.fill-builder-toolbar{display:grid;grid-template-columns:1fr}}
 
+/* TEXT ANSWER LINES */
+.text-answer-lines{
+  display:grid;
+  gap:8px;
+  margin-top:12px;
+}
+.text-answer-line{
+  height:30px;
+  border-bottom:1px solid #111827;
+}
 
 /* =========================================
    FILL IN THE BLANKS — MODAL SCREEN PREVIEW
@@ -2048,6 +2058,23 @@ button:hover{
 </select>
 
     <textarea id="question" placeholder="Write the question here"></textarea>
+
+<div id="textAnswerLinesBox" class="hidden" style="margin-top:10px;">
+  <label for="textAnswerLines" style="display:block;font-weight:900;color:#164478;margin-bottom:6px;">
+    Number of Answer Lines
+  </label>
+  <input
+    id="textAnswerLines"
+    type="number"
+    min="1"
+    max="20"
+    value="4"
+    placeholder="Number of lines shown below the question">
+  <div class="small" style="margin-top:6px;">
+    This number is used in the question preview and printed PDF.
+  </div>
+</div>
+
 <button onclick="addPassage()" style="background:#0ea5e9">
   □ Add Reading Passage
 </button>
@@ -2471,6 +2498,13 @@ function clearForm(){
 
   clearMatchingRows();
   resetFillItems();
+
+  const textAnswerLinesField =
+    document.getElementById("textAnswerLines");
+
+  if(textAnswerLinesField){
+    textAnswerLinesField.value = 4;
+  }
 
   qType.value = "mcq";
   toggleQuestionType();
@@ -3851,6 +3885,7 @@ function toggleQuestionType(){
   const matchingBox =
     document.getElementById("matchingBox");
   const fillBlanksBox = document.getElementById("fillBlanksBox");
+  const textAnswerLinesBox = document.getElementById("textAnswerLinesBox");
   degree.readOnly = false;
 
   correctBox.classList.add("hidden");
@@ -3863,6 +3898,9 @@ function toggleQuestionType(){
   }
   if(fillBlanksBox){
     fillBlanksBox.classList.remove("show");
+  }
+  if(textAnswerLinesBox){
+    textAnswerLinesBox.classList.add("hidden");
   }
 
   correct.value = "";
@@ -3888,6 +3926,10 @@ function toggleQuestionType(){
 
     optionsBox.classList.add("hidden");
     correctBox.classList.remove("hidden");
+
+    if(textAnswerLinesBox){
+      textAnswerLinesBox.classList.remove("hidden");
+    }
 
     correct.type = "text";
     correct.placeholder =
@@ -4352,6 +4394,7 @@ async function saveQuestion(){
   let fillItems = [];
   let fillLayoutValue = "horizontal";
   let fillColumnsValue = 10;
+  let answerLinesValue = 4;
   const media = mediaType.value;
 
   const fileObj = file.files[0];
@@ -4401,6 +4444,16 @@ async function saveQuestion(){
       .split(",")
       .map(v => normalizeTextAnswer(v))
       .filter(v => v);
+
+    answerLinesValue = Math.max(
+      1,
+      Math.min(
+        20,
+        Number(
+          document.getElementById("textAnswerLines")?.value || 4
+        )
+      )
+    );
   }
 
   // ================= FILL IN THE BLANKS =================
@@ -4570,6 +4623,7 @@ locked:
       fillItems: type === "fill" ? fillItems : [],
       fillLayout: type === "fill" ? fillLayoutValue : "",
       fillColumns: type === "fill" ? fillColumnsValue : 0,
+      answerLines: type === "text" ? answerLinesValue : 0,
 
       degree: deg,
 
@@ -4768,6 +4822,7 @@ order: newOrder,
     fillItems: type === "fill" ? fillItems : [],
     fillLayout: type === "fill" ? fillLayoutValue : "",
     fillColumns: type === "fill" ? fillColumnsValue : 0,
+    answerLines: type === "text" ? answerLinesValue : 0,
     degree: deg,
 
     gradingParts:
@@ -4950,6 +5005,16 @@ async function editQuestion(id){
         .map(value => String(value || "").trim())
         .filter(Boolean)
         .join(", ");
+
+      const textAnswerLinesField =
+        document.getElementById("textAnswerLines");
+
+      if(textAnswerLinesField){
+        textAnswerLinesField.value = Math.max(
+          1,
+          Math.min(20,Number(q.answerLines || 4))
+        );
+      }
     }
 
     /* Matching: نص مع نص أو نص مع صورة */
@@ -7106,7 +7171,10 @@ ${
   }
 
   else if(q.type === "text"){
-    optionsHtml = `<li>Text Answer</li>`;
+    optionsHtml = `
+      <li>Text Answer</li>
+      <li>Answer Lines: ${Math.max(1,Math.min(20,Number(q.answerLines || 4)))}</li>
+    `;
   }
 
   let coursesHTML = "";
@@ -10090,7 +10158,8 @@ function renderCopyQuestionDetails(q){
     const items=Array.isArray(q.fillItems)?q.fillItems:[];
     html += `<div class="copy-bank-options">${items.map((item,index)=>`<div class="copy-bank-option ${item.mode === "blank" ? "correct" : ""}"><strong>${index+1}.</strong> ${item.mode === "blank" ? `Blank → ${esc(item.answer || "")}` : `Fixed → ${esc(item.display || "")}`}</div>`).join("")}</div>`;
   }else if(q.type === "text"){
-    html += `<div class="copy-bank-option correct" style="margin-top:10px"><strong>Correct answer:</strong> ${esc(q.correct || "")}</div>`;
+    html += `<div class="copy-bank-option correct" style="margin-top:10px"><strong>Correct answer:</strong> ${esc(Array.isArray(q.correct) ? q.correct.join(" / ") : (q.correct || ""))}</div>`;
+    html += `<div class="copy-bank-option" style="margin-top:7px"><strong>Answer lines:</strong> ${Math.max(1,Math.min(20,Number(q.answerLines || 4)))}</div>`;
   }else if(q.type === "voice"){
     html += `<div class="copy-bank-option" style="margin-top:10px"><i class="fa-solid fa-microphone"></i> Student records a voice answer.</div>`;
   }
@@ -11275,15 +11344,26 @@ async function openFullQuestions(examId){
               })()
 
             : q.type === "text"
-            ? `
-              <div class="question-only" style="margin-top:8px;">
-                <div style="border-bottom:1px solid #111;height:24px;margin-bottom:8px;"></div>
-                <div style="border-bottom:1px solid #111;height:24px;"></div>
-              </div>
-              <div class="answer-only answer-key-box" style="margin-top:8px;font-weight:900;">
-                Correct answer: ${esc(Array.isArray(q.correct) ? q.correct.join(" / ") : (q.correct || "-"))}
-              </div>
-            `
+            ? (()=>{
+                const answerLines = Math.max(
+                  1,
+                  Math.min(20,Number(q.answerLines || 4))
+                );
+
+                const linesHtml = Array.from(
+                  {length:answerLines},
+                  ()=>`<div class="text-answer-line"></div>`
+                ).join("");
+
+                return `
+                  <div class="question-only text-answer-lines">
+                    ${linesHtml}
+                  </div>
+                  <div class="answer-only answer-key-box" style="margin-top:8px;font-weight:900;">
+                    Correct answer: ${esc(Array.isArray(q.correct) ? q.correct.join(" / ") : (q.correct || "-"))}
+                  </div>
+                `;
+              })()
 
             : q.type === "fill" && Array.isArray(q.fillItems)
             ? (()=>{
