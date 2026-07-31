@@ -1682,6 +1682,201 @@ button:hover{
 
 </style>
 
+
+
+<!-- =========================================================
+     PRUDLE — ONE QUESTION PER PAGE
+     واجهة المعاينة + PDF: كل سؤال في صفحة مستقلة
+========================================================== -->
+<style id="prudle-one-question-per-page">
+/* ---------- واجهة المعاينة ---------- */
+#questionsModal .modal-box{
+  scroll-snap-type:y mandatory;
+  scroll-behavior:smooth;
+}
+
+#questionsModal #modalQuestionsWrap{
+  display:block;
+  width:100%;
+}
+
+#questionsModal .modal-q-card{
+  width:100%;
+  min-height:calc(85vh - 135px);
+  margin:0 0 24px !important;
+  padding:28px 32px !important;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  background:#fff !important;
+  border:2px solid #dbeafe !important;
+  border-radius:22px !important;
+  box-shadow:0 10px 30px rgba(22,68,120,.08) !important;
+  overflow:visible !important;
+  scroll-snap-align:start;
+  scroll-snap-stop:always;
+  box-sizing:border-box;
+}
+
+#questionsModal .modal-q-card .question-print-title{
+  width:100%;
+  margin:12px 0 22px !important;
+  font-size:clamp(18px,2vw,26px) !important;
+  line-height:1.55 !important;
+  text-align:left !important;
+}
+
+#questionsModal .modal-q-card img:not(.print-logo){
+  display:block;
+  width:auto !important;
+  height:auto !important;
+  max-width:min(680px,92%) !important;
+  max-height:42vh !important;
+  object-fit:contain !important;
+  margin:18px auto !important;
+}
+
+#questionsModal .modal-q-card .question-option{
+  width:100%;
+  padding:12px 16px !important;
+  margin-top:9px !important;
+  line-height:1.45 !important;
+}
+
+#questionsModal .modal-q-card .writing-part,
+#questionsModal .modal-q-card .writing-area,
+#questionsModal .modal-q-card .text-answer-lines{
+  width:100% !important;
+  margin-top:18px !important;
+}
+
+@media(max-width:700px){
+  #questionsModal .modal-box{
+    width:96vw;
+    height:92vh;
+    padding:12px;
+  }
+
+  #questionsModal .modal-q-card{
+    min-height:calc(92vh - 105px);
+    padding:18px 15px !important;
+    border-radius:16px !important;
+  }
+
+  #questionsModal .modal-q-card img:not(.print-logo){
+    max-width:96% !important;
+    max-height:38vh !important;
+  }
+}
+
+/* ---------- PDF / الطباعة ---------- */
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:10mm 8mm 8mm;
+  }
+
+  #modalQuestions,
+  #modalQuestionsWrap{
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:visible !important;
+  }
+
+  /* كل بطاقة سؤال = صفحة A4 مستقلة */
+  #questionsModal .modal-q-card{
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:flex-start !important;
+    width:100% !important;
+    min-height:269mm !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:10mm 9mm !important;
+    border:0 !important;
+    border-radius:0 !important;
+    border-bottom:0 !important;
+    background:#fff !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+
+    break-before:auto !important;
+    page-break-before:auto !important;
+    break-after:page !important;
+    page-break-after:always !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  #questionsModal .modal-q-card:last-child{
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  #questionsModal .modal-q-card > div:first-child{
+    flex:0 0 auto !important;
+    margin:0 0 5mm !important;
+  }
+
+  #questionsModal .modal-q-card .question-print-title{
+    flex:0 0 auto !important;
+    width:100% !important;
+    margin:0 0 6mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:15pt !important;
+    font-weight:800 !important;
+    line-height:1.45 !important;
+    text-align:left !important;
+    color:#111827 !important;
+  }
+
+  #questionsModal .modal-q-card img:not(.print-logo){
+    display:block !important;
+    width:auto !important;
+    height:auto !important;
+    max-width:145mm !important;
+    max-height:105mm !important;
+    object-fit:contain !important;
+    margin:5mm auto 7mm !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  #questionsModal .modal-q-card .question-option{
+    flex:0 0 auto !important;
+    width:100% !important;
+    padding:2.2mm 3mm !important;
+    margin:1.5mm 0 0 !important;
+    font-size:11pt !important;
+    line-height:1.35 !important;
+    border:1px solid #d1d5db !important;
+    border-radius:2mm !important;
+  }
+
+  /* مساحة إجابة منظمة للأسئلة النصية */
+  #questionsModal .modal-q-card .writing-part,
+  #questionsModal .modal-q-card .writing-area,
+  #questionsModal .modal-q-card .text-answer-lines{
+    width:100% !important;
+    min-height:62mm !important;
+    margin-top:7mm !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /* منع الجداول والصور المطابقة من الانقسام */
+  #questionsModal .modal-q-card .print-match-image-bank,
+  #questionsModal .modal-q-card .print-fill-grid,
+  #questionsModal .modal-q-card ul,
+  #questionsModal .modal-q-card ol{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+}
+</style>
+
 </head>
 <body>
 
