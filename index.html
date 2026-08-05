@@ -7133,7 +7133,10 @@ ${
 </div>
 `;groupQuestions.forEach((q,index)=>{
 
-  const media = renderMedia(q.mediaType, q.mediaUrl);
+  const mediaVisible = q.showMedia !== false;
+  const media = mediaVisible
+    ? renderMedia(q.mediaType, q.mediaUrl)
+    : (q.mediaUrl ? `<div class="note" style="background:#fff7ed;color:#9a3412;border-color:#fed7aa">Media is hidden from students</div>` : "");
 
   const checked =
   Array.isArray(visibleQuestions) &&
@@ -7311,6 +7314,16 @@ questionsList.innerHTML += `
     }
 
     ${media}
+
+    ${q.mediaUrl && q.mediaType !== "none" ? `
+      <button
+        type="button"
+        onclick="toggleMediaVisibility('${q.id}', ${mediaVisible})"
+        style="background:${mediaVisible ? '#dc2626' : '#16a34a'};margin-top:10px"
+      >
+        ${mediaVisible ? '🙈 Hide Media From Students' : '👁️ Show Media To Students'}
+      </button>
+    ` : ""}
 
   <div style="
   margin-top:12px;
