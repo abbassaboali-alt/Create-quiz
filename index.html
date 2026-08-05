@@ -2984,6 +2984,7 @@ const item = {
   course: String(coursesText || ""),
   trainer: String(trainersText || ""),
   period: String(periodsText || ""),
+  hasLockedQuestions: e.hasLockedQuestions === true,
   createdAt: e.createdAt?.seconds || 0
 };
       // □ تخزين للكاش (للبحث)
@@ -3145,6 +3146,82 @@ function filterExamBank(){
     html || "No exams";
 
 }
+
+function getExamCategoryLabel(category){
+  const labels = {
+    midterm: "Midterm",
+    finalExam: "Final Exam",
+    listening: "Listening",
+    speaking: "Speaking",
+    quizEvaluation: "Quiz and Evaluation"
+  };
+  return labels[category] || "Select Exam Type";
+}
+
+function getExamCategoryColor(category){
+  const colors = {
+    midterm: "#f59e0b",
+    finalExam: "#dc2626",
+    listening: "#0ea5e9",
+    speaking: "#16a34a",
+    quizEvaluation: "#8b5cf6"
+  };
+  return colors[category] || "#164478";
+}
+
+async function changeExamCategory(examId, newCategory, selectElement){
+  const category = String(newCategory || "").trim();
+
+  if(!category){
+    alert("اختر نوع الاختبار");
+    return;
+  }
+
+  if(selectElement){
+    selectElement.disabled = true;
+  }
+
+  try{
+    await db.collection("exams").doc(examId).update({
+      examCategory: category,
+      updatedAt: new Date()
+    });
+
+    const item = EXAMS_DROPDOWN.find(exam => exam.id === examId);
+    if(item){
+      item.examCategory = category;
+    }
+
+    // تحديث لون البطاقة مباشرة
+    const card = document.querySelector(`.exam-card[data-id="${examId}"]`);
+    const color = getExamCategoryColor(category);
+
+    if(card){
+      const sideBar = card.querySelector(".exam-category-side");
+      const titleBox = card.querySelector(".exam-category-title");
+      const titleInput = card.querySelector(".exam-title-input");
+
+      if(sideBar) sideBar.style.background = color;
+      if(titleBox) titleBox.style.color = color;
+      if(titleInput){
+        titleInput.style.borderColor = color;
+        titleInput.style.color = color;
+      }
+    }
+
+    alert("✅ تم تغيير نوع الاختبار بنجاح");
+
+  }catch(err){
+    console.error(err);
+    alert("❌ تعذر تغيير نوع الاختبار");
+    await loadExams();
+  }finally{
+    if(selectElement){
+      selectElement.disabled = false;
+    }
+  }
+}
+
 function filterExamDropdown(inputValue){
 
   let search = "";
@@ -3185,27 +3262,7 @@ function filterExamDropdown(inputValue){
   `;
 
   list.forEach(e=>{
-let cardColor = "#164478";
-
-if(e.examCategory === "midterm"){
-  cardColor = "#f59e0b"; // برتقالي
-}
-
-if(e.examCategory === "finalExam"){
-  cardColor = "#dc2626"; // أحمر
-}
-
-if(e.examCategory === "listening"){
-  cardColor = "#0ea5e9"; // أزرق
-}
-
-if(e.examCategory === "speaking"){
-  cardColor = "#16a34a"; // أخضر
-}
-
-if(e.examCategory === "quizEvaluation"){
-  cardColor = "#8b5cf6"; // بنفسجي
-}
+let cardColor = getExamCategoryColor(e.examCategory);
 html += `
 
 <div class="exam-card"
@@ -3223,7 +3280,7 @@ html += `
     overflow:hidden;
   ">
 
-  <div style="
+  <div class="exam-category-side" style="
     position:absolute;
     top:0;
     right:0;
@@ -3232,7 +3289,7 @@ html += `
     background:${cardColor};
   "></div>
 
-<div style="
+<div class="exam-category-title" style="
   font-size:20px;
   font-weight:900;
   color:${cardColor};
@@ -3243,6 +3300,7 @@ html += `
 
   ${esc(e.title || "-")}
 <input
+  class="exam-title-input"
   value="${esc(e.title || "")}"
 
   onclick="event.stopPropagation()"
@@ -3301,6 +3359,29 @@ html += `
     };
   "
 >
+
+<select
+  aria-label="Change Exam Type"
+  onclick="event.stopPropagation()"
+  onchange="event.stopPropagation(); changeExamCategory('${e.id}', this.value, this)"
+  style="
+    margin-top:10px;
+    border:2px solid ${cardColor};
+    color:${cardColor};
+    background:#fff;
+    font-weight:900;
+    text-align:center;
+    direction:ltr;
+    cursor:pointer;
+  "
+>
+  <option value="" ${!e.examCategory ? "selected" : ""}>Select Exam Type</option>
+  <option value="midterm" ${e.examCategory === "midterm" ? "selected" : ""}>Midterm</option>
+  <option value="finalExam" ${e.examCategory === "finalExam" ? "selected" : ""}>Final Exam</option>
+  <option value="listening" ${e.examCategory === "listening" ? "selected" : ""}>Listening</option>
+  <option value="speaking" ${e.examCategory === "speaking" ? "selected" : ""}>Speaking</option>
+  <option value="quizEvaluation" ${e.examCategory === "quizEvaluation" ? "selected" : ""}>Quiz and Evaluation</option>
+</select>
 
 <div style="
   margin-top:8px;
