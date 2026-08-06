@@ -2409,6 +2409,13 @@ window.addEventListener("message", function(e){
     if(typeof loadCourses === "function"){
       loadCourses();
     }
+
+    if(
+      typeof loadQuestions === "function" &&
+      CURRENT_PREVIEW_EXAM
+    ){
+      loadQuestions();
+    }
   }
 
 });
@@ -2448,6 +2455,55 @@ const CURRENT_USER = (localStorage.getItem("username") || "")
 /* ================= أدوات ================= */
 function norm(v){
   return String(v || "").trim().toLowerCase();
+}
+
+function getCurrentRole(){
+  return String(
+    localStorage.getItem("role") || ""
+  ).trim().toLowerCase();
+}
+
+function getCurrentUsername(){
+  return String(
+    localStorage.getItem("username") || ""
+  )
+  .replace(/\s+/g,"")
+  .trim()
+  .toLowerCase();
+}
+
+function canViewAllOpenCourses(){
+  return getCurrentRole() === "admin";
+}
+
+function isCourseVisibleForCurrentUser(course){
+  if(canViewAllOpenCourses()){
+    return true;
+  }
+
+  const trainerName = String(
+    course?.Trainer ||
+    course?.trainer ||
+    course?.TrainerName ||
+    course?.trainerName ||
+    ""
+  )
+  .replace(/\s+/g,"")
+  .trim()
+  .toLowerCase();
+
+  const currentUsername = getCurrentUsername();
+
+  if(!currentUsername){
+    return false;
+  }
+
+  return trainerName === currentUsername;
+}
+
+function isOpenCourse(course){
+  const status = norm(course?.status);
+  return ["open","مفتوح"].includes(status);
 }
 function normalizeTextAnswer(val){
   return String(val || "")
@@ -2725,35 +2781,11 @@ async function loadCourses(){
       if(!txt.includes(search)) return;
     }
 
-    // ==================================================
-    // ✅ فلترة حسب المدرب
-    // ==================================================
-
-    const role = (
-      localStorage.getItem("role") || ""
-    ).trim().toLowerCase();
-
-    const cleanTrainer = String(trainerName || "")
-      .replace(/\s/g,'')
-      .trim()
-      .toLowerCase();
-
-    const cleanUser = String(CURRENT_USER || "")
-      .replace(/\s/g,'')
-      .trim()
-      .toLowerCase();
-
-    // ✅ الأدمن يرى الجميع
-    // ✅ المدرب يرى دوراته فقط
-    if(role !== "admin"){
-
-      if(cleanTrainer !== cleanUser){
-        return;
-      }
-
+    // الأدمن يرى جميع الدورات المفتوحة.
+    // المدرب يرى الدورات المفتوحة المرتبطة بحسابه فقط.
+    if(!isCourseVisibleForCurrentUser(c)){
+      return;
     }
-
-    // ==================================================
 
 courses.push({
   id: doc.id,
@@ -5480,19 +5512,27 @@ async function sendToCourse(questionId){
   const coursesSnap = await db.collection("Courses").get();
 
   let courses = [];
+
   coursesSnap.forEach(doc=>{
     const c = doc.data();
-    if(norm(c.status) === "open"){
-courses.push({
-  id: doc.id,
-  TrainingCourse: c.TrainingCourse || "",
-  Trainer: c.Trainer || "",
-  Period: c.Period || ""
-});    }
+
+    if(!isOpenCourse(c)) return;
+    if(!isCourseVisibleForCurrentUser(c)) return;
+
+    courses.push({
+      id: doc.id,
+      TrainingCourse: c.TrainingCourse || "",
+      Trainer: c.Trainer || "",
+      Period: c.Period || ""
+    });
   });
 
   if(!courses.length){
-    return alert("No available courses");
+    return alert(
+      canViewAllOpenCourses()
+        ? "No open courses are available"
+        : "No open courses are linked to your trainer account"
+    );
   }
 
   let text = "Choose new course No.:\\n\\n";
@@ -5680,24 +5720,25 @@ async function relinkQuestion(questionId){
   let courses = [];
 
   coursesSnap.forEach(doc=>{
-
     const c = doc.data();
 
-    if(norm(c.status) === "open"){
+    if(!isOpenCourse(c)) return;
+    if(!isCourseVisibleForCurrentUser(c)) return;
 
-      courses.push({
-        id: doc.id,
-        TrainingCourse: c.TrainingCourse || "",
-        Trainer: c.Trainer || "",
-        Period: c.Period || ""
-      });
-
-    }
-
+    courses.push({
+      id: doc.id,
+      TrainingCourse: c.TrainingCourse || "",
+      Trainer: c.Trainer || "",
+      Period: c.Period || ""
+    });
   });
 
   if(!courses.length){
-    alert("No available courses");
+    alert(
+      canViewAllOpenCourses()
+        ? "No open courses are available"
+        : "No open courses are linked to your trainer account"
+    );
     return;
   }
 
@@ -5735,7 +5776,11 @@ const html = `
     >
 
       <option value="">
-        Choose course
+        ${
+          canViewAllOpenCourses()
+            ? "Choose course — All open courses"
+            : "Choose course — My open courses only"
+        }
       </option>
 
       ${courses.map(c => `
