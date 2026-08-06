@@ -1565,6 +1565,54 @@ button:hover{
 .question-drag-handle{font-size:20px;cursor:grab;user-select:none;padding:4px 9px;border-radius:10px;background:rgba(255,255,255,.18)}
 .question-order-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .question-order-actions button{width:auto!important;margin:0!important;padding:7px 11px!important;font-size:12px!important;background:rgba(255,255,255,.17)!important;border:1px solid rgba(255,255,255,.35)!important}
+.exam-global-actions{
+  position:sticky;
+  top:10px;
+  z-index:40;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(170px,1fr));
+  gap:10px;
+  margin:14px 0 18px;
+  padding:14px;
+  border:2px solid #cfe0ef;
+  border-radius:20px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 14px 35px rgba(22,68,120,.14);
+  backdrop-filter:blur(12px);
+}
+.exam-global-actions button{
+  width:100%!important;
+  margin:0!important;
+  min-height:52px;
+  border-radius:14px!important;
+  font-weight:900!important;
+}
+.exam-global-note{
+  grid-column:1/-1;
+  padding:10px 14px;
+  border-radius:13px;
+  background:#eef6ff;
+  color:#164478;
+  font-weight:800;
+  text-align:center;
+}
+.pro-question-card.active-question{
+  outline:4px solid rgba(14,165,233,.32);
+  outline-offset:3px;
+  box-shadow:0 16px 34px rgba(14,165,233,.16);
+}
+@media(max-width:800px){
+  .exam-global-actions{
+    position:static;
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media(max-width:520px){
+  .exam-global-actions{
+    grid-template-columns:1fr;
+  }
+}
+
 .copy-bank-modal{
   position:fixed;inset:0;background:rgba(15,23,42,.76);display:none;
   align-items:center;justify-content:center;z-index:100000;padding:14px;
@@ -2385,6 +2433,7 @@ let SELECTED_QUESTION_COURSE = "";
 let EDIT_QUESTION_ID = null;
 
 let CURRENT_PREVIEW_EXAM = "";
+let ACTIVE_QUESTION_ID = "";
 let CURRENT_PRINT_EXAM_DATA = null;
 let CURRENT_COURSE_ID = "";
 let CURRENT_COURSE_NAME = "";
@@ -5219,21 +5268,23 @@ async function editQuestion(id){
   }
 }
 
-async function quickUpdateQuestion(id){
+async function quickUpdateQuestion(id, options = {}){
+  const silent = options.silent === true;
+  const reload = options.reload !== false;
 
   const qDoc = await db.collection("questions").doc(id).get();
   if(!qDoc.exists){
-    alert("Question not found");
-    return;
+    if(!silent) alert("Question not found");
+    return false;
   }
 
   const old = qDoc.data();
 // ✅ السؤال مقفل
 if(old.locked === true){
 
-  alert("□ Locked Question");
+  if(!silent) alert("🔒 Locked Question");
 
-  return;
+  return false;
 }
 
   const newQuestion = document.getElementById("edit_q_" + id).value.trim();
@@ -5251,13 +5302,13 @@ const updatedOptions = [];
 });
 
   if(!newQuestion){
-    alert("Write the question");
-    return;
+    if(!silent) alert("Write the question");
+    return false;
   }
 
   if(newDegree <= 0){
-    alert("Insert degree");
-    return;
+    if(!silent) alert("Insert degree");
+    return false;
   }
 
   let correctAnswer = old.correct;
@@ -5265,8 +5316,8 @@ const updatedOptions = [];
   if(old.type === "mcq"){
     const i = Number(newCorrect);
     if(isNaN(i) || i < 0 || i >= (old.options || []).length){
-      alert("Correct answer must be option number مثل 0 أو 1 أو 2 أو 3");
-      return;
+      if(!silent) alert("Correct answer must be option number مثل 0 أو 1 أو 2 أو 3");
+      return false;
     }
     correctAnswer = i;
   }
@@ -5365,8 +5416,15 @@ if(old.type === "order"){
     updatedAt: new Date()
   });
 
-  alert("✅ Updated successfully");
-  await loadQuestions();
+  if(!silent){
+    alert("✅ Updated successfully");
+  }
+
+  if(reload){
+    await loadQuestions();
+  }
+
+  return true;
 }
 async function editExamTime(){
 
@@ -6171,6 +6229,184 @@ async function toggleLinkedCourseQuestions(courseId, show){
   await loadQuestions();
 }
 
+
+/* =========================================
+   ONE GLOBAL QUESTION TOOLBAR
+========================================= */
+document.addEventListener("click",function(event){
+  const card = event.target.closest(
+    ".pro-question-card[data-question-id]"
+  );
+
+  if(!card) return;
+
+  setActiveQuestion(
+    card.dataset.questionId || ""
+  );
+});
+
+function setActiveQuestion(questionId){
+  ACTIVE_QUESTION_ID = String(questionId || "").trim();
+
+  document.querySelectorAll(".pro-question-card")
+    .forEach(card=>{
+      card.classList.toggle(
+        "active-question",
+        card.dataset.questionId === ACTIVE_QUESTION_ID
+      );
+    });
+
+  const label = document.getElementById("activeQuestionLabel");
+  if(label){
+    if(ACTIVE_QUESTION_ID){
+      const card = document.querySelector(
+        `.pro-question-card[data-question-id="${ACTIVE_QUESTION_ID}"]`
+      );
+      const number = card?.dataset.questionNumber || "";
+      label.textContent =
+        number
+          ? `Selected Question: ${number}`
+          : "A question is selected";
+    }else{
+      label.textContent =
+        "Click any question card to select it for Edit, Linked Courses, Reset, or Delete.";
+    }
+  }
+}
+
+function getActiveQuestionId(){
+  if(
+    ACTIVE_QUESTION_ID &&
+    document.querySelector(
+      `.pro-question-card[data-question-id="${ACTIVE_QUESTION_ID}"]`
+    )
+  ){
+    return ACTIVE_QUESTION_ID;
+  }
+
+  const firstCard =
+    document.querySelector(".pro-question-card");
+
+  if(firstCard){
+    setActiveQuestion(firstCard.dataset.questionId || "");
+    return firstCard.dataset.questionId || "";
+  }
+
+  alert("No question is available");
+  return "";
+}
+
+function editActiveQuestion(){
+  const id = getActiveQuestionId();
+  if(id) editQuestion(id);
+}
+
+function toggleActiveLinkedCourses(){
+  const id = getActiveQuestionId();
+  if(!id) return;
+
+  const box = document.getElementById(`linkedBox_${id}`);
+  if(!box) return;
+
+  box.style.display =
+    box.style.display === "none" || !box.style.display
+      ? "block"
+      : "none";
+
+  if(box.style.display === "block"){
+    box.scrollIntoView({
+      behavior:"smooth",
+      block:"center"
+    });
+  }
+}
+
+function resetAllActiveQuestion(){
+  const id = getActiveQuestionId();
+  if(id) resetAllByQuestion(id);
+}
+
+function resetStudentActiveQuestion(){
+  const id = getActiveQuestionId();
+  if(id) resetOneByQuestion(id);
+}
+
+function deleteActiveQuestion(){
+  const id = getActiveQuestionId();
+  if(id) deleteQuestion(id);
+}
+
+async function saveAllQuestionEdits(){
+  const cards = [
+    ...document.querySelectorAll(
+      ".pro-question-card[data-question-id]"
+    )
+  ];
+
+  if(!cards.length){
+    alert("No questions to save");
+    return;
+  }
+
+  const button =
+    document.getElementById("saveAllQuestionEditsBtn");
+
+  if(button){
+    button.disabled = true;
+    button.textContent = "⏳ Saving All Changes...";
+  }
+
+  let saved = 0;
+  let skipped = 0;
+  const failed = [];
+
+  try{
+    for(const card of cards){
+      const id =
+        String(card.dataset.questionId || "").trim();
+
+      if(!id) continue;
+
+      try{
+        const result = await quickUpdateQuestion(id,{
+          silent:true,
+          reload:false
+        });
+
+        if(result === true){
+          saved++;
+        }else{
+          skipped++;
+        }
+      }catch(error){
+        console.error(
+          "SAVE ALL QUESTION ERROR:",
+          id,
+          error
+        );
+        failed.push(id);
+      }
+    }
+
+    await autoSaveVisibleQuestions();
+    await loadQuestions();
+
+    const message = [
+      `✅ Saved: ${saved}`,
+      skipped ? `Skipped: ${skipped}` : "",
+      failed.length ? `Failed: ${failed.length}` : ""
+    ].filter(Boolean).join(" | ");
+
+    alert(message);
+
+  }finally{
+    if(button){
+      button.disabled = false;
+      button.textContent = "✅ Save All Changes";
+    }
+  }
+}
+
 /* ================= عرض الأسئلة ================= */
 async function loadQuestions(){
 
@@ -6270,6 +6506,66 @@ async function loadQuestions(){
       (
         localStorage.getItem("role") || ""
       ).toLowerCase();
+
+    questionsList.innerHTML += `
+      <div class="exam-global-actions" id="examGlobalActions">
+
+        <div class="exam-global-note" id="activeQuestionLabel">
+          Click any question card to select it for Edit, Linked Courses, Reset, or Delete.
+          Save All Changes saves every edited question at once.
+        </div>
+
+        <button
+          id="saveAllQuestionEditsBtn"
+          type="button"
+          onclick="saveAllQuestionEdits()"
+          style="background:#16a34a">
+          ✅ Save All Changes
+        </button>
+
+        <button
+          type="button"
+          onclick="editActiveQuestion()"
+          style="background:#0ea5e9">
+          ✏️ Edit Selected Question
+        </button>
+
+        <button
+          type="button"
+          onclick="toggleActiveLinkedCourses()"
+          style="background:#2563eb">
+          🔗 Linked Courses
+        </button>
+
+        <button
+          type="button"
+          onclick="resetAllActiveQuestion()"
+          style="background:#7c3aed">
+          ♻️ Reset All
+        </button>
+
+        <button
+          type="button"
+          onclick="resetStudentActiveQuestion()"
+          style="background:#f59e0b">
+          👤 Reset Student
+        </button>
+
+        ${
+          USER_ROLE === "admin"
+            ? `
+              <button
+                type="button"
+                onclick="deleteActiveQuestion()"
+                style="background:#dc2626">
+                🗑️ Delete Selected Question
+              </button>
+            `
+            : ""
+        }
+
+      </div>
+    `;
 
     if(USER_ROLE === "admin"){
 
@@ -7287,6 +7583,8 @@ questionsList.innerHTML += `
   draggable="true"
   data-question-id="${q.id}"
   data-question-order="${Number(q.order || 0)}"
+  data-question-number="${questionNumberMap.get(q.id) || ""}"
+  onclick="setActiveQuestion('${q.id}')"
 >
 
   <div class="pro-question-head">
@@ -7638,60 +7936,6 @@ questionsList.innerHTML += `
   }
 
 </div>
-    <div class="pro-actions">
-
-      <button onclick="quickUpdateQuestion('${q.id}')" style="background:#16a34a">
-        ✅ Save
-      </button>
-
-      <button onclick="editQuestion('${q.id}')" style="background:#0ea5e9">
-        ✏️ Edit Form
-      </button>
-
-
-    ${
-  q.locked === true &&
-  USER_ROLE !== "admin"
-  ? ""
-  : `
-    <button
-      onclick="deleteQuestion('${q.id}')"
-      style="background:#dc2626"
-    >
-      □ Delete
-    </button>
-  `
-}
-
-<button
-  onclick="
-    const box = document.getElementById('linkedBox_${q.id}');
-    if(box){
-      box.style.display =
-        box.style.display === 'none' ? 'block' : 'none';
-    }
-  "
-  style="background:#2563eb"
->
-  □ Linked Courses
-</button>
-
-      <button
-  onclick="resetAllByQuestion('${q.id}')"
-  style="background:#7c3aed"
->
-  □ Reset All
-</button>
-
-<button
-  onclick="resetOneByQuestion('${q.id}')"
-  style="background:#f59e0b"
->
-  □ Reset Student
-</button>
-
-    </div>
-
   </div>
 
 </div>
@@ -7702,6 +7946,21 @@ questionsList.innerHTML += `
     });
 
     initializeQuestionDragDrop();
+
+    const preferredCard =
+      ACTIVE_QUESTION_ID
+        ? document.querySelector(
+            `.pro-question-card[data-question-id="${ACTIVE_QUESTION_ID}"]`
+          )
+        : document.querySelector(".pro-question-card");
+
+    if(preferredCard){
+      setActiveQuestion(
+        preferredCard.dataset.questionId || ""
+      );
+    }else{
+      ACTIVE_QUESTION_ID = "";
+    }
 
   }catch(err){
     console.error(err);
