@@ -5502,7 +5502,42 @@ const examId = CURRENT_PREVIEW_EXAM;
   // تفريغ الحقول
   document.getElementById("editH").value = "";
   document.getElementById("editM").value = "";
-}/* ================= إرسال السؤال لدورة أخرى ================= */
+}/* ================= مزامنة مهارة المجموعة مع الدورة المرتبطة ================= */
+async function syncLinkedCourseSkillWithTop(examId, groupName, linkedCourseId){
+
+  examId = String(examId || "").trim();
+  groupName = String(groupName || "General").trim();
+  linkedCourseId = String(linkedCourseId || "").trim();
+
+  if(!examId || !linkedCourseId) return;
+
+  const examRef = db.collection("exams").doc(examId);
+  const examDoc = await examRef.get();
+
+  if(!examDoc.exists) return;
+
+  const examData = examDoc.data() || {};
+  const map = examData.groupSkillsByCourse || {};
+
+  // المهارة المعتمدة هي المهارة المختارة في الأعلى للدورة الحالية
+  const topSkill =
+    map?.[CURRENT_COURSE_ID]?.[groupName]
+    || examData.groupSkills?.[groupName]
+    || "";
+
+  if(!map[linkedCourseId]){
+    map[linkedCourseId] = {};
+  }
+
+  map[linkedCourseId][groupName] = topSkill;
+
+  await examRef.update({
+    groupSkillsByCourse: map,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+/* ================= إرسال السؤال لدورة أخرى ================= */
 async function sendToCourse(questionId){
   const qDoc = await db.collection("questions").doc(questionId).get();
   if(!qDoc.exists) return alert("No questions");
@@ -5593,7 +5628,16 @@ await db.collection("questions")
 
     ])
 
-});  alert("□ The question has sent to the other course");
+});
+
+  // ✅ اجعل مهارة الدورة المرتبطة مطابقة للمهارة المختارة في الأعلى
+  await syncLinkedCourseSkillWithTop(
+    q.examId,
+    q.group || "General",
+    selected.id
+  );
+
+  alert("✅ The question has been linked and the skill was synchronized");
   await loadQuestions();
 }
 function liveExamPreview(searchText){
@@ -5928,7 +5972,14 @@ async function confirmRelinkQuestion(questionId){
 
   });
 
-  alert("✅ Course linked");
+  // ✅ اجعل مهارة الدورة المرتبطة مطابقة للمهارة المختارة في الأعلى
+  await syncLinkedCourseSkillWithTop(
+    q.examId,
+    q.group || "General",
+    selected.id
+  );
+
+  alert("✅ Course linked and skill synchronized");
 
   await loadQuestions();
 
@@ -6152,8 +6203,14 @@ if(!map[targetCourseId]){
   map[targetCourseId] = {};
 }
 
-map[targetCourseId][groupName] =
-  skill || "";
+// ✅ لا تسمح بمهارة مختلفة عن المهارة المختارة في الأعلى
+const topSkill =
+  map?.[CURRENT_COURSE_ID]?.[groupName]
+  || examData.groupSkills?.[groupName]
+  || "";
+
+map[targetCourseId][groupName] = topSkill;
+skill = topSkill;
 
     await examRef.update({
 
@@ -7338,8 +7395,8 @@ ${(()=>{
   const realGroupName =
     String(groupName || "General").trim();
 
-  const linkedSkill =
-    groupSkillsByCourse?.[c.courseId]?.[realGroupName] || "";
+  // ✅ مهارة الدورة المرتبطة دائماً تطابق المهارة المختارة في الأعلى
+  const linkedSkill = baseSkill || "";
 // ======================================
 // 🔒 فحص الأسئلة المقفلة التابعة لهذه
 // الدورة المرتبطة وهذه المجموعة
@@ -7371,21 +7428,9 @@ const linkedGroupHasLockedQuestion =
 
   data-old-value="${esc(linkedSkill)}"
 
-  ${
-    linkedGroupHasLockedQuestion
-      ? "disabled"
-      : ""
-  }
+  disabled
 
-  onchange="
-    saveLinkedCourseSkill(
-      '',
-      '${c.courseId}',
-      this.value,
-      '${realGroupName}',
-      this
-    )
-  "
+  title="Automatically synchronized with the skill selected above"
 
   style="
     width:100%;
@@ -7410,17 +7455,9 @@ const linkedGroupHasLockedQuestion =
         : '#164478'
     };
 
-    cursor:${
-      linkedGroupHasLockedQuestion
-        ? 'not-allowed'
-        : 'pointer'
-    };
+    cursor:not-allowed;
 
-    opacity:${
-      linkedGroupHasLockedQuestion
-        ? '.80'
-        : '1'
-    };
+    opacity:.88;
 
     font-weight:900;
     margin-top:10px;
@@ -7461,6 +7498,21 @@ const linkedGroupHasLockedQuestion =
   </option>
 
 </select>
+
+<div style="
+  margin-top:-5px;
+  margin-bottom:12px;
+  padding:8px 10px;
+  border-radius:10px;
+  background:#eef5ff;
+  border:1px solid #dbeafe;
+  color:#164478;
+  text-align:center;
+  font-weight:900;
+  font-size:13px;
+">
+  🔄 This skill automatically matches the skill selected above
+</div>
 
 ${
   linkedGroupHasLockedQuestion
@@ -8205,6 +8257,30 @@ if(!map[targetCourseId]){
 
 map[targetCourseId][groupName] =
   skill || "";
+
+    // ✅ مزامنة نفس المهارة تلقائياً مع كل الدورات المرتبطة بهذه المجموعة
+    const linkedCourseIds = new Set();
+
+    qSnap.docs.forEach(doc => {
+      const q = doc.data() || {};
+      const questionGroup = String(q.group || "General").trim();
+
+      if(questionGroup !== String(groupName).trim()) return;
+
+      const used = Array.isArray(q.coursesUsed) ? q.coursesUsed : [];
+
+      used.forEach(c => {
+        const cid = String(c.courseId || "").trim();
+        if(cid && cid !== String(targetCourseId).trim()){
+          linkedCourseIds.add(cid);
+        }
+      });
+    });
+
+    linkedCourseIds.forEach(cid => {
+      if(!map[cid]) map[cid] = {};
+      map[cid][groupName] = skill || "";
+    });
 
     await examRef.update({
       groupSkillsByCourse: map,
