@@ -2940,9 +2940,14 @@ await db.collection("questions").add({
 
   passage: q.passage || "",
 
-  // ✅ نسخ حالة القفل
-  locked:
-    q.locked === true,
+  /*
+    السؤال المنسوخ يعتبر نموذجًا جديدًا ومستقلًا:
+    لا يرث القفل من السؤال الأصلي.
+  */
+  locked:false,
+  lockedAt:null,
+  lockedBy:"",
+  lockReason:"",
 
   options: q.options || [],
 
@@ -10541,10 +10546,22 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
     showMedia: q.showMedia !== false,
     order: Number(orderValue || 0),
     isMain: q.isMain === true,
-    locked: false,
+
+    /*
+      النسخة سؤال جديد مستقل ومفتوح دائمًا،
+      حتى لو كان السؤال الأصلي مقفلًا.
+    */
+    locked:false,
+    lockedAt:null,
+    lockedBy:"",
+    lockReason:"",
+    lockSourceQuestionId:"",
+
     createdBy: CURRENT_USER || "",
     copiedFromQuestionId: q.id || "",
     copiedFromExamId: q.examId || "",
+    copyIsIndependent:true,
+    inheritedLock:false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -10564,9 +10581,12 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
       Period: CURRENT_PERIOD || ""
     }];
   }else{
-    copy.coursesUsed = Array.isArray(q.coursesUsed)
-      ? JSON.parse(JSON.stringify(q.coursesUsed))
-      : [];
+    /*
+      لا ننسخ روابط الدورات القديمة من السؤال الأصلي.
+      النسخة الجديدة تبدأ بدون روابط، ويمكن ربطها لاحقًا
+      بالدورات المطلوبة داخل الاختبار الجديد.
+    */
+    copy.coursesUsed = [];
   }
 
   return copy;
