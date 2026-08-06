@@ -5537,6 +5537,113 @@ async function syncLinkedCourseSkillWithTop(examId, groupName, linkedCourseId){
   });
 }
 
+
+/* =========================================
+   SYNC ALL LINKED QUESTIONS FOR A COURSE
+   يمنع ظهور السؤال الأول فقط عند الطالب
+========================================= */
+async function syncAllVisibleLinkedQuestions(
+  examId,
+  courseId
+){
+  examId = String(examId || "").trim();
+  courseId = String(courseId || "").trim();
+
+  if(!examId || !courseId){
+    return [];
+  }
+
+  const examRef =
+    db.collection("exams").doc(examId);
+
+  const examDoc =
+    await examRef.get();
+
+  if(!examDoc.exists){
+    return [];
+  }
+
+  const examData =
+    examDoc.data() || {};
+
+  const qSnap =
+    await db.collection("questions")
+      .where("examId","==",examId)
+      .get();
+
+  const linkedQuestionIds = [];
+
+  qSnap.forEach(doc=>{
+    const q = doc.data() || {};
+
+    const coursesUsed =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    const linkedToCourse =
+      coursesUsed.some(item =>
+        String(item?.courseId || "").trim() ===
+        courseId
+      );
+
+    /*
+      السؤال المخفي لا يظهر للطالب.
+      أما السؤال الظاهر والمرتبط بالدورة فيُضاف كله،
+      وليس السؤال الأول فقط.
+    */
+    const questionVisible =
+      q.showQuestion !== false &&
+      q.visible !== false &&
+      q.hidden !== true;
+
+    if(
+      linkedToCourse &&
+      questionVisible
+    ){
+      linkedQuestionIds.push(doc.id);
+    }
+  });
+
+  /*
+    ترتيب ثابت مطابق لترتيب الأسئلة داخل الاختبار.
+  */
+  const orderMap = {};
+
+  qSnap.forEach(doc=>{
+    orderMap[doc.id] =
+      Number(doc.data()?.order || 0);
+  });
+
+  linkedQuestionIds.sort(
+    (a,b)=>
+      (orderMap[a] || 0) -
+      (orderMap[b] || 0)
+  );
+
+  const visibleMap = {
+    ...(examData.visibleQuestionsByCourse || {})
+  };
+
+  visibleMap[courseId] =
+    linkedQuestionIds;
+
+  await examRef.set(
+    {
+      visibleQuestionsByCourse:
+        visibleMap,
+
+      updatedAt:
+        firebase.firestore.FieldValue.serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+  return linkedQuestionIds;
+}
+
 /* ================= إرسال السؤال لدورة أخرى ================= */
 async function sendToCourse(questionId){
   const qDoc = await db.collection("questions").doc(questionId).get();
@@ -5637,7 +5744,16 @@ await db.collection("questions")
     selected.id
   );
 
-  alert("✅ The question has been linked and the skill was synchronized");
+  /*
+    تحديث قائمة الطالب بكل الأسئلة المرتبطة بالدورة،
+    وليس السؤال الحالي فقط.
+  */
+  await syncAllVisibleLinkedQuestions(
+    q.examId,
+    selected.id
+  );
+
+  alert("✅ The question has been linked and all linked questions are now visible");
   await loadQuestions();
 }
 function liveExamPreview(searchText){
@@ -5740,7 +5856,17 @@ if(filtered.length === 0){
   });
 
 }
-  alert("✅ Link removed only");
+
+  /*
+    إعادة بناء قائمة الأسئلة الظاهرة للدورة بعد إزالة الربط،
+    حتى لا يبقى رقم سؤال محذوف داخل visibleQuestionsByCourse.
+  */
+  await syncAllVisibleLinkedQuestions(
+    q.examId,
+    courseId
+  );
+
+  alert("✅ Link removed and the student question list was updated");
 
   await loadQuestions();
 
@@ -5979,7 +6105,12 @@ async function confirmRelinkQuestion(questionId){
     selected.id
   );
 
-  alert("✅ Course linked and skill synchronized");
+  await syncAllVisibleLinkedQuestions(
+    q.examId,
+    selected.id
+  );
+
+  alert("✅ Course linked and all linked questions are now visible");
 
   await loadQuestions();
 
@@ -6313,14 +6444,30 @@ async function toggleLinkedCourseQuestions(courseId, show){
   });
 
   if(show){
-    visibleMap[courseId] = ids;
+    /*
+      إعادة جمع جميع الأسئلة المرتبطة بهذه الدورة.
+      هذا يمنع حفظ سؤال واحد فقط داخل الخريطة.
+    */
+    await syncAllVisibleLinkedQuestions(
+      examId,
+      courseId
+    );
   }else{
     visibleMap[courseId] = [];
-  }
 
-  await examRef.update({
-    visibleQuestionsByCourse: visibleMap
-  });
+    await examRef.set(
+      {
+        visibleQuestionsByCourse:
+          visibleMap,
+
+        updatedAt:
+          firebase.firestore.FieldValue.serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+  }
 
   alert(
     show
@@ -10996,6 +11143,60 @@ async function updateAllQuestionsDegree(){
 
   await loadQuestions();
 }
+
+/* =========================================
+   REPAIR ALL CURRENT EXAM LINKS
+   استخدمها مرة واحدة لإصلاح الروابط القديمة
+========================================= */
+async function repairAllLinkedQuestionVisibility(){
+  const examId =
+    String(CURRENT_PREVIEW_EXAM || "").trim();
+
+  if(!examId){
+    alert("Choose the exam first");
+    return;
+  }
+
+  const qSnap =
+    await db.collection("questions")
+      .where("examId","==",examId)
+      .get();
+
+  const courseIds =
+    new Set();
+
+  qSnap.forEach(doc=>{
+    const q = doc.data() || {};
+
+    const coursesUsed =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    coursesUsed.forEach(item=>{
+      const courseId =
+        String(item?.courseId || "").trim();
+
+      if(courseId){
+        courseIds.add(courseId);
+      }
+    });
+  });
+
+  for(const courseId of courseIds){
+    await syncAllVisibleLinkedQuestions(
+      examId,
+      courseId
+    );
+  }
+
+  alert(
+    `✅ Repaired ${courseIds.size} linked course(s). All linked questions will appear to students.`
+  );
+
+  await loadQuestions();
+}
+
 // □ تشغيل الصفحة
 init();
 </script>
