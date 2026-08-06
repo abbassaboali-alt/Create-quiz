@@ -713,6 +713,60 @@ transform:scale(1);
 }
 
 /* Keep the complete horizontal table on smaller screens */
+/* =========================================
+   TRAINER HOMEWORK SIDEBAR
+========================================= */
+.trainer-homework-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 310px;
+  gap:14px;
+  align-items:start;
+  margin-top:12px;
+}
+.trainer-homework-sidebar{
+  position:sticky;
+  top:12px;
+  max-height:520px;
+  overflow:auto;
+  padding:14px;
+  border:2px solid #cfe0ef;
+  border-radius:18px;
+  background:linear-gradient(180deg,#f8fbff,#fff);
+  box-shadow:0 10px 25px rgba(22,68,120,.08);
+}
+.trainer-homework-title{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  color:#164478;font-weight:900;margin-bottom:10px;
+}
+.trainer-homework-count{
+  min-width:30px;height:30px;padding:0 9px;border-radius:999px;
+  display:grid;place-items:center;background:#164478;color:#fff;font-weight:900;
+}
+.trainer-homework-item{
+  display:grid;grid-template-columns:25px 1fr;gap:9px;align-items:start;
+  padding:10px;margin-bottom:8px;border:1px solid #dbeafe;
+  border-radius:13px;background:#fff;cursor:pointer;direction:ltr;text-align:left;
+}
+.trainer-homework-item input{
+  width:19px!important;height:19px!important;margin:2px 0 0!important;accent-color:#17a673;
+}
+.trainer-homework-item strong{display:block;color:#18324b;line-height:1.4}
+.trainer-homework-meta{font-size:12px;color:#64748b;line-height:1.6;margin-top:3px}
+.trainer-homework-reason{
+  display:inline-block;margin-top:5px;padding:3px 8px;border-radius:999px;
+  background:#ecfdf5;color:#047857;font-size:11px;font-weight:900;
+}
+.homework-create-toggle{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:10px;
+  border:1px solid #fdba74;border-radius:14px;background:#fff7ed;
+  color:#9a3412;font-weight:900;cursor:pointer;direction:ltr;
+}
+.homework-create-toggle input{width:20px!important;height:20px!important;margin:0!important}
+@media(max-width:900px){
+  .trainer-homework-layout{grid-template-columns:1fr}
+  .trainer-homework-sidebar{position:static;max-height:360px}
+}
+
 @media(max-width:900px){
   #questionsModal .print-fill-grid.horizontal{
     overflow-x:auto;
@@ -2037,33 +2091,40 @@ button:hover{
 ">
   جاري تحميل الدورات...
 </div>
-<!-- □ البحث + الفرز (فوق) -->
-<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+<!-- □ البحث + الفرز + شريط واجبات المدرب -->
+<div class="trainer-homework-layout">
+  <div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <input id="examSearchTop" placeholder="□ Search exam..."
+        oninput="filterExamBank()" style="flex:1">
 
-  <input id="examSearchTop" placeholder="□ Search exam..."
-    oninput="filterExamBank()"
-    style="flex:1">
+      <select id="examSortTop" onchange="filterExamBank()" style="width:180px">
+        <option value="new">Newest</option>
+        <option value="old">Oldest</option>
+        <option value="az">A → Z</option>
+        <option value="za">Z → A</option>
+      </select>
+    </div>
 
-  <select id="examSortTop" onchange="filterExamBank()"
-    style="width:180px">
-    <option value="new">Newest</option>
-    <option value="old">Oldest</option>
-    <option value="az">A → Z</option>
-    <option value="za">Z → A</option>
-  </select>
-<!-- □ بنك الاختبارات للنسخ -->
-<div id="examBank" style="
-  margin-top:6px;
-  border:1px solid #ddd;
-  border-radius:12px;
-  padding:10px;
-  max-height:220px;
-  overflow:auto;
-  background:#fafafa;
-">
-  Loading exams...
+    <!-- □ بنك الاختبارات للنسخ -->
+    <div id="examBank" style="
+      margin-top:6px;border:1px solid #ddd;border-radius:12px;padding:10px;
+      max-height:320px;overflow:auto;background:#fafafa;
+    ">Loading exams...</div>
+  </div>
+
+  <aside id="trainerHomeworkSidebar" class="trainer-homework-sidebar">
+    <div class="trainer-homework-title">
+      <span><i class="fa-solid fa-list-check"></i> My Homework</span>
+      <span id="trainerHomeworkCount" class="trainer-homework-count">0</span>
+    </div>
+    <div class="small" style="margin-bottom:10px">
+      Homework created by you or linked to one of your courses.
+    </div>
+    <div id="trainerHomeworkList">Loading...</div>
+  </aside>
 </div>
-</div>
+
   <input id="examTitle" placeholder="Quiz name">
 <select id="examCategory">
   <option value="">Select Exam Type</option>
@@ -2073,6 +2134,12 @@ button:hover{
   <option value="speaking">Speaking</option>
   <option value="quizEvaluation">Quiz and Evaluation</option>
 </select>
+
+<label class="homework-create-toggle">
+  <input id="isHomeworkExam" type="checkbox">
+  <span>Mark this test as Homework</span>
+</label>
+
   <div class="row">
     <input id="h" type="number" min="0" placeholder="Hour">
     <input id="m" type="number" min="0" placeholder="Minutes">
@@ -2980,13 +3047,24 @@ coursesData.push({
 // ✅ جمع الاختبارات المختارة للنسخ منها
 const selectedExamIds = [];
 
-document.querySelectorAll(".examCheck:checked").forEach(cb => {
-  selectedExamIds.push(cb.value);
+document.querySelectorAll(
+  ".examCheck:checked, .trainerHomeworkCheck:checked"
+).forEach(cb => {
+  const id = String(cb.value || "").trim();
+  if(id && !selectedExamIds.includes(id)){
+    selectedExamIds.push(id);
+  }
 });
+
+const isHomework =
+  document.getElementById("isHomeworkExam")?.checked === true;
 
 const newExamRef = await db.collection("exams").add({
 
-  isHomework: false,
+  isHomework: isHomework,
+  createdBy: getCurrentUsername(),
+  createdByDisplay:
+    String(localStorage.getItem("username") || "").trim(),
 
   title: title,
 examCategory: examCategory,
@@ -3095,7 +3173,13 @@ document.getElementById("examCategory").value = "";
   btn.innerHTML = "Not selected";
 
 });
-  document.querySelectorAll(".examCheck").forEach(cb=> cb.checked = false);
+  document.querySelectorAll(
+    ".examCheck, .trainerHomeworkCheck"
+  ).forEach(cb=> cb.checked = false);
+
+  const homeworkToggle =
+    document.getElementById("isHomeworkExam");
+  if(homeworkToggle) homeworkToggle.checked = false;
 
   // □ تحديث قائمة الاختبارات فقط
   await loadExams();
@@ -3152,6 +3236,12 @@ const item = {
   trainer: String(trainersText || ""),
   period: String(periodsText || ""),
   hasLockedQuestions: e.hasLockedQuestions === true,
+  isHomework: e.isHomework === true,
+  createdBy: normalizeTrainerUser(e.createdBy || ""),
+  createdByDisplay: String(e.createdByDisplay || e.createdBy || ""),
+  courseTrainerUsers: Array.isArray(e.coursesData)
+    ? e.coursesData.map(c => normalizeTrainerUser(c.Trainer || "")).filter(Boolean)
+    : [normalizeTrainerUser(e.Trainer || "")].filter(Boolean),
   createdAt: e.createdAt?.seconds || 0
 };
       // □ تخزين للكاش (للبحث)
@@ -3209,6 +3299,7 @@ if(bank){
       document.getElementById("previewExamSearch")?.value || ""
     );
 filterExamBank();
+renderTrainerHomeworkSidebar();
 
   }catch(err){
     console.error(err);
@@ -3231,6 +3322,7 @@ function filterExamBank(){
   const sort =
     document.getElementById("examSortTop")?.value || "new";
 
+  const selectedIds = getSelectedLinkedExamIds();
   let list = [...EXAMS_DROPDOWN];
 
   // ✅ البحث
@@ -3295,6 +3387,8 @@ function filterExamBank(){
           class="examCheck"
           value="${e.id}"
           style="margin-left:8px"
+          ${selectedIds.has(e.id) ? "checked" : ""}
+          onchange="syncLinkedExamCheckboxes('${esc(e.id)}', this.checked)"
         >
 
         ${esc(e.title)}
@@ -3312,6 +3406,101 @@ function filterExamBank(){
   bank.innerHTML =
     html || "No exams";
 
+  renderTrainerHomeworkSidebar();
+}
+
+function getSelectedLinkedExamIds(){
+  const ids = new Set();
+  document.querySelectorAll(
+    ".examCheck:checked, .trainerHomeworkCheck:checked"
+  ).forEach(cb => {
+    const id = String(cb.value || "").trim();
+    if(id) ids.add(id);
+  });
+  return ids;
+}
+
+function syncLinkedExamCheckboxes(examId, checked){
+  document.querySelectorAll(
+    `.examCheck[value="${CSS.escape(examId)}"], ` +
+    `.trainerHomeworkCheck[value="${CSS.escape(examId)}"]`
+  ).forEach(cb => {
+    cb.checked = checked;
+  });
+}
+
+function renderTrainerHomeworkSidebar(){
+  const listBox =
+    document.getElementById("trainerHomeworkList");
+  const countBox =
+    document.getElementById("trainerHomeworkCount");
+
+  if(!listBox) return;
+
+  const selectedIds = getSelectedLinkedExamIds();
+  const currentUser = getCurrentUsername();
+  const admin = isAdminUser();
+
+  const homeworks = EXAMS_DROPDOWN
+    .filter(e => {
+      if(e.isHomework !== true) return false;
+      if(admin) return true;
+
+      const createdByMe =
+        normalizeTrainerUser(e.createdBy) === currentUser;
+
+      const linkedToMyCourse =
+        Array.isArray(e.courseTrainerUsers) &&
+        e.courseTrainerUsers.includes(currentUser);
+
+      return createdByMe || linkedToMyCourse;
+    })
+    .sort((a,b)=> b.createdAt - a.createdAt);
+
+  if(countBox){
+    countBox.textContent = String(homeworks.length);
+  }
+
+  if(!homeworks.length){
+    listBox.innerHTML = `
+      <div class="empty" style="margin:0">
+        No homework created by you or linked to your courses.
+      </div>
+    `;
+    return;
+  }
+
+  listBox.innerHTML = homeworks.map(e => {
+    const createdByMe =
+      normalizeTrainerUser(e.createdBy) === currentUser;
+    const linkedToMyCourse =
+      Array.isArray(e.courseTrainerUsers) &&
+      e.courseTrainerUsers.includes(currentUser);
+
+    const reason = createdByMe
+      ? "Created by you"
+      : "Linked to your course";
+
+    return `
+      <label class="trainer-homework-item">
+        <input
+          type="checkbox"
+          class="trainerHomeworkCheck"
+          value="${esc(e.id)}"
+          ${selectedIds.has(e.id) ? "checked" : ""}
+          onchange="syncLinkedExamCheckboxes('${esc(e.id)}', this.checked)"
+        >
+        <span>
+          <strong>${esc(e.title || "Homework")}</strong>
+          <span class="trainer-homework-meta">
+            ${esc(e.course || "-")}<br>
+            ${esc(e.trainer || "-")}
+          </span>
+          <span class="trainer-homework-reason">${reason}</span>
+        </span>
+      </label>
+    `;
+  }).join("");
 }
 
 function getExamCategoryLabel(category){
