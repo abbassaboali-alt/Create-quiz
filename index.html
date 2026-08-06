@@ -1,5 +1,6 @@
 <!-- □ زر Logout جاهز — كود واحد فقط -->
-<!-- أيقونات FontAwesome -->    
+
+<!-- أيقونات FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
@@ -713,60 +714,6 @@ transform:scale(1);
 }
 
 /* Keep the complete horizontal table on smaller screens */
-/* =========================================
-   TRAINER HOMEWORK SIDEBAR
-========================================= */
-.trainer-homework-layout{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 310px;
-  gap:14px;
-  align-items:start;
-  margin-top:12px;
-}
-.trainer-homework-sidebar{
-  position:sticky;
-  top:12px;
-  max-height:520px;
-  overflow:auto;
-  padding:14px;
-  border:2px solid #cfe0ef;
-  border-radius:18px;
-  background:linear-gradient(180deg,#f8fbff,#fff);
-  box-shadow:0 10px 25px rgba(22,68,120,.08);
-}
-.trainer-homework-title{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  color:#164478;font-weight:900;margin-bottom:10px;
-}
-.trainer-homework-count{
-  min-width:30px;height:30px;padding:0 9px;border-radius:999px;
-  display:grid;place-items:center;background:#164478;color:#fff;font-weight:900;
-}
-.trainer-homework-item{
-  display:grid;grid-template-columns:25px 1fr;gap:9px;align-items:start;
-  padding:10px;margin-bottom:8px;border:1px solid #dbeafe;
-  border-radius:13px;background:#fff;cursor:pointer;direction:ltr;text-align:left;
-}
-.trainer-homework-item input{
-  width:19px!important;height:19px!important;margin:2px 0 0!important;accent-color:#17a673;
-}
-.trainer-homework-item strong{display:block;color:#18324b;line-height:1.4}
-.trainer-homework-meta{font-size:12px;color:#64748b;line-height:1.6;margin-top:3px}
-.trainer-homework-reason{
-  display:inline-block;margin-top:5px;padding:3px 8px;border-radius:999px;
-  background:#ecfdf5;color:#047857;font-size:11px;font-weight:900;
-}
-.homework-create-toggle{
-  display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:10px;
-  border:1px solid #fdba74;border-radius:14px;background:#fff7ed;
-  color:#9a3412;font-weight:900;cursor:pointer;direction:ltr;
-}
-.homework-create-toggle input{width:20px!important;height:20px!important;margin:0!important}
-@media(max-width:900px){
-  .trainer-homework-layout{grid-template-columns:1fr}
-  .trainer-homework-sidebar{position:static;max-height:360px}
-}
-
 @media(max-width:900px){
   #questionsModal .print-fill-grid.horizontal{
     overflow-x:auto;
@@ -2091,40 +2038,33 @@ button:hover{
 ">
   جاري تحميل الدورات...
 </div>
-<!-- □ البحث + الفرز + شريط واجبات المدرب -->
-<div class="trainer-homework-layout">
-  <div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-      <input id="examSearchTop" placeholder="□ Search exam..."
-        oninput="filterExamBank()" style="flex:1">
+<!-- □ البحث + الفرز (فوق) -->
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
 
-      <select id="examSortTop" onchange="filterExamBank()" style="width:180px">
-        <option value="new">Newest</option>
-        <option value="old">Oldest</option>
-        <option value="az">A → Z</option>
-        <option value="za">Z → A</option>
-      </select>
-    </div>
+  <input id="examSearchTop" placeholder="□ Search exam..."
+    oninput="filterExamBank()"
+    style="flex:1">
 
-    <!-- □ بنك الاختبارات للنسخ -->
-    <div id="examBank" style="
-      margin-top:6px;border:1px solid #ddd;border-radius:12px;padding:10px;
-      max-height:320px;overflow:auto;background:#fafafa;
-    ">Loading exams...</div>
-  </div>
-
-  <aside id="trainerHomeworkSidebar" class="trainer-homework-sidebar">
-    <div class="trainer-homework-title">
-      <span><i class="fa-solid fa-list-check"></i> My Homework</span>
-      <span id="trainerHomeworkCount" class="trainer-homework-count">0</span>
-    </div>
-    <div class="small" style="margin-bottom:10px">
-      Homework created by you or linked to one of your courses.
-    </div>
-    <div id="trainerHomeworkList">Loading...</div>
-  </aside>
+  <select id="examSortTop" onchange="filterExamBank()"
+    style="width:180px">
+    <option value="new">Newest</option>
+    <option value="old">Oldest</option>
+    <option value="az">A → Z</option>
+    <option value="za">Z → A</option>
+  </select>
+<!-- □ بنك الاختبارات للنسخ -->
+<div id="examBank" style="
+  margin-top:6px;
+  border:1px solid #ddd;
+  border-radius:12px;
+  padding:10px;
+  max-height:220px;
+  overflow:auto;
+  background:#fafafa;
+">
+  Loading exams...
 </div>
-
+</div>
   <input id="examTitle" placeholder="Quiz name">
 <select id="examCategory">
   <option value="">Select Exam Type</option>
@@ -2134,12 +2074,6 @@ button:hover{
   <option value="speaking">Speaking</option>
   <option value="quizEvaluation">Quiz and Evaluation</option>
 </select>
-
-<label class="homework-create-toggle">
-  <input id="isHomeworkExam" type="checkbox">
-  <span>Mark this test as Homework</span>
-</label>
-
   <div class="row">
     <input id="h" type="number" min="0" placeholder="Hour">
     <input id="m" type="number" min="0" placeholder="Minutes">
@@ -2540,88 +2474,6 @@ function getCurrentUsername(){
 
 function canViewAllOpenCourses(){
   return getCurrentRole() === "admin";
-}
-
-/* =========================================
-   صلاحيات مهارات الدورات حسب حساب المدرب
-========================================= */
-function normalizeTrainerUser(value){
-  return String(value || "")
-    .replace(/\s+/g,"")
-    .trim()
-    .toLowerCase();
-}
-
-function isAdminUser(){
-  return getCurrentRole() === "admin";
-}
-
-function canEditTrainerCourseSkill(trainerName){
-  if(isAdminUser()){
-    return true;
-  }
-
-  const currentUser = normalizeTrainerUser(
-    localStorage.getItem("username") || ""
-  );
-
-  const courseTrainer = normalizeTrainerUser(trainerName);
-
-  return Boolean(
-    currentUser &&
-    courseTrainer &&
-    currentUser === courseTrainer
-  );
-}
-
-async function verifyCourseSkillPermission(courseId){
-  if(isAdminUser()){
-    return {
-      allowed:true,
-      trainer:""
-    };
-  }
-
-  courseId = String(courseId || "").trim();
-
-  if(!courseId){
-    return {
-      allowed:false,
-      trainer:""
-    };
-  }
-
-  const courseDoc =
-    await db.collection("Courses")
-      .doc(courseId)
-      .get();
-
-  if(!courseDoc.exists){
-    return {
-      allowed:false,
-      trainer:""
-    };
-  }
-
-  const course =
-    courseDoc.data() || {};
-
-  return {
-    allowed:
-      canEditTrainerCourseSkill(
-        course.Trainer ||
-        course.trainer ||
-        course.TrainerName ||
-        course.trainerName ||
-        ""
-      ),
-    trainer:
-      course.Trainer ||
-      course.trainer ||
-      course.TrainerName ||
-      course.trainerName ||
-      ""
-  };
 }
 
 function isCourseVisibleForCurrentUser(course){
@@ -3047,24 +2899,13 @@ coursesData.push({
 // ✅ جمع الاختبارات المختارة للنسخ منها
 const selectedExamIds = [];
 
-document.querySelectorAll(
-  ".examCheck:checked, .trainerHomeworkCheck:checked"
-).forEach(cb => {
-  const id = String(cb.value || "").trim();
-  if(id && !selectedExamIds.includes(id)){
-    selectedExamIds.push(id);
-  }
+document.querySelectorAll(".examCheck:checked").forEach(cb => {
+  selectedExamIds.push(cb.value);
 });
-
-const isHomework =
-  document.getElementById("isHomeworkExam")?.checked === true;
 
 const newExamRef = await db.collection("exams").add({
 
-  isHomework: isHomework,
-  createdBy: getCurrentUsername(),
-  createdByDisplay:
-    String(localStorage.getItem("username") || "").trim(),
+  isHomework: false,
 
   title: title,
 examCategory: examCategory,
@@ -3173,13 +3014,7 @@ document.getElementById("examCategory").value = "";
   btn.innerHTML = "Not selected";
 
 });
-  document.querySelectorAll(
-    ".examCheck, .trainerHomeworkCheck"
-  ).forEach(cb=> cb.checked = false);
-
-  const homeworkToggle =
-    document.getElementById("isHomeworkExam");
-  if(homeworkToggle) homeworkToggle.checked = false;
+  document.querySelectorAll(".examCheck").forEach(cb=> cb.checked = false);
 
   // □ تحديث قائمة الاختبارات فقط
   await loadExams();
@@ -3236,12 +3071,6 @@ const item = {
   trainer: String(trainersText || ""),
   period: String(periodsText || ""),
   hasLockedQuestions: e.hasLockedQuestions === true,
-  isHomework: e.isHomework === true,
-  createdBy: normalizeTrainerUser(e.createdBy || ""),
-  createdByDisplay: String(e.createdByDisplay || e.createdBy || ""),
-  courseTrainerUsers: Array.isArray(e.coursesData)
-    ? e.coursesData.map(c => normalizeTrainerUser(c.Trainer || "")).filter(Boolean)
-    : [normalizeTrainerUser(e.Trainer || "")].filter(Boolean),
   createdAt: e.createdAt?.seconds || 0
 };
       // □ تخزين للكاش (للبحث)
@@ -3299,7 +3128,6 @@ if(bank){
       document.getElementById("previewExamSearch")?.value || ""
     );
 filterExamBank();
-renderTrainerHomeworkSidebar();
 
   }catch(err){
     console.error(err);
@@ -3322,7 +3150,6 @@ function filterExamBank(){
   const sort =
     document.getElementById("examSortTop")?.value || "new";
 
-  const selectedIds = getSelectedLinkedExamIds();
   let list = [...EXAMS_DROPDOWN];
 
   // ✅ البحث
@@ -3387,8 +3214,6 @@ function filterExamBank(){
           class="examCheck"
           value="${e.id}"
           style="margin-left:8px"
-          ${selectedIds.has(e.id) ? "checked" : ""}
-          onchange="syncLinkedExamCheckboxes('${esc(e.id)}', this.checked)"
         >
 
         ${esc(e.title)}
@@ -3406,101 +3231,6 @@ function filterExamBank(){
   bank.innerHTML =
     html || "No exams";
 
-  renderTrainerHomeworkSidebar();
-}
-
-function getSelectedLinkedExamIds(){
-  const ids = new Set();
-  document.querySelectorAll(
-    ".examCheck:checked, .trainerHomeworkCheck:checked"
-  ).forEach(cb => {
-    const id = String(cb.value || "").trim();
-    if(id) ids.add(id);
-  });
-  return ids;
-}
-
-function syncLinkedExamCheckboxes(examId, checked){
-  document.querySelectorAll(
-    `.examCheck[value="${CSS.escape(examId)}"], ` +
-    `.trainerHomeworkCheck[value="${CSS.escape(examId)}"]`
-  ).forEach(cb => {
-    cb.checked = checked;
-  });
-}
-
-function renderTrainerHomeworkSidebar(){
-  const listBox =
-    document.getElementById("trainerHomeworkList");
-  const countBox =
-    document.getElementById("trainerHomeworkCount");
-
-  if(!listBox) return;
-
-  const selectedIds = getSelectedLinkedExamIds();
-  const currentUser = getCurrentUsername();
-  const admin = isAdminUser();
-
-  const homeworks = EXAMS_DROPDOWN
-    .filter(e => {
-      if(e.isHomework !== true) return false;
-      if(admin) return true;
-
-      const createdByMe =
-        normalizeTrainerUser(e.createdBy) === currentUser;
-
-      const linkedToMyCourse =
-        Array.isArray(e.courseTrainerUsers) &&
-        e.courseTrainerUsers.includes(currentUser);
-
-      return createdByMe || linkedToMyCourse;
-    })
-    .sort((a,b)=> b.createdAt - a.createdAt);
-
-  if(countBox){
-    countBox.textContent = String(homeworks.length);
-  }
-
-  if(!homeworks.length){
-    listBox.innerHTML = `
-      <div class="empty" style="margin:0">
-        No homework created by you or linked to your courses.
-      </div>
-    `;
-    return;
-  }
-
-  listBox.innerHTML = homeworks.map(e => {
-    const createdByMe =
-      normalizeTrainerUser(e.createdBy) === currentUser;
-    const linkedToMyCourse =
-      Array.isArray(e.courseTrainerUsers) &&
-      e.courseTrainerUsers.includes(currentUser);
-
-    const reason = createdByMe
-      ? "Created by you"
-      : "Linked to your course";
-
-    return `
-      <label class="trainer-homework-item">
-        <input
-          type="checkbox"
-          class="trainerHomeworkCheck"
-          value="${esc(e.id)}"
-          ${selectedIds.has(e.id) ? "checked" : ""}
-          onchange="syncLinkedExamCheckboxes('${esc(e.id)}', this.checked)"
-        >
-        <span>
-          <strong>${esc(e.title || "Homework")}</strong>
-          <span class="trainer-homework-meta">
-            ${esc(e.course || "-")}<br>
-            ${esc(e.trainer || "-")}
-          </span>
-          <span class="trainer-homework-reason">${reason}</span>
-        </span>
-      </label>
-    `;
-  }).join("");
 }
 
 function getExamCategoryLabel(category){
@@ -6605,38 +6335,18 @@ if(!targetCourseId){
   return;
 }
 
-/*
-  كل مدرب يستطيع تعديل مهارة دورته فقط.
-  لا يستطيع المدرب المرتبط بالأسئلة تعديل مهارة الدورة الأساسية
-  إذا لم تكن الدورة الأساسية تابعة لحسابه.
-*/
-const permission =
-  await verifyCourseSkillPermission(
-    targetCourseId
-  );
-
-if(!permission.allowed){
-
-  alert(
-    "⛔ يمكنك تغيير مهارة دورتك فقط، ولا يمكنك تغيير مهارة دورة مدرب آخر"
-  );
-
-  if(selectElement){
-    selectElement.value =
-      selectElement.dataset.oldValue || "";
-  }
-
-  await loadQuestions();
-  return;
-}
-
 if(!map[targetCourseId]){
   map[targetCourseId] = {};
 }
 
-// ✅ حفظ مهارة مستقلة خاصة بالدورة التي يملكها المدرب
-map[targetCourseId][groupName] =
-  skill || "";
+// ✅ لا تسمح بمهارة مختلفة عن المهارة المختارة في الأعلى
+const topSkill =
+  map?.[CURRENT_COURSE_ID]?.[groupName]
+  || examData.groupSkills?.[groupName]
+  || "";
+
+map[targetCourseId][groupName] = topSkill;
+skill = topSkill;
 
     await examRef.update({
 
@@ -7541,11 +7251,6 @@ const groupHasLockedQuestion =
       const currentSkill = groupSkills[groupName] || "";
 const baseSkill =
   groupSkillsByCourse?.[CURRENT_COURSE_ID]?.[groupName] || "";
-
-const canEditBaseSkill =
-  canEditTrainerCourseSkill(
-    CURRENT_TRAINER
-  );
 // ======================================
 // ✅ حساب مهارات الجروب الحالية
 // ======================================
@@ -7664,23 +7369,10 @@ questionsList.innerHTML += `
   data-old-value="${esc(baseSkill)}"
 
   ${
-    (
-      groupHasLockedQuestion ||
-      !canEditBaseSkill
-    )
+    groupHasLockedQuestion
       ? "disabled"
       : ""
   }
-
-  title="${
-    !canEditBaseSkill
-      ? 'هذه المهارة تخص مدرب الدورة الأساسية فقط'
-      : (
-          groupHasLockedQuestion
-            ? 'المجموعة تحتوي على سؤال مقفل'
-            : 'تغيير مهارة دورتك'
-        )
-  }"
 
   onchange="
     saveGroupSkill(
@@ -7697,46 +7389,31 @@ questionsList.innerHTML += `
     border-radius:12px;
 
     border:2px solid ${
-      (
-          groupHasLockedQuestion ||
-          !canEditBaseSkill
-        )
+      groupHasLockedQuestion
         ? '#991b1b'
         : '#164478'
     };
 
     background:${
-      (
-          groupHasLockedQuestion ||
-          !canEditBaseSkill
-        )
+      groupHasLockedQuestion
         ? '#fee2e2'
         : '#ffffff'
     };
 
     color:${
-      (
-          groupHasLockedQuestion ||
-          !canEditBaseSkill
-        )
+      groupHasLockedQuestion
         ? '#991b1b'
         : '#164478'
     };
 
     cursor:${
-      (
-          groupHasLockedQuestion ||
-          !canEditBaseSkill
-        )
+      groupHasLockedQuestion
         ? 'not-allowed'
         : 'pointer'
     };
 
     opacity:${
-      (
-          groupHasLockedQuestion ||
-          !canEditBaseSkill
-        )
+      groupHasLockedQuestion
         ? '.80'
         : '1'
     };
@@ -7870,16 +7547,8 @@ ${(()=>{
   const realGroupName =
     String(groupName || "General").trim();
 
-  // ✅ لكل دورة مرتبطة مهارة مستقلة خاصة بها
-  const linkedSkill =
-    groupSkillsByCourse?.[c.courseId]?.[realGroupName]
-    || baseSkill
-    || "";
-
-  const canEditLinkedSkill =
-    canEditTrainerCourseSkill(
-      c.Trainer || ""
-    );
+  // ✅ مهارة الدورة المرتبطة دائماً تطابق المهارة المختارة في الأعلى
+  const linkedSkill = baseSkill || "";
 // ======================================
 // 🔒 فحص الأسئلة المقفلة التابعة لهذه
 // الدورة المرتبطة وهذه المجموعة
@@ -7911,34 +7580,9 @@ const linkedGroupHasLockedQuestion =
 
   data-old-value="${esc(linkedSkill)}"
 
-  ${
-    (
-      linkedGroupHasLockedQuestion ||
-      !canEditLinkedSkill
-    )
-      ? "disabled"
-      : ""
-  }
+  disabled
 
-  onchange="
-    saveLinkedCourseSkill(
-      '',
-      '${c.courseId}',
-      this.value,
-      ${JSON.stringify(realGroupName)},
-      this
-    )
-  "
-
-  title="${
-    !canEditLinkedSkill
-      ? 'هذه المهارة تخص مدرب هذه الدورة فقط'
-      : (
-          linkedGroupHasLockedQuestion
-            ? 'الدورة تحتوي على سؤال مقفل في هذه المجموعة'
-            : 'يمكنك تغيير مهارة دورتك المرتبطة فقط'
-        )
-  }"
+  title="Automatically synchronized with the skill selected above"
 
   style="
     width:100%;
@@ -7946,40 +7590,24 @@ const linkedGroupHasLockedQuestion =
     border-radius:12px;
 
     border:2px solid ${
-      (
-          linkedGroupHasLockedQuestion ||
-          !canEditLinkedSkill
-        )
+      linkedGroupHasLockedQuestion
         ? '#991b1b'
         : '#164478'
     };
 
     background:${
-      (
-          linkedGroupHasLockedQuestion ||
-          !canEditLinkedSkill
-        )
+      linkedGroupHasLockedQuestion
         ? '#fee2e2'
         : '#ffffff'
     };
 
     color:${
-      (
-          linkedGroupHasLockedQuestion ||
-          !canEditLinkedSkill
-        )
+      linkedGroupHasLockedQuestion
         ? '#991b1b'
         : '#164478'
     };
 
-    cursor:${
-      (
-        linkedGroupHasLockedQuestion ||
-        !canEditLinkedSkill
-      )
-        ? 'not-allowed'
-        : 'pointer'
-    };
+    cursor:not-allowed;
 
     opacity:.88;
 
@@ -8775,33 +8403,36 @@ if(!targetCourseId){
   return;
 }
 
-const permission =
-  await verifyCourseSkillPermission(
-    targetCourseId
-  );
-
-if(!permission.allowed){
-
-  alert(
-    "⛔ لا يمكنك تغيير المهارة الأساسية لأنها ليست تابعة لدورتك"
-  );
-
-  if(selectElement){
-    selectElement.value =
-      selectElement.dataset.oldValue || "";
-  }
-
-  await loadQuestions();
-  return;
-}
-
 if(!map[targetCourseId]){
   map[targetCourseId] = {};
 }
 
-// ✅ تغيير مهارة الدورة الحالية فقط دون تعديل مهارات الدورات المرتبطة
 map[targetCourseId][groupName] =
   skill || "";
+
+    // ✅ مزامنة نفس المهارة تلقائياً مع كل الدورات المرتبطة بهذه المجموعة
+    const linkedCourseIds = new Set();
+
+    qSnap.docs.forEach(doc => {
+      const q = doc.data() || {};
+      const questionGroup = String(q.group || "General").trim();
+
+      if(questionGroup !== String(groupName).trim()) return;
+
+      const used = Array.isArray(q.coursesUsed) ? q.coursesUsed : [];
+
+      used.forEach(c => {
+        const cid = String(c.courseId || "").trim();
+        if(cid && cid !== String(targetCourseId).trim()){
+          linkedCourseIds.add(cid);
+        }
+      });
+    });
+
+    linkedCourseIds.forEach(cid => {
+      if(!map[cid]) map[cid] = {};
+      map[cid][groupName] = skill || "";
+    });
 
     await examRef.update({
       groupSkillsByCourse: map,
