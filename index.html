@@ -6388,7 +6388,7 @@ async function saveAllQuestionEdits(){
     )
   ];
 
-  if(!cards.length && !EDIT_QUESTION_ID){
+  if(!cards.length){
     alert("No questions to save");
     return;
   }
@@ -6403,14 +6403,9 @@ async function saveAllQuestionEdits(){
 
   let saved = 0;
   let skipped = 0;
-  let formEditSaved = false;
   const failed = [];
 
   try{
-    /*
-      أولًا: حفظ جميع التعديلات المباشرة داخل بطاقات الأسئلة.
-      نؤجل إعادة تحميل الصفحة حتى لا تضيع بيانات Edit Form.
-    */
     for(const card of cards){
       const id =
         String(card.dataset.questionId || "").trim();
@@ -6438,76 +6433,16 @@ async function saveAllQuestionEdits(){
       }
     }
 
-    /*
-      ثانيًا: إذا فتح المستخدم سؤالًا عبر Edit Form،
-      نحفظ بيانات النموذج أيضًا. هذا هو الجزء الذي كان ناقصًا.
-    */
-    if(EDIT_QUESTION_ID){
-      const editingId = String(EDIT_QUESTION_ID || "").trim();
-
-      try{
-        await saveQuestion();
-
-        /*
-          saveQuestion تقوم بالتحديث وإعادة تحميل الأسئلة
-          ثم تمسح EDIT_QUESTION_ID عند نجاح العملية.
-        */
-        formEditSaved = true;
-
-      }catch(error){
-        console.error(
-          "SAVE EDIT FORM ERROR:",
-          editingId,
-          error
-        );
-
-        if(editingId){
-          failed.push(editingId);
-        }
-      }
-    }else{
-      /*
-        لا يوجد Edit Form مفتوح، لذلك نحفظ إعدادات الظهور
-        ثم نعيد تحميل الأسئلة مرة واحدة.
-      */
-      await autoSaveVisibleQuestions();
-      await loadQuestions();
-    }
+    await autoSaveVisibleQuestions();
+    await loadQuestions();
 
     const message = [
-      formEditSaved
-        ? "✅ Edit Form saved"
-        : "",
-      saved
-        ? `Card changes saved: ${saved}`
-        : "",
-      skipped
-        ? `Skipped: ${skipped}`
-        : "",
-      failed.length
-        ? `Failed: ${[...new Set(failed)].length}`
-        : ""
+      `✅ Saved: ${saved}`,
+      skipped ? `Skipped: ${skipped}` : "",
+      failed.length ? `Failed: ${failed.length}` : ""
     ].filter(Boolean).join(" | ");
 
-    /*
-      saveQuestion تعرض رسالة نجاح بنفسها.
-      نعرض هذه الرسالة فقط عندما توجد تفاصيل إضافية
-      أو عندما لا يوجد تعديل عبر Edit Form.
-    */
-    if(
-      !formEditSaved ||
-      saved > 0 ||
-      skipped > 0 ||
-      failed.length > 0
-    ){
-      alert(message || "✅ All changes saved successfully");
-    }
-
-  }catch(error){
-    console.error("SAVE ALL FAILED:",error);
-    alert(
-      "❌ Some changes could not be saved. Check the required fields and try again."
-    );
+    alert(message);
 
   }finally{
     if(button){
@@ -6622,7 +6557,7 @@ async function loadQuestions(){
 
         <div class="exam-global-note" id="activeQuestionLabel">
           Click any question card to select it for Edit, Linked Courses, Reset, or Delete.
-          Save All Changes saves both Edit Form changes and all direct card changes.
+          Save All Changes saves every edited question at once.
         </div>
 
         <button
@@ -12163,4 +12098,4 @@ window.addEventListener("DOMContentLoaded",function(){
     resetFillItems();
   }
 });
-</script> 
+</script>
