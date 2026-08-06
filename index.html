@@ -2476,6 +2476,88 @@ function canViewAllOpenCourses(){
   return getCurrentRole() === "admin";
 }
 
+/* =========================================
+   صلاحيات مهارات الدورات حسب حساب المدرب
+========================================= */
+function normalizeTrainerUser(value){
+  return String(value || "")
+    .replace(/\s+/g,"")
+    .trim()
+    .toLowerCase();
+}
+
+function isAdminUser(){
+  return getCurrentRole() === "admin";
+}
+
+function canEditTrainerCourseSkill(trainerName){
+  if(isAdminUser()){
+    return true;
+  }
+
+  const currentUser = normalizeTrainerUser(
+    localStorage.getItem("username") || ""
+  );
+
+  const courseTrainer = normalizeTrainerUser(trainerName);
+
+  return Boolean(
+    currentUser &&
+    courseTrainer &&
+    currentUser === courseTrainer
+  );
+}
+
+async function verifyCourseSkillPermission(courseId){
+  if(isAdminUser()){
+    return {
+      allowed:true,
+      trainer:""
+    };
+  }
+
+  courseId = String(courseId || "").trim();
+
+  if(!courseId){
+    return {
+      allowed:false,
+      trainer:""
+    };
+  }
+
+  const courseDoc =
+    await db.collection("Courses")
+      .doc(courseId)
+      .get();
+
+  if(!courseDoc.exists){
+    return {
+      allowed:false,
+      trainer:""
+    };
+  }
+
+  const course =
+    courseDoc.data() || {};
+
+  return {
+    allowed:
+      canEditTrainerCourseSkill(
+        course.Trainer ||
+        course.trainer ||
+        course.TrainerName ||
+        course.trainerName ||
+        ""
+      ),
+    trainer:
+      course.Trainer ||
+      course.trainer ||
+      course.TrainerName ||
+      course.trainerName ||
+      ""
+  };
+}
+
 function isCourseVisibleForCurrentUser(course){
   if(canViewAllOpenCourses()){
     return true;
@@ -6335,18 +6417,38 @@ if(!targetCourseId){
   return;
 }
 
+/*
+  كل مدرب يستطيع تعديل مهارة دورته فقط.
+  لا يستطيع المدرب المرتبط بالأسئلة تعديل مهارة الدورة الأساسية
+  إذا لم تكن الدورة الأساسية تابعة لحسابه.
+*/
+const permission =
+  await verifyCourseSkillPermission(
+    targetCourseId
+  );
+
+if(!permission.allowed){
+
+  alert(
+    "⛔ يمكنك تغيير مهارة دورتك فقط، ولا يمكنك تغيير مهارة دورة مدرب آخر"
+  );
+
+  if(selectElement){
+    selectElement.value =
+      selectElement.dataset.oldValue || "";
+  }
+
+  await loadQuestions();
+  return;
+}
+
 if(!map[targetCourseId]){
   map[targetCourseId] = {};
 }
 
-// ✅ لا تسمح بمهارة مختلفة عن المهارة المختارة في الأعلى
-const topSkill =
-  map?.[CURRENT_COURSE_ID]?.[groupName]
-  || examData.groupSkills?.[groupName]
-  || "";
-
-map[targetCourseId][groupName] = topSkill;
-skill = topSkill;
+// ✅ حفظ مهارة مستقلة خاصة بالدورة التي يملكها المدرب
+map[targetCourseId][groupName] =
+  skill || "";
 
     await examRef.update({
 
@@ -7251,6 +7353,11 @@ const groupHasLockedQuestion =
       const currentSkill = groupSkills[groupName] || "";
 const baseSkill =
   groupSkillsByCourse?.[CURRENT_COURSE_ID]?.[groupName] || "";
+
+const canEditBaseSkill =
+  canEditTrainerCourseSkill(
+    CURRENT_TRAINER
+  );
 // ======================================
 // ✅ حساب مهارات الجروب الحالية
 // ======================================
@@ -7369,10 +7476,23 @@ questionsList.innerHTML += `
   data-old-value="${esc(baseSkill)}"
 
   ${
-    groupHasLockedQuestion
+    (
+      groupHasLockedQuestion ||
+      !canEditBaseSkill
+    )
       ? "disabled"
       : ""
   }
+
+  title="${
+    !canEditBaseSkill
+      ? 'هذه المهارة تخص مدرب الدورة الأساسية فقط'
+      : (
+          groupHasLockedQuestion
+            ? 'المجموعة تحتوي على سؤال مقفل'
+            : 'تغيير مهارة دورتك'
+        )
+  }"
 
   onchange="
     saveGroupSkill(
@@ -7389,31 +7509,46 @@ questionsList.innerHTML += `
     border-radius:12px;
 
     border:2px solid ${
-      groupHasLockedQuestion
+      (
+          groupHasLockedQuestion ||
+          !canEditBaseSkill
+        )
         ? '#991b1b'
         : '#164478'
     };
 
     background:${
-      groupHasLockedQuestion
+      (
+          groupHasLockedQuestion ||
+          !canEditBaseSkill
+        )
         ? '#fee2e2'
         : '#ffffff'
     };
 
     color:${
-      groupHasLockedQuestion
+      (
+          groupHasLockedQuestion ||
+          !canEditBaseSkill
+        )
         ? '#991b1b'
         : '#164478'
     };
 
     cursor:${
-      groupHasLockedQuestion
+      (
+          groupHasLockedQuestion ||
+          !canEditBaseSkill
+        )
         ? 'not-allowed'
         : 'pointer'
     };
 
     opacity:${
-      groupHasLockedQuestion
+      (
+          groupHasLockedQuestion ||
+          !canEditBaseSkill
+        )
         ? '.80'
         : '1'
     };
@@ -7547,8 +7682,16 @@ ${(()=>{
   const realGroupName =
     String(groupName || "General").trim();
 
-  // ✅ مهارة الدورة المرتبطة دائماً تطابق المهارة المختارة في الأعلى
-  const linkedSkill = baseSkill || "";
+  // ✅ لكل دورة مرتبطة مهارة مستقلة خاصة بها
+  const linkedSkill =
+    groupSkillsByCourse?.[c.courseId]?.[realGroupName]
+    || baseSkill
+    || "";
+
+  const canEditLinkedSkill =
+    canEditTrainerCourseSkill(
+      c.Trainer || ""
+    );
 // ======================================
 // 🔒 فحص الأسئلة المقفلة التابعة لهذه
 // الدورة المرتبطة وهذه المجموعة
@@ -7580,9 +7723,34 @@ const linkedGroupHasLockedQuestion =
 
   data-old-value="${esc(linkedSkill)}"
 
-  disabled
+  ${
+    (
+      linkedGroupHasLockedQuestion ||
+      !canEditLinkedSkill
+    )
+      ? "disabled"
+      : ""
+  }
 
-  title="Automatically synchronized with the skill selected above"
+  onchange="
+    saveLinkedCourseSkill(
+      '',
+      '${c.courseId}',
+      this.value,
+      ${JSON.stringify(realGroupName)},
+      this
+    )
+  "
+
+  title="${
+    !canEditLinkedSkill
+      ? 'هذه المهارة تخص مدرب هذه الدورة فقط'
+      : (
+          linkedGroupHasLockedQuestion
+            ? 'الدورة تحتوي على سؤال مقفل في هذه المجموعة'
+            : 'يمكنك تغيير مهارة دورتك المرتبطة فقط'
+        )
+  }"
 
   style="
     width:100%;
@@ -7590,24 +7758,40 @@ const linkedGroupHasLockedQuestion =
     border-radius:12px;
 
     border:2px solid ${
-      linkedGroupHasLockedQuestion
+      (
+          linkedGroupHasLockedQuestion ||
+          !canEditLinkedSkill
+        )
         ? '#991b1b'
         : '#164478'
     };
 
     background:${
-      linkedGroupHasLockedQuestion
+      (
+          linkedGroupHasLockedQuestion ||
+          !canEditLinkedSkill
+        )
         ? '#fee2e2'
         : '#ffffff'
     };
 
     color:${
-      linkedGroupHasLockedQuestion
+      (
+          linkedGroupHasLockedQuestion ||
+          !canEditLinkedSkill
+        )
         ? '#991b1b'
         : '#164478'
     };
 
-    cursor:not-allowed;
+    cursor:${
+      (
+        linkedGroupHasLockedQuestion ||
+        !canEditLinkedSkill
+      )
+        ? 'not-allowed'
+        : 'pointer'
+    };
 
     opacity:.88;
 
@@ -8403,36 +8587,33 @@ if(!targetCourseId){
   return;
 }
 
+const permission =
+  await verifyCourseSkillPermission(
+    targetCourseId
+  );
+
+if(!permission.allowed){
+
+  alert(
+    "⛔ لا يمكنك تغيير المهارة الأساسية لأنها ليست تابعة لدورتك"
+  );
+
+  if(selectElement){
+    selectElement.value =
+      selectElement.dataset.oldValue || "";
+  }
+
+  await loadQuestions();
+  return;
+}
+
 if(!map[targetCourseId]){
   map[targetCourseId] = {};
 }
 
+// ✅ تغيير مهارة الدورة الحالية فقط دون تعديل مهارات الدورات المرتبطة
 map[targetCourseId][groupName] =
   skill || "";
-
-    // ✅ مزامنة نفس المهارة تلقائياً مع كل الدورات المرتبطة بهذه المجموعة
-    const linkedCourseIds = new Set();
-
-    qSnap.docs.forEach(doc => {
-      const q = doc.data() || {};
-      const questionGroup = String(q.group || "General").trim();
-
-      if(questionGroup !== String(groupName).trim()) return;
-
-      const used = Array.isArray(q.coursesUsed) ? q.coursesUsed : [];
-
-      used.forEach(c => {
-        const cid = String(c.courseId || "").trim();
-        if(cid && cid !== String(targetCourseId).trim()){
-          linkedCourseIds.add(cid);
-        }
-      });
-    });
-
-    linkedCourseIds.forEach(cid => {
-      if(!map[cid]) map[cid] = {};
-      map[cid][groupName] = skill || "";
-    });
 
     await examRef.update({
       groupSkillsByCourse: map,
@@ -12395,4 +12576,4 @@ window.addEventListener("DOMContentLoaded",function(){
     resetFillItems();
   }
 });
-</script> 
+</script>
