@@ -2915,79 +2915,47 @@ examCategory: examCategory,
 
   coursesData: coursesData,
 
-  // ✅ الاختبارات التي سيتم النسخ منها
-  linkedExams: selectedExamIds,
+  // ✅ النسخة الجديدة مستقلة تماماً عن الاختبارات الأصلية
+  linkedExams: [],
+  copiedFromExamIds: [...selectedExamIds],
+  locked: false,
 
   createdAt: new Date()
 
-});  const newExamId = newExamRef.id;
-// ✅ نسخ الأسئلة من الاختبارات المختارة
+});
+const newExamId = newExamRef.id;
+
+// ✅ إنشاء أسئلة جديدة بمعرّفات جديدة وغير مرتبطة بالأسئلة الأصلية
+let copiedOrder = 0;
 for(const oldExamId of selectedExamIds){
 
   const qSnap = await db.collection("questions")
     .where("examId","==",oldExamId)
     .get();
 
-  for(const doc of qSnap.docs){
+  const sourceQuestions = qSnap.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .sort((a,b) => Number(a.order || 0) - Number(b.order || 0));
 
-    const q = doc.data();
+  for(const sourceQuestion of sourceQuestions){
+    copiedOrder++;
 
-await db.collection("questions").add({
+    const copiedQuestion = cleanQuestionForCopy(
+      sourceQuestion,
+      newExamId,
+      copiedOrder,
+      coursesData
+    );
 
-  examId: newExamId,
+    // حماية إضافية: لا تنسخ أي حقول ربط أو قفل من الأصل
+    copiedQuestion.locked = false;
+    copiedQuestion.linkedExams = [];
+    copiedQuestion.linkedToExamId = "";
+    copiedQuestion.linkedCourseId = "";
+    copiedQuestion.isIndependentCopy = true;
 
-  question: q.question || "",
-
-  passage: q.passage || "",
-
-  /*
-    السؤال المنسوخ يعتبر نموذجًا جديدًا ومستقلًا:
-    لا يرث القفل من السؤال الأصلي.
-  */
-  locked:false,
-  lockedAt:null,
-  lockedBy:"",
-  lockReason:"",
-
-  options: q.options || [],
-
-  correct: q.correct ?? "",
-
-  degree: q.degree || 1,
-
-  type: q.type || "mcq",
-
-  mediaType: q.mediaType || "none",
-
-  mediaUrl: q.mediaUrl || "",
-
-  group: q.group || "General",
-
-  showMedia: q.showMedia !== false,
-
-  order: q.order || 0,
-
-  isMain: q.isMain || false,
-
-  coursesUsed: (coursesData || []).map(c => ({
-
-    courseId: c.courseId,
-
-    TrainingCourse: c.TrainingCourse,
-
-    Trainer: c.Trainer,
-
-    Period: c.Period || ""
-
-  })),
-
-  linkedExams: selectedExamIds,
-
-  createdAt: new Date()
-
-});
+    await db.collection("questions").add(copiedQuestion);
   }
-
 }
   // □ نسخ الأسئلة من الاختبارات المختارة
 
@@ -10530,7 +10498,7 @@ let QUESTION_DRAG_ID = "";
 let QUESTION_COPY_BANK = [];
 let QUESTION_COPY_SELECTED = new Set();
 
-function cleanQuestionForCopy(source, targetExamId, orderValue){
+function cleanQuestionForCopy(source, targetExamId, orderValue, coursesOverride = null){
   const q = source || {};
   const copy = {
     examId: targetExamId,
@@ -10546,22 +10514,10 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
     showMedia: q.showMedia !== false,
     order: Number(orderValue || 0),
     isMain: q.isMain === true,
-
-    /*
-      النسخة سؤال جديد مستقل ومفتوح دائمًا،
-      حتى لو كان السؤال الأصلي مقفلًا.
-    */
-    locked:false,
-    lockedAt:null,
-    lockedBy:"",
-    lockReason:"",
-    lockSourceQuestionId:"",
-
+    locked: false,
     createdBy: CURRENT_USER || "",
     copiedFromQuestionId: q.id || "",
     copiedFromExamId: q.examId || "",
-    copyIsIndependent:true,
-    inheritedLock:false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -10571,9 +10527,19 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
   if(Array.isArray(q.fillItems)) copy.fillItems = JSON.parse(JSON.stringify(q.fillItems));
   if(q.fillLayout) copy.fillLayout = q.fillLayout;
   if(q.fillColumns) copy.fillColumns = Number(q.fillColumns);
+  if(q.answerLines) copy.answerLines = Number(q.answerLines);
+  if(q.skill) copy.skill = q.skill;
+  if(q.voiceDuration) copy.voiceDuration = Number(q.voiceDuration);
 
-  // The copied question belongs to the currently selected course context.
-  if(CURRENT_COURSE_ID){
+  // النسخة تأخذ سياق الدورة الجديدة، ولا تحتفظ بربط الدورة الأصلية.
+  if(Array.isArray(coursesOverride)){
+    copy.coursesUsed = coursesOverride.map(c => ({
+      courseId: c.courseId || "",
+      TrainingCourse: c.TrainingCourse || "",
+      Trainer: c.Trainer || "",
+      Period: c.Period || ""
+    }));
+  }else if(CURRENT_COURSE_ID){
     copy.coursesUsed = [{
       courseId: CURRENT_COURSE_ID,
       TrainingCourse: CURRENT_COURSE_NAME || "",
@@ -10581,13 +10547,14 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
       Period: CURRENT_PERIOD || ""
     }];
   }else{
-    /*
-      لا ننسخ روابط الدورات القديمة من السؤال الأصلي.
-      النسخة الجديدة تبدأ بدون روابط، ويمكن ربطها لاحقًا
-      بالدورات المطلوبة داخل الاختبار الجديد.
-    */
     copy.coursesUsed = [];
   }
+
+  // لا تنسخ حقول الربط القديمة إطلاقاً.
+  copy.linkedExams = [];
+  copy.linkedToExamId = "";
+  copy.linkedCourseId = "";
+  copy.isIndependentCopy = true;
 
   return copy;
 }
