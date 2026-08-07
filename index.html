@@ -2951,6 +2951,57 @@ function isOpenCourse(course){
   const status = norm(course?.status);
   return ["open","مفتوح"].includes(status);
 }
+
+/* =========================================
+   Linked-course access: current user only
+   Admin keeps access to all courses.
+========================================= */
+function getLinkedCoursesForCurrentUser(coursesUsed, currentCourseId = ""){
+  const currentId = String(currentCourseId || "").trim();
+
+  return dedupeCoursesUsed(
+    Array.isArray(coursesUsed) ? coursesUsed : []
+  ).filter(course => {
+    const courseId = String(course?.courseId || "").trim();
+
+    if(!courseId || courseId === currentId){
+      return false;
+    }
+
+    return isCourseVisibleForCurrentUser(course);
+  });
+}
+
+async function verifyLinkedCourseAccess(courseId){
+  courseId = String(courseId || "").trim();
+
+  if(!courseId){
+    return { allowed:false, course:null };
+  }
+
+  if(canViewAllOpenCourses()){
+    const adminDoc = await db.collection("Courses").doc(courseId).get();
+    return {
+      allowed: adminDoc.exists,
+      course: adminDoc.exists ? (adminDoc.data() || {}) : null
+    };
+  }
+
+  const courseDoc = await db.collection("Courses")
+    .doc(courseId)
+    .get();
+
+  if(!courseDoc.exists){
+    return { allowed:false, course:null };
+  }
+
+  const course = courseDoc.data() || {};
+
+  return {
+    allowed: isCourseVisibleForCurrentUser(course),
+    course
+  };
+}
 function normalizeTextAnswer(val){
   return String(val || "")
     .replace(/[^\w\s\u0600-\u06FF]/g, "") // حذف الرموز
@@ -6364,6 +6415,13 @@ async function removeSelectedLinkedCourse(questionId){
     return;
   }
 
+  const access = await verifyLinkedCourseAccess(courseId);
+
+  if(!access.allowed){
+    alert("⛔ You can manage linked courses for your user only");
+    return;
+  }
+
   const qDoc =
     await db.collection("questions")
       .doc(questionId)
@@ -7139,6 +7197,13 @@ async function toggleLinkedCourseQuestions(courseId, show){
 
   if(!examId || !courseId){
     alert("Choose exam and course first");
+    return;
+  }
+
+  const access = await verifyLinkedCourseAccess(courseId);
+
+  if(!access.allowed){
+    alert("⛔ You can show/hide linked courses for your user only");
     return;
   }
 
@@ -9031,14 +9096,15 @@ questionsList.innerHTML += `
 
   ➕ Add Linked Course
 </button>
-  ${
-    Array.isArray(q.coursesUsed) &&
-    q.coursesUsed.filter(c =>
-      String(c.courseId || "").trim() !==
-      String(CURRENT_COURSE_ID).trim()
-    ).length
+  ${(()=>{
+    const linkedCoursesForUser =
+      getLinkedCoursesForCurrentUser(
+        q.coursesUsed,
+        CURRENT_COURSE_ID
+      );
 
-    ? `
+    return linkedCoursesForUser.length
+      ? `
 
       <select
         id="linkedSelect_${q.id}"
@@ -9051,19 +9117,14 @@ questionsList.innerHTML += `
         "
       >
 
-        ${q.coursesUsed
-          .filter(c =>
-            String(c.courseId || "").trim() !==
-            String(CURRENT_COURSE_ID).trim()
-          )
-          .map(c=>`
-            <option value="${c.courseId}">
-              ${esc(c.TrainingCourse || "-")}
-              |
-              ${esc(c.Trainer || "-")}
-              ${c.Period ? ` | ${esc(c.Period)}` : ""}
-            </option>
-          `).join("")}
+        ${linkedCoursesForUser.map(c=>`
+          <option value="${c.courseId}">
+            ${esc(c.TrainingCourse || "-")}
+            |
+            ${esc(c.Trainer || "-")}
+            ${c.Period ? ` | ${esc(c.Period)}` : ""}
+          </option>
+        `).join("")}
 
       </select>
 
@@ -9108,7 +9169,7 @@ questionsList.innerHTML += `
       </div>
 
     `
-    : `
+      : `
       <div style="
         background:#fff;
         border:1px dashed #cbd5e1;
@@ -9118,10 +9179,10 @@ questionsList.innerHTML += `
         font-weight:900;
         text-align:center;
       ">
-        لا توجد دورات مرتبطة غير الدورة الحالية
+        No other linked courses for this user
       </div>
-    `
-  }
+    `;
+  })()}
 
 </div>
   </div>
@@ -12228,6 +12289,13 @@ async function resetLinkedCourseOne(
 
   if(!iqama) return;
 
+  const access = await verifyLinkedCourseAccess(courseId);
+
+  if(!access.allowed){
+    alert("⛔ You can reset your linked course only");
+    return;
+  }
+
   const qDoc = await db.collection("questions")
     .doc(questionId)
     .get();
@@ -12273,7 +12341,14 @@ async function resetLinkedCourseOne(
 
   }
 
-  alert("✅ Student can do exam again");
+  await allowStudentRetake(
+    examId,
+    courseId,
+    studentId,
+    iqama
+  );
+
+  alert("✅ Student can do exam again for this linked course only");
 
 }
 
@@ -12288,6 +12363,13 @@ async function resetLinkedCourseAll(
   );
 
   if(!ok) return;
+
+  const access = await verifyLinkedCourseAccess(courseId);
+
+  if(!access.allowed){
+    alert("⛔ You can reset your linked course only");
+    return;
+  }
 
   const qDoc = await db.collection("questions")
     .doc(questionId)
