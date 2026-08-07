@@ -3799,7 +3799,7 @@ html += `
 
 <div class="exam-card"
   data-id="${e.id}"
-  onclick="openExamTab('${e.id}')"
+  onclick="SIDEBAR_FOCUS_COURSE_ID=''; openExamTab('${e.id}', true)"
   style="
     background:#fff;
     border:2px solid #dbeafe;
@@ -3953,7 +3953,8 @@ html += `
     class="preview-btn"
     onclick="
       event.stopPropagation();
-      openExamTab('${e.id}');
+      SIDEBAR_FOCUS_COURSE_ID = "";
+      openExamTab('${e.id}', true);
     "
   >
     □ Show Below
@@ -6021,8 +6022,9 @@ async function syncLinkedCourseSkillWithTop(examId, groupName, linkedCourseId){
 
 
 /* =========================================
-   SYNC ALL LINKED QUESTIONS FOR A COURSE
-   يمنع ظهور السؤال الأول فقط عند الطالب
+   SYNC WHOLE EXAM / MODEL TO A COURSE
+   ✅ أي ربط لسؤال من النموذج = ربط النموذج كاملًا
+   ✅ يمنع ظهور السؤال الأول فقط
 ========================================= */
 async function syncAllVisibleLinkedQuestions(
   examId,
@@ -6038,8 +6040,14 @@ async function syncAllVisibleLinkedQuestions(
   const examRef =
     db.collection("exams").doc(examId);
 
-  const examDoc =
-    await examRef.get();
+  const [examDoc, courseDoc, qSnap] =
+    await Promise.all([
+      examRef.get(),
+      db.collection("Courses").doc(courseId).get(),
+      db.collection("questions")
+        .where("examId","==",examId)
+        .get()
+    ]);
 
   if(!examDoc.exists){
     return [];
@@ -6048,82 +6056,161 @@ async function syncAllVisibleLinkedQuestions(
   const examData =
     examDoc.data() || {};
 
-  const qSnap =
-    await db.collection("questions")
-      .where("examId","==",examId)
-      .get();
+  const courseData =
+    courseDoc.exists
+      ? (courseDoc.data() || {})
+      : {};
 
-  const linkedQuestionIds = [];
+  /*
+    ✅ احصل على بيانات الدورة.
+    لو لم نجدها في Courses نحاول أخذها من أي سؤال مرتبط سابقًا.
+  */
+  let courseInfo = {
+    courseId: courseId,
+    TrainingCourse:
+      courseData.TrainingCourse || "",
+    Trainer:
+      courseData.Trainer || "",
+    Period:
+      courseData.Period || ""
+  };
 
   qSnap.forEach(doc=>{
     const q = doc.data() || {};
-
-    const coursesUsed =
+    const used =
       Array.isArray(q.coursesUsed)
         ? q.coursesUsed
         : [];
 
-    const linkedToCourse =
-      coursesUsed.some(item =>
+    const oldLink =
+      used.find(item =>
         String(item?.courseId || "").trim() ===
         courseId
       );
 
+    if(oldLink){
+      courseInfo = {
+        courseId: courseId,
+        TrainingCourse:
+          courseInfo.TrainingCourse ||
+          oldLink.TrainingCourse || "",
+        Trainer:
+          courseInfo.Trainer ||
+          oldLink.Trainer || "",
+        Period:
+          courseInfo.Period ||
+          oldLink.Period || ""
+      };
+    }
+  });
+
+  const visibleQuestionIds = [];
+  const orderMap = {};
+  const batch = db.batch();
+
+  qSnap.forEach(doc=>{
+    const q = doc.data() || {};
+
+    orderMap[doc.id] =
+      Number(q.order || 0);
+
     /*
-      السؤال المخفي لا يظهر للطالب.
-      أما السؤال الظاهر والمرتبط بالدورة فيُضاف كله،
-      وليس السؤال الأول فقط.
+      ✅ إصلاح أصل المشكلة:
+      أضف الدورة إلى coursesUsed في كل أسئلة النموذج،
+      وليس في السؤال الذي تم الضغط عليه فقط.
+    */
+    const updatedCoursesUsed =
+      dedupeCoursesUsed([
+        ...(
+          Array.isArray(q.coursesUsed)
+            ? q.coursesUsed
+            : []
+        ),
+        courseInfo
+      ]);
+
+    batch.update(
+      db.collection("questions").doc(doc.id),
+      {
+        coursesUsed: updatedCoursesUsed,
+
+        // للتوافق مع الحقول القديمة
+        linkedCourseId: courseId,
+        linkedCourseName:
+          courseInfo.TrainingCourse || "",
+        linkedTrainer:
+          courseInfo.Trainer || "",
+        linkedPeriod:
+          courseInfo.Period || ""
+      }
+    );
+
+    /*
+      لا نرسل للطالب إلا الأسئلة الظاهرة فعليًا.
+      Reading Passage الرئيسي لا يُحسب كسؤال مستقل.
     */
     const questionVisible =
       q.showQuestion !== false &&
       q.visible !== false &&
-      q.hidden !== true;
+      q.hidden !== true &&
+      q.isMain !== true;
 
-    if(
-      linkedToCourse &&
-      questionVisible
-    ){
-      linkedQuestionIds.push(doc.id);
+    if(questionVisible){
+      visibleQuestionIds.push(doc.id);
     }
   });
 
-  /*
-    ترتيب ثابت مطابق لترتيب الأسئلة داخل الاختبار.
-  */
-  const orderMap = {};
+  await batch.commit();
 
-  qSnap.forEach(doc=>{
-    orderMap[doc.id] =
-      Number(doc.data()?.order || 0);
-  });
-
-  linkedQuestionIds.sort(
+  visibleQuestionIds.sort(
     (a,b)=>
       (orderMap[a] || 0) -
       (orderMap[b] || 0)
   );
 
+  /*
+    ✅ الخريطة التي يستخدمها الطالب والشريط الجانبي
+    تحتوي الآن على كل الأسئلة الفعلية للنموذج.
+  */
   const visibleMap = {
     ...(examData.visibleQuestionsByCourse || {})
   };
 
   visibleMap[courseId] =
-    linkedQuestionIds;
+    visibleQuestionIds;
+
+  const updateData = {
+    visibleQuestionsByCourse:
+      visibleMap,
+
+    updatedAt:
+      firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  /*
+    توافق مع النظام القديم فقط إذا كانت الدورة الحالية هي نفسها.
+  */
+  if(
+    String(CURRENT_COURSE_ID || "").trim() ===
+    courseId
+  ){
+    updateData.visibleQuestions =
+      visibleQuestionIds;
+  }
 
   await examRef.set(
-    {
-      visibleQuestionsByCourse:
-        visibleMap,
-
-      updatedAt:
-        firebase.firestore.FieldValue.serverTimestamp()
-    },
-    {
-      merge:true
-    }
+    updateData,
+    { merge:true }
   );
 
-  return linkedQuestionIds;
+  console.log(
+    "✅ Whole exam linked:",
+    examId,
+    courseId,
+    visibleQuestionIds.length
+  );
+
+  return visibleQuestionIds;
 }
 
 /* ================= إرسال السؤال لدورة أخرى ================= */
@@ -6230,12 +6317,15 @@ await db.collection("questions")
     تحديث قائمة الطالب بكل الأسئلة المرتبطة بالدورة،
     وليس السؤال الحالي فقط.
   */
-  await syncAllVisibleLinkedQuestions(
+  const linkedIds = await syncAllVisibleLinkedQuestions(
     q.examId,
     selected.id
   );
 
-  alert("✅ The question has been linked and all linked questions are now visible");
+  alert(
+    "✅ The full exam/model has been linked successfully.\n" +
+    "Questions shown to students: " + linkedIds.length
+  );
   await loadQuestions();
 }
 function liveExamPreview(searchText){
@@ -6254,109 +6344,180 @@ function liveExamPreview(searchText){
     loadQuestions();
   }
 }
-async function removeSelectedLinkedCourse(questionId){
+async function removeLinkedCourseFromExam(examId, courseId, options = {}){
+  examId = String(examId || "").trim();
+  courseId = String(courseId || "").trim();
 
-  const select =
-    document.getElementById(
-      "linkedSelect_" + questionId
-    );
+  const silent = options.silent === true;
+  const reloadQuestions = options.reloadQuestions !== false;
 
-  if(!select || !select.value){
-
-    alert("Choose course first");
-
-    return;
+  if(!examId || !courseId){
+    throw new Error("Missing exam or course ID");
   }
 
-  const courseId =
-    String(select.value).trim();
+  const [examDoc, qSnap] = await Promise.all([
+    db.collection("exams").doc(examId).get(),
+    db.collection("questions").where("examId","==",examId).get()
+  ]);
 
-  const qRef =
-    db.collection("questions")
-      .doc(questionId);
-
-  const qDoc =
-    await qRef.get();
-
-  if(!qDoc.exists){
-
-    alert("Question not found");
-
-    return;
+  if(!examDoc.exists){
+    throw new Error("Exam not found");
   }
-
-  const q =
-    qDoc.data();
-
-  // ✅ حذف الارتباط فقط
-  const filtered =
-    (q.coursesUsed || []).filter(c => {
-
-      return String(c.courseId || "").trim() !==
-             courseId;
-
-    });
-
-if(filtered.length === 0){
-
-  // ✅ رجع السؤال للدورة الأساسية بدل اختفائه
-  const examDoc =
-    await db.collection("exams")
-      .doc(q.examId)
-      .get();
 
   const examData = examDoc.data() || {};
+  const baseCourses = Array.isArray(examData.coursesData)
+    ? examData.coursesData
+    : [];
 
-  const baseCourses =
-    examData.coursesData || [];
-
-  await qRef.update({
-
-    coursesUsed: baseCourses.map(c => ({
-
-      courseId: c.courseId || "",
-
-      TrainingCourse:
-        c.TrainingCourse || "",
-
-      Trainer:
-        c.Trainer || "",
-
-      Period:
-        c.Period || ""
-
-    }))
-
-  });
-
-}else{
-
-  await qRef.update({
-
-    coursesUsed: filtered
-
-  });
-
-}
+  const batch = db.batch();
 
   /*
-    إعادة بناء قائمة الأسئلة الظاهرة للدورة بعد إزالة الربط،
-    حتى لا يبقى رقم سؤال محذوف داخل visibleQuestionsByCourse.
+    ✅ نفس الحالة في المكانين:
+    Remove Link = إزالة الدورة من coursesUsed
+    وبالتالي لا يمكن أن تبقى Shown لهذه الدورة.
   */
-  await syncAllVisibleLinkedQuestions(
-    q.examId,
-    courseId
-  );
+  qSnap.forEach(doc=>{
+    const q = doc.data() || {};
+    const oldUsed = Array.isArray(q.coursesUsed) ? q.coursesUsed : [];
 
-  alert("✅ Link removed and the student question list was updated");
+    let filtered = oldUsed.filter(c =>
+      String(c?.courseId || "").trim() !== courseId
+    );
 
-  await loadQuestions();
+    // إذا لم يبق أي ربط، احتفظ فقط بالدورة/الدورات الأساسية
+    // مع عدم إعادة الدورة التي يتم فك ربطها.
+    if(filtered.length === 0){
+      filtered = baseCourses
+        .filter(c =>
+          String(c?.courseId || "").trim() !== courseId
+        )
+        .map(c => ({
+          courseId: c.courseId || "",
+          TrainingCourse: c.TrainingCourse || "",
+          Trainer: c.Trainer || "",
+          Period: c.Period || ""
+        }));
+    }
 
-  // Remove Link يجب أن ينعكس فوراً على Shown في الشريط الجانبي.
+    const updateData = {
+      coursesUsed: dedupeCoursesUsed(filtered)
+    };
+
+    if(String(q.linkedCourseId || "").trim() === courseId){
+      updateData.linkedCourseId =
+        firebase.firestore.FieldValue.delete();
+      updateData.linkedCourseName =
+        firebase.firestore.FieldValue.delete();
+      updateData.linkedTrainer =
+        firebase.firestore.FieldValue.delete();
+      updateData.linkedPeriod =
+        firebase.firestore.FieldValue.delete();
+    }
+
+    batch.update(
+      db.collection("questions").doc(doc.id),
+      updateData
+    );
+  });
+
+  await batch.commit();
+
+  // ✅ Remove Link و Hidden مرتبطان بنفس الدورة.
+  const visibleMap = {
+    ...(examData.visibleQuestionsByCourse || {})
+  };
+  delete visibleMap[courseId];
+
+  const groupSkillsByCourse = {
+    ...(examData.groupSkillsByCourse || {})
+  };
+  delete groupSkillsByCourse[courseId];
+
+  const examUpdate = {
+    visibleQuestionsByCourse: visibleMap,
+    groupSkillsByCourse,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(
+    String(CURRENT_COURSE_ID || "").trim() === courseId &&
+    String(CURRENT_PREVIEW_EXAM || "").trim() === examId
+  ){
+    examUpdate.visibleQuestions = [];
+  }
+
+  await db.collection("exams")
+    .doc(examId)
+    .set(examUpdate,{merge:true});
+
+  if(
+    typeof SIDEBAR_FOCUS_COURSE_ID !== "undefined" &&
+    String(SIDEBAR_FOCUS_COURSE_ID || "").trim() === courseId
+  ){
+    SIDEBAR_FOCUS_COURSE_ID = "";
+  }
+
   if(typeof schedulePublishedSidebarRefresh === "function"){
     schedulePublishedSidebarRefresh(30);
   }
 
+  if(
+    reloadQuestions &&
+    typeof loadQuestions === "function" &&
+    String(CURRENT_PREVIEW_EXAM || "").trim() === examId
+  ){
+    await loadQuestions();
+  }
+
+  if(!silent){
+    alert("✅ Link removed. This course is now Hidden from students.");
+  }
+
+  return true;
+}
+
+async function removeSelectedLinkedCourse(questionId){
+  const select =
+    document.getElementById("linkedSelect_" + questionId);
+
+  if(!select || !select.value){
+    alert("Choose course first");
+    return;
+  }
+
+  const courseId = String(select.value || "").trim();
+
+  try{
+    const qDoc = await db.collection("questions")
+      .doc(questionId)
+      .get();
+
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
+
+    const examId =
+      String(qDoc.data()?.examId || "").trim();
+
+    if(!examId){
+      alert("Exam not found");
+      return;
+    }
+
+    await removeLinkedCourseFromExam(
+      examId,
+      courseId,
+      {silent:false,reloadQuestions:true}
+    );
+
+  }catch(err){
+    console.error("REMOVE LINK ERROR:", err);
+    alert(
+      "❌ Failed to remove link: " +
+      (err?.message || String(err))
+    );
+  }
 }
 async function relinkQuestion(questionId){
 
@@ -6592,12 +6753,15 @@ async function confirmRelinkQuestion(questionId){
     selected.id
   );
 
-  await syncAllVisibleLinkedQuestions(
+  const linkedIds = await syncAllVisibleLinkedQuestions(
     q.examId,
     selected.id
   );
 
-  alert("✅ Course linked and all linked questions are now visible");
+  alert(
+    "✅ The full exam/model has been linked successfully.\n" +
+    "Questions shown to students: " + linkedIds.length
+  );
 
   await loadQuestions();
 
@@ -7420,27 +7584,51 @@ if(deleteExamBtn){
     deleteExamBtn.style.display = "block";
   }
 }
-let questions =
-  [...examQuestions];
+/*
+  ✅ FIX — الفرق بين فتح النموذج من مربع الاختبارات وفتحه من الشريط
 
-questions =
-  questions.filter(q => {
+  1) عند الضغط على بطاقة الاختبار من "Previews questions":
+     نعرض جميع الأسئلة الفعلية التابعة لنفس examId بدون فلترة coursesUsed.
+
+  2) عند الضغط على الاختبار من "Questions Shown to Students":
+     نكون في SIDEBAR_FOCUS_COURSE_ID، وهنا فقط نعرض الأسئلة الخاصة
+     بالدورة التي ضغط عليها المدرب.
+
+  المشكلة السابقة:
+  openExamTab() عند الفتح العادي يختار أول دورة داخل coursesData،
+  وبعدها هذا الفلتر كان يحذف أي سؤال لا يحتوي تلك الدورة داخل coursesUsed،
+  لذلك كانت تظهر مجموعة ناقصة وقد يظهر سؤال واحد فقط.
+*/
+let questions = [...examQuestions];
+
+if(SIDEBAR_FOCUS_COURSE_ID){
+
+  const focusCourseId =
+    String(SIDEBAR_FOCUS_COURSE_ID || "").trim();
+
+  questions = questions.filter(q => {
 
     const used =
       Array.isArray(q.coursesUsed)
         ? q.coursesUsed
         : [];
 
+    /*
+      السؤال بدون coursesUsed يعتبر من أسئلة النموذج الأساسية،
+      لذلك يبقى ظاهرًا أيضًا.
+    */
     if(used.length === 0){
       return true;
     }
 
     return used.some(c =>
       String(c.courseId || "").trim() ===
-      String(CURRENT_COURSE_ID).trim()
+      focusCourseId
     );
 
   });
+
+}
 
 let totalDegree = 0;
 
@@ -8840,7 +9028,7 @@ questionsList.innerHTML += `
           "
           style="background:#f59e0b"
         >
-          👤 Reset Student
+          □ Reset Student
         </button>
 
       </div>
@@ -11968,77 +12156,132 @@ async function resetLinkedCourseOne(
     return;
   }
 
-  const iqama = String(prompt("Insert Student ID") || "").trim();
+  const iqama = String(
+    prompt("Insert Student ID") || ""
+  ).trim();
+
   if(!iqama) return;
 
-  const qDoc = await db.collection("questions")
-    .doc(questionId)
-    .get();
+  try{
+    const qDoc = await db.collection("questions")
+      .doc(questionId)
+      .get();
 
-  if(!qDoc.exists){
-    alert("Question not found");
-    return;
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
+
+    const examId =
+      String(qDoc.data()?.examId || "").trim();
+
+    if(!examId){
+      alert("Exam not found");
+      return;
+    }
+
+    /*
+      ✅ لا نأخذ أول طالب يحمل نفس الهوية.
+      قد تكون نفس الهوية موجودة في أكثر من سجل/دورة.
+      نجمع كل سجلات الهوية ثم نبحث عن النتيجة الخاصة
+      بالـ Linked Course المختارة فقط.
+    */
+    const studentSnap = await db.collection("students")
+      .where("iqama","==",iqama)
+      .get();
+
+    if(studentSnap.empty){
+      alert("Student not found");
+      return;
+    }
+
+    const candidates = studentSnap.docs.map(doc=>({
+      id: doc.id,
+      data: doc.data() || {}
+    }));
+
+    // قد يكون courseId محفوظًا بأسماء مختلفة في سجل الطالب.
+    const exactCourseCandidates = candidates.filter(item=>{
+      const d = item.data || {};
+      const savedCourseId = String(
+        d.courseId ??
+        d.CourseId ??
+        d.courseID ??
+        d.CourseID ??
+        ""
+      ).trim();
+
+      return savedCourseId && savedCourseId === courseId;
+    });
+
+    const orderedCandidates = exactCourseCandidates.length
+      ? [
+          ...exactCourseCandidates,
+          ...candidates.filter(x =>
+            !exactCourseCandidates.some(y => y.id === x.id)
+          )
+        ]
+      : candidates;
+
+    const matchedStudentIds = new Set();
+    const resultDocs = [];
+
+    for(const student of orderedCandidates){
+      const resultSnap = await db.collection("results")
+        .where("studentId","==",student.id)
+        .where("examId","==",examId)
+        .where("courseId","==",courseId)
+        .get();
+
+      if(!resultSnap.empty){
+        matchedStudentIds.add(student.id);
+        resultSnap.docs.forEach(doc=>resultDocs.push(doc));
+      }
+    }
+
+    // حذف نتيجة هذه الهوية في هذه الدورة المرتبطة فقط.
+    for(const doc of resultDocs){
+      await db.collection("results")
+        .doc(doc.id)
+        .delete();
+    }
+
+    /*
+      إذا لم توجد نتيجة سابقة، نختار سجل الطالب المطابق للدورة
+      إن وجد، حتى يظل Reset Student صالحًا لفتح المحاولة.
+    */
+    if(matchedStudentIds.size === 0 && exactCourseCandidates.length){
+      matchedStudentIds.add(exactCourseCandidates[0].id);
+    }
+
+    if(matchedStudentIds.size === 0){
+      alert("No result for this student in the selected linked course");
+      return;
+    }
+
+    // ✅ السماح بإعادة الاختبار لنفس الهوية ونفس Linked Course فقط.
+    for(const studentId of matchedStudentIds){
+      await allowStudentRetake(
+        examId,
+        courseId,
+        studentId,
+        iqama
+      );
+    }
+
+    alert(
+      "✅ Student reset completed for the selected linked course only"
+    );
+
+  }catch(err){
+    console.error("RESET LINKED STUDENT ERROR:", err);
+    alert(
+      "❌ Failed to reset student: " +
+      (err?.message || String(err))
+    );
   }
-
-  const q = qDoc.data() || {};
-  const examId = String(q.examId || "").trim();
-
-  if(!examId){
-    alert("Exam not found");
-    return;
-  }
-
-  /*
-    مهم: نفس الهوية قد يكون لها أكثر من سجل في students.
-    لذلك نختار سجل الطالب الخاص بالدورة المرتبطة المحددة فقط،
-    بدل أخذ أول سجل للهوية بشكل عام.
-  */
-  const studentSnap = await db.collection("students")
-    .where("iqama","==",iqama)
-    .get();
-
-  if(studentSnap.empty){
-    alert("Student not found");
-    return;
-  }
-
-  const matchingStudent = studentSnap.docs.find(doc=>{
-    const data = doc.data() || {};
-    return String(data.courseId || data.CourseId || "").trim() === courseId;
-  });
-
-  if(!matchingStudent){
-    alert("This student is not registered in the selected linked course");
-    return;
-  }
-
-  const studentId = matchingStudent.id;
-
-  // حذف نتيجة هذا الطالب في هذا الاختبار وهذه الدورة فقط
-  const resultSnap = await db.collection("results")
-    .where("studentId","==",studentId)
-    .where("examId","==",examId)
-    .where("courseId","==",courseId)
-    .get();
-
-  for(const doc of resultSnap.docs){
-    await db.collection("results").doc(doc.id).delete();
-  }
-
-  // فتح إعادة المحاولة لنفس الهوية + نفس الدورة المرتبطة
-  await allowStudentRetake(
-    examId,
-    courseId,
-    studentId,
-    iqama
-  );
-
-  alert(
-    resultSnap.empty
-      ? "✅ Retake enabled for this student in the linked course"
-      : "✅ Student result reset and retake enabled"
-  );
 }
+
 
 // ✅ إعادة الاختبار لكل طلاب الدورة المرتبطة
 async function resetLinkedCourseAll(
@@ -12052,43 +12295,62 @@ async function resetLinkedCourseAll(
     return;
   }
 
-  const qDoc = await db.collection("questions")
-    .doc(questionId)
-    .get();
-
-  if(!qDoc.exists){
-    alert("Question not found");
-    return;
-  }
-
-  const q = qDoc.data() || {};
-  const examId = String(q.examId || "").trim();
-
-  if(!examId){
-    alert("Exam not found");
-    return;
-  }
-
   const ok = confirm(
-    "Reset ALL students for the selected linked course only?"
+    "Reset this linked course only?"
   );
+
   if(!ok) return;
 
-  // حذف نتائج هذا الاختبار من الدورة المرتبطة المختارة فقط
-  const resultSnap = await db.collection("results")
-    .where("examId","==",examId)
-    .where("courseId","==",courseId)
-    .get();
+  try{
+    const qDoc = await db.collection("questions")
+      .doc(questionId)
+      .get();
 
-  for(const doc of resultSnap.docs){
-    await db.collection("results").doc(doc.id).delete();
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
+
+    const examId =
+      String(qDoc.data()?.examId || "").trim();
+
+    if(!examId){
+      alert("Exam not found");
+      return;
+    }
+
+    // ✅ Reset Course = نتائج الاختبار لهذه Linked Course فقط.
+    const resultSnap = await db.collection("results")
+      .where("examId","==",examId)
+      .where("courseId","==",courseId)
+      .get();
+
+    if(resultSnap.empty){
+      alert("No students/results in this linked course");
+      return;
+    }
+
+    const batch = db.batch();
+
+    resultSnap.docs.forEach(doc=>{
+      batch.delete(
+        db.collection("results").doc(doc.id)
+      );
+    });
+
+    await batch.commit();
+
+    alert(
+      "✅ Linked course reset completed. Only the selected linked course was reset."
+    );
+
+  }catch(err){
+    console.error("RESET LINKED COURSE ERROR:", err);
+    alert(
+      "❌ Failed to reset linked course: " +
+      (err?.message || String(err))
+    );
   }
-
-  alert(
-    resultSnap.empty
-      ? "No completed results found for this linked course"
-      : `✅ Linked course reset completed (${resultSnap.size} result${resultSnap.size === 1 ? "" : "s"})`
-  );
 }
 // ======================================
 // ✅ Lock / Unlock Question
@@ -13181,7 +13443,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
     if(roleLabel){
       roleLabel.textContent = isAdmin
         ? "Admin view — all trainers"
-        : "Trainer view — my published questions";
+        : "Trainer view — my published models";
     }
 
     const [coursesSnap, examsSnap, questionsSnap] = await Promise.all([
@@ -13218,7 +13480,12 @@ async function loadPublishedQuestionsSidebar(manual = false){
     const questionMap = {};
     questionsSnap.forEach(doc=>{
       const q = doc.data() || {};
-      if(q.showQuestion === false || q.visible === false || q.hidden === true){
+      if(
+        q.showQuestion === false ||
+        q.visible === false ||
+        q.hidden === true ||
+        q.isMain === true
+      ){
         return;
       }
       questionMap[doc.id] = {
@@ -13290,17 +13557,21 @@ async function loadPublishedQuestionsSidebar(manual = false){
       return a.examTitle.localeCompare(b.examTitle);
     });
 
-    const totalQuestions = rows.reduce((sum,row)=>sum + row.questions.length,0);
+    /*
+      ✅ الشريط يعرض عدد النماذج/الاختبارات المنشورة، وليس عدد الأسئلة.
+      كل Exam داخل دورة = نموذج واحد مهما كان بداخله من أسئلة.
+    */
+    const totalModels = rows.length;
     const trainerSet = new Set(rows.map(r=>r.course.trainer));
     const courseSet = new Set(rows.map(r=>r.course.id));
 
     if(!rows.length){
       body.innerHTML = `
         <div class="published-sidebar-summary">
-          <span class="published-sidebar-pill">0 Questions</span>
+          <span class="published-sidebar-pill">0 Models</span>
         </div>
         <div class="published-sidebar-empty">
-          No questions are currently shown to students.
+          No models are currently shown to students.
         </div>
       `;
       return;
@@ -13321,24 +13592,44 @@ async function loadPublishedQuestionsSidebar(manual = false){
       }
       grouped[trainerKey][courseKey].exams.push(row);
 
-      // ✅ عدد الأسئلة المنشورة حسب المهارة داخل هذه الدورة
+      /*
+        ✅ عدد النماذج حسب المهارة — وليس عدد الأسئلة.
+
+        مثال:
+        نموذج Reading Quiz فيه 5 أسئلة Reading
+        النتيجة هنا = Reading 1 وليس Reading 5.
+
+        ولو كان النموذج يحتوي أكثر من سؤال من نفس المهارة،
+        يتم احتساب examId مرة واحدة فقط.
+      */
+      const skillsInThisModel = new Set();
+
       row.questions.forEach(q=>{
         const skill =
           String(q.skill || q.group || "General").trim() ||
           "General";
 
+        skillsInThisModel.add(skill);
+      });
+
+      skillsInThisModel.forEach(skill=>{
+        if(
+          !grouped[trainerKey][courseKey]
+            .skillCounts[skill]
+        ){
+          grouped[trainerKey][courseKey]
+            .skillCounts[skill] = new Set();
+        }
+
         grouped[trainerKey][courseKey]
-          .skillCounts[skill] =
-            (
-              grouped[trainerKey][courseKey]
-                .skillCounts[skill] || 0
-            ) + 1;
+          .skillCounts[skill]
+          .add(String(row.examId || ""));
       });
     });
 
     let html = `
       <div class="published-sidebar-summary">
-        <span class="published-sidebar-pill">${totalQuestions} Questions</span>
+        <span class="published-sidebar-pill">${totalModels} Models</span>
         <span class="published-sidebar-pill">${courseSet.size} Courses</span>
         ${isAdmin ? `<span class="published-sidebar-pill">${trainerSet.size} Trainers</span>` : ""}
       </div>
@@ -13357,6 +13648,12 @@ async function loadPublishedQuestionsSidebar(manual = false){
         const c = block.course;
         const skillEntries =
           Object.entries(block.skillCounts || {})
+            .map(([skill,examSet])=>[
+              skill,
+              examSet instanceof Set
+                ? examSet.size
+                : Number(examSet || 0)
+            ])
             .filter(([,count])=>Number(count || 0) > 0)
             .sort((a,b)=>
               String(a[0]).localeCompare(String(b[0]))
@@ -13369,7 +13666,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
                 ${skillEntries.map(([skill,count])=>`
                   <span
                     class="published-skill-chip"
-                    title="${esc(skill)}: ${Number(count || 0)} published question(s)"
+                    title="${esc(skill)}: ${Number(count || 0)} published model(s)"
                   >
                     <span class="published-skill-name">${esc(skill)}</span>
                     <strong class="published-skill-count">${Number(count || 0)}</strong>
@@ -13455,50 +13752,6 @@ async function loadPublishedQuestionsSidebar(manual = false){
 }
 
 
-async function unlinkPublishedExamCourse(examId, courseId){
-  examId = String(examId || "").trim();
-  courseId = String(courseId || "").trim();
-  if(!examId || !courseId) return;
-
-  const examDoc = await db.collection("exams").doc(examId).get();
-  const examData = examDoc.exists ? (examDoc.data() || {}) : {};
-
-  /*
-    لا نحذف الدورة الأساسية من السؤال. الربط العكسي هنا يخص Linked Course فقط.
-  */
-  const baseCourseIds = new Set(
-    (Array.isArray(examData.coursesData) ? examData.coursesData : [])
-      .map(c=>String(c?.courseId || "").trim())
-      .filter(Boolean)
-  );
-
-  if(baseCourseIds.has(courseId)) return;
-
-  const qSnap = await db.collection("questions")
-    .where("examId","==",examId)
-    .get();
-
-  const batch = db.batch();
-  let changed = 0;
-
-  qSnap.forEach(doc=>{
-    const data = doc.data() || {};
-    const used = Array.isArray(data.coursesUsed) ? data.coursesUsed : [];
-    const filtered = used.filter(c=>
-      String(c?.courseId || "").trim() !== courseId
-    );
-
-    if(filtered.length !== used.length){
-      batch.update(doc.ref,{coursesUsed:filtered});
-      changed++;
-    }
-  });
-
-  if(changed){
-    await batch.commit();
-  }
-}
-
 async function togglePublishedExamVisibility(examId, courseId, checkbox){
   const desiredVisible = checkbox?.checked === true;
 
@@ -13549,35 +13802,19 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
         linkedIds?.length || 0
       );
     }else{
-      // ✅ إخفاء هذا الاختبار عن طلاب هذه الدورة فقط
-      visibleMap[courseId] = [];
-
-      const updateData = {
-        visibleQuestionsByCourse: visibleMap,
-        updatedAt:
-          firebase.firestore.FieldValue.serverTimestamp()
-      };
-
       /*
-        visibleQuestions حقل قديم للتوافق.
-        لا نمسحه إلا إذا كانت هذه هي الدورة المفتوحة حاليًا،
-        حتى لا نؤثر على دورة أخرى.
+        ✅ Shown OFF = Remove Link لنفس Linked Course.
+        لذلك لا يبقى الاختبار مخفيًا لكنه ما زال مرتبطًا؛
+        الحالتان أصبحتا متزامنتين بالكامل.
       */
-      if(
-        String(CURRENT_COURSE_ID || "").trim() === courseId &&
-        String(CURRENT_PREVIEW_EXAM || "").trim() === examId
-      ){
-        updateData.visibleQuestions = [];
-      }
-
-      await examRef.set(updateData,{merge:true});
-
-      /*
-        Shown ↔ Remove Link:
-        عند إخفاء اختبار من دورة مرتبطة، نحذف نفس Linked Course من أسئلة الاختبار.
-        بذلك لا يبقى زر Remove Link يعرض رابطاً مخفياً، والعكس أيضاً متزامن.
-      */
-      await unlinkPublishedExamCourse(examId, courseId);
+      await removeLinkedCourseFromExam(
+        examId,
+        courseId,
+        {
+          silent:true,
+          reloadQuestions:false
+        }
+      );
 
       console.log(
         "✅ Hidden + unlinked from sidebar:",
