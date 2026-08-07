@@ -6352,95 +6352,245 @@ async function removeSelectedLinkedCourse(questionId){
     );
 
   if(!select || !select.value){
-
     alert("Choose course first");
-
     return;
   }
 
   const courseId =
-    String(select.value).trim();
+    String(select.value || "").trim();
 
-  const qRef =
-    db.collection("questions")
-      .doc(questionId);
-
-  const qDoc =
-    await qRef.get();
-
-  if(!qDoc.exists){
-
-    alert("Question not found");
-
+  if(!courseId){
+    alert("Choose course first");
     return;
   }
 
-  const q =
-    qDoc.data();
+  const qDoc =
+    await db.collection("questions")
+      .doc(questionId)
+      .get();
 
-  // ✅ حذف الارتباط فقط
-  const filtered =
-    (q.coursesUsed || []).filter(c => {
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
 
-      return String(c.courseId || "").trim() !==
-             courseId;
+  const clickedQuestion =
+    qDoc.data() || {};
+
+  const examId =
+    String(clickedQuestion.examId || "").trim();
+
+  if(!examId){
+    alert("Exam not found");
+    return;
+  }
+
+  try{
+
+    /*
+      ✅ REMOVE LINK = إلغاء ربط النموذج كاملًا من الدورة المحددة.
+
+      مهم:
+      لا نستدعي syncAllVisibleLinkedQuestions() بعد الحذف،
+      لأن هذه الدالة مخصصة للربط وستعيد إضافة الدورة إلى كل الأسئلة.
+    */
+
+    const [examDoc, qSnap] =
+      await Promise.all([
+        db.collection("exams")
+          .doc(examId)
+          .get(),
+
+        db.collection("questions")
+          .where("examId","==",examId)
+          .get()
+      ]);
+
+    if(!examDoc.exists){
+      alert("Exam not found");
+      return;
+    }
+
+    const examData =
+      examDoc.data() || {};
+
+    const baseCourses =
+      Array.isArray(examData.coursesData)
+        ? examData.coursesData
+        : [];
+
+    const batch =
+      db.batch();
+
+    /*
+      ✅ احذف الدورة المرتبطة من coursesUsed
+      في جميع أسئلة النموذج، وليس السؤال الذي ضغطنا عليه فقط.
+    */
+    qSnap.forEach(doc=>{
+
+      const q =
+        doc.data() || {};
+
+      const oldUsed =
+        Array.isArray(q.coursesUsed)
+          ? q.coursesUsed
+          : [];
+
+      let filtered =
+        oldUsed.filter(c =>
+          String(c?.courseId || "").trim() !==
+          courseId
+        );
+
+      /*
+        إذا أصبح السؤال بدون أي دورة، رجعه للدورة/الدورات الأساسية
+        فقط، مع التأكد من عدم إعادة الدورة التي نحذف ربطها.
+      */
+      if(filtered.length === 0){
+
+        filtered =
+          baseCourses
+            .filter(c =>
+              String(c?.courseId || "").trim() !==
+              courseId
+            )
+            .map(c => ({
+              courseId:
+                c.courseId || "",
+
+              TrainingCourse:
+                c.TrainingCourse || "",
+
+              Trainer:
+                c.Trainer || "",
+
+              Period:
+                c.Period || ""
+            }));
+
+      }
+
+      const updateData = {
+        coursesUsed:
+          dedupeCoursesUsed(filtered)
+      };
+
+      /*
+        تنظيف حقول الربط القديمة إذا كانت تشير إلى
+        نفس الدورة التي تم حذفها.
+      */
+      if(
+        String(q.linkedCourseId || "").trim() ===
+        courseId
+      ){
+        updateData.linkedCourseId =
+          firebase.firestore.FieldValue.delete();
+
+        updateData.linkedCourseName =
+          firebase.firestore.FieldValue.delete();
+
+        updateData.linkedTrainer =
+          firebase.firestore.FieldValue.delete();
+
+        updateData.linkedPeriod =
+          firebase.firestore.FieldValue.delete();
+      }
+
+      batch.update(
+        db.collection("questions").doc(doc.id),
+        updateData
+      );
 
     });
 
-if(filtered.length === 0){
+    await batch.commit();
 
-  // ✅ رجع السؤال للدورة الأساسية بدل اختفائه
-  const examDoc =
+    /*
+      ✅ الأهم:
+      احذف الدورة فورًا من قائمة الأسئلة الظاهرة للطلاب.
+      بهذا الطالب لا يستطيع رؤية أي سؤال من هذا النموذج
+      بعد الضغط على Remove Link.
+    */
+    const visibleMap = {
+      ...(examData.visibleQuestionsByCourse || {})
+    };
+
+    delete visibleMap[courseId];
+
+    /*
+      ✅ حذف مهارات الدورة المرتبطة أيضًا حتى لا تبقى
+      كأنها مرتبطة في الواجهة.
+    */
+    const groupSkillsByCourse = {
+      ...(examData.groupSkillsByCourse || {})
+    };
+
+    delete groupSkillsByCourse[courseId];
+
+    const examUpdate = {
+      visibleQuestionsByCourse:
+        visibleMap,
+
+      groupSkillsByCourse:
+        groupSkillsByCourse,
+
+      updatedAt:
+        firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    /*
+      إذا كانت الدورة المفتوحة حاليًا هي نفس الدورة التي ألغينا ربطها،
+      امسح حقل النظام القديم أيضًا.
+    */
+    if(
+      String(CURRENT_COURSE_ID || "").trim() ===
+      courseId
+    ){
+      examUpdate.visibleQuestions = [];
+    }
+
     await db.collection("exams")
-      .doc(q.examId)
-      .get();
+      .doc(examId)
+      .set(
+        examUpdate,
+        { merge:true }
+      );
 
-  const examData = examDoc.data() || {};
+    /*
+      إذا كان الشريط/الواجهة مركّزًا على الدورة التي أزيلت،
+      ألغِ هذا التركيز حتى لا تعود للظهور من الكاش المحلي.
+    */
+    if(
+      typeof SIDEBAR_FOCUS_COURSE_ID !== "undefined" &&
+      String(SIDEBAR_FOCUS_COURSE_ID || "").trim() ===
+      courseId
+    ){
+      SIDEBAR_FOCUS_COURSE_ID = "";
+    }
 
-  const baseCourses =
-    examData.coursesData || [];
+    alert(
+      "✅ Link removed completely. Students can no longer see this model in the selected course."
+    );
 
-  await qRef.update({
+    if(typeof schedulePublishedSidebarRefresh === "function"){
+      schedulePublishedSidebarRefresh(30);
+    }
 
-    coursesUsed: baseCourses.map(c => ({
+    await loadQuestions();
 
-      courseId: c.courseId || "",
+  }catch(err){
 
-      TrainingCourse:
-        c.TrainingCourse || "",
+    console.error(
+      "REMOVE LINK ERROR:",
+      err
+    );
 
-      Trainer:
-        c.Trainer || "",
+    alert(
+      "❌ Failed to remove link: " +
+      (err?.message || String(err))
+    );
 
-      Period:
-        c.Period || ""
-
-    }))
-
-  });
-
-}else{
-
-  await qRef.update({
-
-    coursesUsed: filtered
-
-  });
-
-}
-
-  /*
-    إعادة بناء قائمة الأسئلة الظاهرة للدورة بعد إزالة الربط،
-    حتى لا يبقى رقم سؤال محذوف داخل visibleQuestionsByCourse.
-  */
-  await syncAllVisibleLinkedQuestions(
-    q.examId,
-    courseId
-  );
-
-  alert("✅ Link removed and the student question list was updated");
-
-  await loadQuestions();
+  }
 
 }
 async function relinkQuestion(questionId){
@@ -12074,58 +12224,164 @@ async function resetLinkedCourseOne(
   courseId
 ){
 
-  const iqama = prompt("Insert Student ID");
+  questionId =
+    String(questionId || "").trim();
+
+  courseId =
+    String(courseId || "").trim();
+
+  if(!questionId || !courseId){
+    alert("Question or course is missing");
+    return;
+  }
+
+  const iqama =
+    String(
+      prompt("Insert Student ID") || ""
+    ).trim();
 
   if(!iqama) return;
 
-  const qDoc = await db.collection("questions")
-    .doc(questionId)
-    .get();
+  try{
 
-  if(!qDoc.exists){
-    alert("Question not found");
-    return;
+    const qDoc =
+      await db.collection("questions")
+        .doc(questionId)
+        .get();
+
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
+
+    const q =
+      qDoc.data() || {};
+
+    const examId =
+      String(q.examId || "").trim();
+
+    if(!examId){
+      alert("Exam not found");
+      return;
+    }
+
+    /*
+      ✅ اجلب كل سجلات الطالب المطابقة للهوية.
+      قد يكون للطالب أكثر من document في students بسبب أكثر من دورة،
+      لذلك لا نعتمد على أول document فقط.
+    */
+    const studentSnap =
+      await db.collection("students")
+        .where("iqama","==",iqama)
+        .get();
+
+    const possibleStudentIds =
+      new Set();
+
+    studentSnap.forEach(doc=>{
+      possibleStudentIds.add(
+        String(doc.id || "").trim()
+      );
+
+      const s = doc.data() || {};
+
+      if(s.studentId){
+        possibleStudentIds.add(
+          String(s.studentId).trim()
+        );
+      }
+    });
+
+    /*
+      ✅ لا نستخدم استعلام مركب examId + courseId + studentId
+      حتى لا يعتمد الزر على Firestore composite index.
+
+      نجلب نتائج هذا الاختبار ثم نفلتر محليًا حسب:
+      - نفس الدورة المرتبطة
+      - نفس رقم الهوية أو studentId
+    */
+    const resultSnap =
+      await db.collection("results")
+        .where("examId","==",examId)
+        .get();
+
+    const docsToDelete = [];
+
+    resultSnap.forEach(doc=>{
+
+      const r =
+        doc.data() || {};
+
+      const sameCourse =
+        String(r.courseId || "").trim() ===
+        courseId;
+
+      if(!sameCourse) return;
+
+      const resultIqama =
+        String(
+          r.studentIqama ||
+          r.iqama ||
+          ""
+        ).trim();
+
+      const resultStudentId =
+        String(
+          r.studentId || ""
+        ).trim();
+
+      const sameStudent =
+        resultIqama === iqama ||
+        possibleStudentIds.has(
+          resultStudentId
+        );
+
+      if(sameStudent){
+        docsToDelete.push(doc.ref);
+      }
+
+    });
+
+    if(!docsToDelete.length){
+      alert(
+        "No result found for this student in the selected linked course"
+      );
+      return;
+    }
+
+    /*
+      ✅ Batch delete لضمان حذف كل محاولات الطالب
+      لنفس النموذج داخل هذه الدورة فقط.
+    */
+    const batch =
+      db.batch();
+
+    docsToDelete.forEach(ref=>{
+      batch.delete(ref);
+    });
+
+    await batch.commit();
+
+    alert(
+      "✅ Student reset completed. The student can take this exam again in the linked course."
+    );
+
+  }catch(err){
+
+    console.error(
+      "RESET LINKED STUDENT ERROR:",
+      err
+    );
+
+    alert(
+      "❌ Failed to reset student: " +
+      (err?.message || String(err))
+    );
+
   }
-
-  const q = qDoc.data();
-
-  const examId = q.examId;
-
-  // ✅ البحث عن الطالب
-  const studentSnap = await db.collection("students")
-    .where("iqama","==",iqama)
-    .get();
-
-  if(studentSnap.empty){
-    alert("Student not found");
-    return;
-  }
-
-  const studentId = studentSnap.docs[0].id;
-
-  // ✅ حذف نتيجة نفس الدورة فقط
-  const resultSnap = await db.collection("results")
-    .where("studentId","==",studentId)
-    .where("examId","==",examId)
-    .where("courseId","==",courseId)
-    .get();
-
-  if(resultSnap.empty){
-    alert("No result for this course");
-    return;
-  }
-
-  for(const doc of resultSnap.docs){
-
-    await db.collection("results")
-      .doc(doc.id)
-      .delete();
-
-  }
-
-  alert("✅ Student can do exam again");
 
 }
+
 
 // ✅ إعادة الاختبار لكل طلاب الدورة المرتبطة
 async function resetLinkedCourseAll(
@@ -12133,45 +12389,124 @@ async function resetLinkedCourseAll(
   courseId
 ){
 
+  questionId =
+    String(questionId || "").trim();
+
+  courseId =
+    String(courseId || "").trim();
+
+  if(!questionId || !courseId){
+    alert("Question or course is missing");
+    return;
+  }
+
   const ok = confirm(
-    "Reset this linked course only?"
+    "Reset this linked course only?
+
+" +
+    "All previous results for this exam in the selected linked course will be removed."
   );
 
   if(!ok) return;
 
-  const qDoc = await db.collection("questions")
-    .doc(questionId)
-    .get();
+  try{
 
-  if(!qDoc.exists){
-    alert("Question not found");
-    return;
+    const qDoc =
+      await db.collection("questions")
+        .doc(questionId)
+        .get();
+
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
+
+    const q =
+      qDoc.data() || {};
+
+    const examId =
+      String(q.examId || "").trim();
+
+    if(!examId){
+      alert("Exam not found");
+      return;
+    }
+
+    /*
+      ✅ نجلب نتائج الاختبار فقط ثم نفلتر courseId محليًا.
+      هذا أكثر ثباتًا ولا يحتاج composite index.
+    */
+    const resultSnap =
+      await db.collection("results")
+        .where("examId","==",examId)
+        .get();
+
+    const docsToDelete = [];
+
+    resultSnap.forEach(doc=>{
+
+      const r =
+        doc.data() || {};
+
+      if(
+        String(r.courseId || "").trim() ===
+        courseId
+      ){
+        docsToDelete.push(doc.ref);
+      }
+
+    });
+
+    if(!docsToDelete.length){
+      alert(
+        "No results found for this exam in the selected linked course"
+      );
+      return;
+    }
+
+    /*
+      Firestore batch maximum = 500 operations.
+      نحذف على دفعات حتى يعمل الزر حتى لو كانت النتائج كثيرة.
+    */
+    const BATCH_SIZE = 450;
+
+    for(
+      let i = 0;
+      i < docsToDelete.length;
+      i += BATCH_SIZE
+    ){
+
+      const batch =
+        db.batch();
+
+      docsToDelete
+        .slice(i, i + BATCH_SIZE)
+        .forEach(ref=>{
+          batch.delete(ref);
+        });
+
+      await batch.commit();
+    }
+
+    alert(
+      "✅ Linked course reset completed. " +
+      docsToDelete.length +
+      " result(s) were removed."
+    );
+
+  }catch(err){
+
+    console.error(
+      "RESET LINKED COURSE ERROR:",
+      err
+    );
+
+    alert(
+      "❌ Failed to reset linked course: " +
+      (err?.message || String(err))
+    );
+
   }
-
-  const q = qDoc.data();
-
-  const examId = q.examId;
-
-  // ✅ حذف نتائج نفس الدورة فقط
-  const resultSnap = await db.collection("results")
-    .where("examId","==",examId)
-    .where("courseId","==",courseId)
-    .get();
-
-  if(resultSnap.empty){
-    alert("No students");
-    return;
-  }
-
-  for(const doc of resultSnap.docs){
-
-    await db.collection("results")
-      .doc(doc.id)
-      .delete();
-
-  }
-
-  alert("✅ Linked course reset completed");
 
 }
 // ======================================
