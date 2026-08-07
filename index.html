@@ -1840,7 +1840,46 @@ button:hover{
 .published-course-block{padding:10px 11px;border-bottom:1px dashed #dbeafe}
 .published-course-block:last-child{border-bottom:0}
 .published-course-meta{font-size:12px;font-weight:900;color:#334155;line-height:1.55}
-.published-exam-name{margin-top:7px;font-size:12px;color:#64748b;font-weight:800}
+.published-exam-name{
+  margin-top:8px;
+  padding:10px 11px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid #dbeafe;
+  border-radius:11px;
+  background:#f8fbff;
+  color:#164478;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  user-select:none;
+  transition:.2s;
+}
+.published-exam-name:hover{
+  background:#eef6ff;
+  border-color:#9fc7ef;
+  transform:translateY(-1px);
+}
+.published-exam-name .published-exam-arrow{
+  margin-left:auto;
+  transition:transform .2s;
+}
+.published-exam-name.open .published-exam-arrow{transform:rotate(180deg)}
+.published-exam-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:28px;
+  padding:2px 7px;
+  border-radius:999px;
+  background:#eaf3fb;
+  color:#164478;
+  font-size:10px;
+  font-weight:900;
+}
+.published-exam-questions{display:none;padding:2px 2px 6px 8px}
+.published-exam-questions.open{display:block}
 .published-question-item{
   margin-top:7px;
   padding:8px 9px;
@@ -12972,11 +13011,20 @@ async function loadPublishedQuestionsSidebar(manual = false){
         `;
 
         block.exams.forEach(examRow=>{
+          const accordionId = `publishedExam_${String(examRow.examId).replace(/[^a-zA-Z0-9_-]/g,"_")}_${String(c.id).replace(/[^a-zA-Z0-9_-]/g,"_")}`;
+
           html += `
-            <div class="published-exam-name">
+            <div
+              class="published-exam-name"
+              onclick="togglePublishedExamQuestions('${accordionId}', this)"
+              title="Click to show questions"
+            >
               <i class="fa-regular fa-file-lines"></i>
-              ${esc(examRow.examTitle)}
+              <span>${esc(examRow.examTitle)}</span>
+              <span class="published-exam-count">${examRow.questions.length}</span>
+              <i class="fa-solid fa-chevron-down published-exam-arrow"></i>
             </div>
+            <div class="published-exam-questions" id="${accordionId}">
           `;
 
           examRow.questions.forEach((q,index)=>{
@@ -12987,6 +13035,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
               </div>
             `;
           });
+
+          html += `</div>`;
         });
 
         html += `</div>`;
@@ -13007,6 +13057,21 @@ async function loadPublishedQuestionsSidebar(manual = false){
     `;
   }finally{
     PUBLISHED_SIDEBAR_LOADING = false;
+  }
+}
+
+function togglePublishedExamQuestions(targetId, trigger){
+  const box = document.getElementById(targetId);
+  if(!box) return;
+
+  const willOpen = !box.classList.contains("open");
+  box.classList.toggle("open", willOpen);
+
+  if(trigger){
+    trigger.classList.toggle("open", willOpen);
+    trigger.title = willOpen
+      ? "Click to hide questions"
+      : "Click to show questions";
   }
 }
 
