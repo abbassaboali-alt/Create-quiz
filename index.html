@@ -6021,8 +6021,9 @@ async function syncLinkedCourseSkillWithTop(examId, groupName, linkedCourseId){
 
 
 /* =========================================
-   SYNC ALL LINKED QUESTIONS FOR A COURSE
-   يمنع ظهور السؤال الأول فقط عند الطالب
+   SYNC WHOLE EXAM / MODEL TO A COURSE
+   ✅ أي ربط لسؤال من النموذج = ربط النموذج كاملًا
+   ✅ يمنع ظهور السؤال الأول فقط
 ========================================= */
 async function syncAllVisibleLinkedQuestions(
   examId,
@@ -6038,8 +6039,14 @@ async function syncAllVisibleLinkedQuestions(
   const examRef =
     db.collection("exams").doc(examId);
 
-  const examDoc =
-    await examRef.get();
+  const [examDoc, courseDoc, qSnap] =
+    await Promise.all([
+      examRef.get(),
+      db.collection("Courses").doc(courseId).get(),
+      db.collection("questions")
+        .where("examId","==",examId)
+        .get()
+    ]);
 
   if(!examDoc.exists){
     return [];
@@ -6048,82 +6055,161 @@ async function syncAllVisibleLinkedQuestions(
   const examData =
     examDoc.data() || {};
 
-  const qSnap =
-    await db.collection("questions")
-      .where("examId","==",examId)
-      .get();
+  const courseData =
+    courseDoc.exists
+      ? (courseDoc.data() || {})
+      : {};
 
-  const linkedQuestionIds = [];
+  /*
+    ✅ احصل على بيانات الدورة.
+    لو لم نجدها في Courses نحاول أخذها من أي سؤال مرتبط سابقًا.
+  */
+  let courseInfo = {
+    courseId: courseId,
+    TrainingCourse:
+      courseData.TrainingCourse || "",
+    Trainer:
+      courseData.Trainer || "",
+    Period:
+      courseData.Period || ""
+  };
 
   qSnap.forEach(doc=>{
     const q = doc.data() || {};
-
-    const coursesUsed =
+    const used =
       Array.isArray(q.coursesUsed)
         ? q.coursesUsed
         : [];
 
-    const linkedToCourse =
-      coursesUsed.some(item =>
+    const oldLink =
+      used.find(item =>
         String(item?.courseId || "").trim() ===
         courseId
       );
 
+    if(oldLink){
+      courseInfo = {
+        courseId: courseId,
+        TrainingCourse:
+          courseInfo.TrainingCourse ||
+          oldLink.TrainingCourse || "",
+        Trainer:
+          courseInfo.Trainer ||
+          oldLink.Trainer || "",
+        Period:
+          courseInfo.Period ||
+          oldLink.Period || ""
+      };
+    }
+  });
+
+  const visibleQuestionIds = [];
+  const orderMap = {};
+  const batch = db.batch();
+
+  qSnap.forEach(doc=>{
+    const q = doc.data() || {};
+
+    orderMap[doc.id] =
+      Number(q.order || 0);
+
     /*
-      السؤال المخفي لا يظهر للطالب.
-      أما السؤال الظاهر والمرتبط بالدورة فيُضاف كله،
-      وليس السؤال الأول فقط.
+      ✅ إصلاح أصل المشكلة:
+      أضف الدورة إلى coursesUsed في كل أسئلة النموذج،
+      وليس في السؤال الذي تم الضغط عليه فقط.
+    */
+    const updatedCoursesUsed =
+      dedupeCoursesUsed([
+        ...(
+          Array.isArray(q.coursesUsed)
+            ? q.coursesUsed
+            : []
+        ),
+        courseInfo
+      ]);
+
+    batch.update(
+      db.collection("questions").doc(doc.id),
+      {
+        coursesUsed: updatedCoursesUsed,
+
+        // للتوافق مع الحقول القديمة
+        linkedCourseId: courseId,
+        linkedCourseName:
+          courseInfo.TrainingCourse || "",
+        linkedTrainer:
+          courseInfo.Trainer || "",
+        linkedPeriod:
+          courseInfo.Period || ""
+      }
+    );
+
+    /*
+      لا نرسل للطالب إلا الأسئلة الظاهرة فعليًا.
+      Reading Passage الرئيسي لا يُحسب كسؤال مستقل.
     */
     const questionVisible =
       q.showQuestion !== false &&
       q.visible !== false &&
-      q.hidden !== true;
+      q.hidden !== true &&
+      q.isMain !== true;
 
-    if(
-      linkedToCourse &&
-      questionVisible
-    ){
-      linkedQuestionIds.push(doc.id);
+    if(questionVisible){
+      visibleQuestionIds.push(doc.id);
     }
   });
 
-  /*
-    ترتيب ثابت مطابق لترتيب الأسئلة داخل الاختبار.
-  */
-  const orderMap = {};
+  await batch.commit();
 
-  qSnap.forEach(doc=>{
-    orderMap[doc.id] =
-      Number(doc.data()?.order || 0);
-  });
-
-  linkedQuestionIds.sort(
+  visibleQuestionIds.sort(
     (a,b)=>
       (orderMap[a] || 0) -
       (orderMap[b] || 0)
   );
 
+  /*
+    ✅ الخريطة التي يستخدمها الطالب والشريط الجانبي
+    تحتوي الآن على كل الأسئلة الفعلية للنموذج.
+  */
   const visibleMap = {
     ...(examData.visibleQuestionsByCourse || {})
   };
 
   visibleMap[courseId] =
-    linkedQuestionIds;
+    visibleQuestionIds;
+
+  const updateData = {
+    visibleQuestionsByCourse:
+      visibleMap,
+
+    updatedAt:
+      firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  /*
+    توافق مع النظام القديم فقط إذا كانت الدورة الحالية هي نفسها.
+  */
+  if(
+    String(CURRENT_COURSE_ID || "").trim() ===
+    courseId
+  ){
+    updateData.visibleQuestions =
+      visibleQuestionIds;
+  }
 
   await examRef.set(
-    {
-      visibleQuestionsByCourse:
-        visibleMap,
-
-      updatedAt:
-        firebase.firestore.FieldValue.serverTimestamp()
-    },
-    {
-      merge:true
-    }
+    updateData,
+    { merge:true }
   );
 
-  return linkedQuestionIds;
+  console.log(
+    "✅ Whole exam linked:",
+    examId,
+    courseId,
+    visibleQuestionIds.length
+  );
+
+  return visibleQuestionIds;
 }
 
 /* ================= إرسال السؤال لدورة أخرى ================= */
@@ -6182,83 +6268,64 @@ async function sendToCourse(questionId){
     }
   ]);
 
-/*
-  ✅ FIX — عند ربط سؤال بدورة، اربط جميع أسئلة نفس المجموعة
-  داخل نفس الاختبار بالدورة المختارة.
+await db.collection("questions")
+  .doc(questionId)
+  .update({
 
-  السبب في المشكلة السابقة:
-  sendToCourse() كان يضيف courseId إلى coursesUsed للسؤال
-  الذي ضغطت عليه فقط، ثم syncAllVisibleLinkedQuestions()
-  يجمع فقط الأسئلة التي تحتوي فعليًا على courseId داخل coursesUsed.
-  لذلك كان الطالب يرى سؤالًا واحدًا فقط.
-*/
-const targetGroup = String(q.group || "General").trim();
-
-const groupSnap = await db.collection("questions")
-  .where("examId","==",q.examId)
-  .get();
-
-const batch = db.batch();
-
-groupSnap.forEach(doc=>{
-
-  const item = doc.data() || {};
-
-  // لا نربط Reading Passage كسؤال مستقل
-  if(item.isMain === true) return;
-
-  const itemGroup =
-    String(item.group || "General").trim();
-
-  // فقط أسئلة نفس المجموعة التي تم الربط منها
-  if(itemGroup !== targetGroup) return;
-
-  const questionRef =
-    db.collection("questions").doc(doc.id);
-
-  const updatedCoursesUsed = dedupeCoursesUsed([
-    ...(Array.isArray(item.coursesUsed) ? item.coursesUsed : []),
-    {
-      courseId: selected.id,
-      TrainingCourse: selected.TrainingCourse || "",
-      Trainer: selected.Trainer || "",
-      Period: selected.Period || ""
-    }
-  ]);
-
-  batch.update(questionRef,{
     linkedCourseId: selected.id,
-    linkedCourseName: selected.TrainingCourse || "",
-    linkedTrainer: selected.Trainer || "",
-    linkedPeriod: selected.Period || "",
-    coursesUsed: updatedCoursesUsed
-  });
+
+    linkedCourseName:
+      selected.TrainingCourse || "",
+
+    linkedTrainer:
+      selected.Trainer || "",
+
+    linkedPeriod:
+      selected.Period || "",
+
+    // ✅ حفظ كل الدورات بشكل صحيح
+    coursesUsed: dedupeCoursesUsed([
+
+      ...(q.coursesUsed || []),
+
+      {
+        courseId: selected.id,
+
+        TrainingCourse:
+          selected.TrainingCourse || "",
+
+        Trainer:
+          selected.Trainer || "",
+
+        Period:
+          selected.Period || ""
+      }
+
+    ])
 
 });
 
-await batch.commit();
+  // ✅ اجعل مهارة الدورة المرتبطة مطابقة للمهارة المختارة في الأعلى
+  await syncLinkedCourseSkillWithTop(
+    q.examId,
+    q.group || "General",
+    selected.id
+  );
 
-// ✅ اجعل مهارة الدورة المرتبطة مطابقة للمهارة المختارة في الأعلى
-await syncLinkedCourseSkillWithTop(
-  q.examId,
-  targetGroup,
-  selected.id
-);
+  /*
+    تحديث قائمة الطالب بكل الأسئلة المرتبطة بالدورة،
+    وليس السؤال الحالي فقط.
+  */
+  const linkedIds = await syncAllVisibleLinkedQuestions(
+    q.examId,
+    selected.id
+  );
 
-/*
-  ✅ بعد ربط كل أسئلة المجموعة، أعد بناء القائمة الظاهرة للطالب.
-*/
-const linkedIds = await syncAllVisibleLinkedQuestions(
-  q.examId,
-  selected.id
-);
-
-alert(
-  "✅ All questions in this group were linked successfully.\n" +
-  "Questions shown to students: " + linkedIds.length
-);
-
-await loadQuestions();
+  alert(
+    "✅ The full exam/model has been linked successfully.\n" +
+    "Questions shown to students: " + linkedIds.length
+  );
+  await loadQuestions();
 }
 function liveExamPreview(searchText){
 
@@ -6609,12 +6676,15 @@ async function confirmRelinkQuestion(questionId){
     selected.id
   );
 
-  await syncAllVisibleLinkedQuestions(
+  const linkedIds = await syncAllVisibleLinkedQuestions(
     q.examId,
     selected.id
   );
 
-  alert("✅ Course linked and all linked questions are now visible");
+  alert(
+    "✅ The full exam/model has been linked successfully.\n" +
+    "Questions shown to students: " + linkedIds.length
+  );
 
   await loadQuestions();
 
@@ -13207,7 +13277,12 @@ async function loadPublishedQuestionsSidebar(manual = false){
     const questionMap = {};
     questionsSnap.forEach(doc=>{
       const q = doc.data() || {};
-      if(q.showQuestion === false || q.visible === false || q.hidden === true){
+      if(
+        q.showQuestion === false ||
+        q.visible === false ||
+        q.hidden === true ||
+        q.isMain === true
+      ){
         return;
       }
       questionMap[doc.id] = {
