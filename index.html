@@ -2759,6 +2759,12 @@ let CURRENT_PREVIEW_EXAM = "";
 let ACTIVE_QUESTION_ID = "";
 let CURRENT_PRINT_EXAM_DATA = null;
 let CURRENT_COURSE_ID = "";
+
+/*
+  عند فتح اختبار من الشريط الجانبي نحفظ الدورة التي ضغط عليها المدرب.
+  أثناء هذا الوضع لا نعرض روابط دورات المدربين الآخرين.
+*/
+let SIDEBAR_FOCUS_COURSE_ID = "";
 let CURRENT_COURSE_NAME = "";
 let CURRENT_TRAINER = "";
 let CURRENT_PERIOD = "";
@@ -3931,6 +3937,8 @@ html += `
 }
 function changeCourseTab(courseId){
 
+  // الانتقال اليدوي بين الدورات يعيد العرض العادي
+  SIDEBAR_FOCUS_COURSE_ID = "";
   CURRENT_COURSE_ID = courseId;
 
   const examId = CURRENT_PREVIEW_EXAM;
@@ -3987,6 +3995,9 @@ function changeCourseTab(courseId){
 
   if(resetCourse){
 
+    // الفتح العادي من قائمة الاختبارات يلغي وضع التركيز القادم من الشريط
+    SIDEBAR_FOCUS_COURSE_ID = "";
+
     CURRENT_COURSE_ID = "";
     CURRENT_COURSE_NAME = "";
     CURRENT_TRAINER = "";
@@ -4003,8 +4014,34 @@ function changeCourseTab(courseId){
 
   tabsBox.innerHTML = "";
 
-  const courses =
+  const rawCourses =
     examData.coursesData || [];
+
+  /*
+    إذا فُتح الاختبار من الشريط:
+    اعرض تبويب الدورة التي ضغط عليها فقط.
+    قد تكون الدورة مرتبطة بالأسئلة وليست ضمن coursesData الأساسية،
+    لذلك نضيف بيانات CURRENT_* كخيار احتياطي.
+  */
+  let courses = rawCourses;
+
+  if(SIDEBAR_FOCUS_COURSE_ID){
+
+    const focusedFromExam =
+      rawCourses.filter(c =>
+        String(c.courseId || "").trim() ===
+        String(SIDEBAR_FOCUS_COURSE_ID || "").trim()
+      );
+
+    courses = focusedFromExam.length
+      ? focusedFromExam
+      : [{
+          courseId: SIDEBAR_FOCUS_COURSE_ID,
+          TrainingCourse: CURRENT_COURSE_NAME || "",
+          Trainer: CURRENT_TRAINER || "",
+          Period: CURRENT_PERIOD || ""
+        }];
+  }
 
   // ✅ أول دورة افتراضية
   if(!CURRENT_COURSE_ID && courses.length){
@@ -7649,6 +7686,99 @@ linkedCoursesStats[cid]
     .size;  });
 
 });
+
+/*
+  ============================================================
+  SIDEBAR COURSE FOCUS
+  عند فتح الاختبار من الشريط الجانبي:
+  Linked Courses يجب أن يعرض دورة المدرب المختارة فقط،
+  حتى لو كانت نفس الأسئلة مرتبطة بدورات مدربين آخرين.
+  ============================================================
+*/
+if(
+  SIDEBAR_FOCUS_COURSE_ID &&
+  String(SIDEBAR_FOCUS_COURSE_ID).trim() ===
+  String(CURRENT_COURSE_ID || "").trim()
+){
+  const focusId =
+    String(SIDEBAR_FOCUS_COURSE_ID).trim();
+
+  const focusStats = {
+    courseId: focusId,
+    TrainingCourse: CURRENT_COURSE_NAME || "",
+    Trainer: CURRENT_TRAINER || "",
+    Period: CURRENT_PERIOD || "",
+    skills: {},
+    savedSkills:
+      groupSkillsByCourse?.[focusId] || {},
+    countedSkills: {}
+  };
+
+  /*
+    نحسب الإحصاءات للدورة المختارة نفسها،
+    بدل إحصاءات الدورات الأخرى المرتبطة بنفس الأسئلة.
+  */
+  allQuestions.forEach(q=>{
+    if(q.isMain === true) return;
+
+    const used =
+      Array.isArray(q.coursesUsed)
+        ? q.coursesUsed
+        : [];
+
+    const belongsToFocus =
+      used.some(item =>
+        String(item?.courseId || "").trim() ===
+        focusId
+      );
+
+    if(!belongsToFocus) return;
+
+    const realGroupName =
+      String(q.group || "General").trim();
+
+    let skillName =
+      groupSkillsByCourse?.[focusId]?.[realGroupName]
+      || groupSkills?.[realGroupName]
+      || "";
+
+    if(!skillName){
+      examsSnapForSkills.forEach(examDoc=>{
+        const ex = examDoc.data() || {};
+        const saved =
+          ex.groupSkillsByCourse?.[focusId]?.[realGroupName];
+
+        if(saved && !skillName){
+          skillName = saved;
+        }
+      });
+    }
+
+    if(!skillName || skillName === "No Skill"){
+      return;
+    }
+
+    if(!focusStats.countedSkills[skillName]){
+      focusStats.countedSkills[skillName] = new Set();
+    }
+
+    focusStats.countedSkills[skillName]
+      .add(String(q.examId || ""));
+  });
+
+  Object.keys(focusStats.countedSkills)
+    .forEach(skillName=>{
+      focusStats.skills[skillName] =
+        focusStats.countedSkills[skillName].size;
+    });
+
+  // امسح جميع دورات الآخرين ثم أضف دورة المدرب المختارة فقط.
+  Object.keys(linkedCoursesStats)
+    .forEach(key => delete linkedCoursesStats[key]);
+
+  linkedCoursesStats[focusId] = focusStats;
+}
+
     Object.keys(grouped).forEach(groupName=>{
 
       const groupQuestions = grouped[groupName];
@@ -13307,6 +13437,8 @@ async function openPublishedExamForEdit(examId, courseId){
 
     // اختيار الدورة الصحيحة قبل فتح الاختبار
     if(courseId){
+      // ✅ وضع تركيز: لا تظهر دورات المدربين الآخرين داخل Linked Courses
+      SIDEBAR_FOCUS_COURSE_ID = courseId;
       CURRENT_COURSE_ID = courseId;
 
       try{
