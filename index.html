@@ -3799,7 +3799,7 @@ html += `
 
 <div class="exam-card"
   data-id="${e.id}"
-  onclick="openExamTab('${e.id}')"
+  onclick="SIDEBAR_FOCUS_COURSE_ID=''; openExamTab('${e.id}', true)"
   style="
     background:#fff;
     border:2px solid #dbeafe;
@@ -3953,7 +3953,8 @@ html += `
     class="preview-btn"
     onclick="
       event.stopPropagation();
-      openExamTab('${e.id}');
+      SIDEBAR_FOCUS_COURSE_ID = "";
+      openExamTab('${e.id}', true);
     "
   >
     □ Show Below
@@ -7507,27 +7508,51 @@ if(deleteExamBtn){
     deleteExamBtn.style.display = "block";
   }
 }
-let questions =
-  [...examQuestions];
+/*
+  ✅ FIX — الفرق بين فتح النموذج من مربع الاختبارات وفتحه من الشريط
 
-questions =
-  questions.filter(q => {
+  1) عند الضغط على بطاقة الاختبار من "Previews questions":
+     نعرض جميع الأسئلة الفعلية التابعة لنفس examId بدون فلترة coursesUsed.
+
+  2) عند الضغط على الاختبار من "Questions Shown to Students":
+     نكون في SIDEBAR_FOCUS_COURSE_ID، وهنا فقط نعرض الأسئلة الخاصة
+     بالدورة التي ضغط عليها المدرب.
+
+  المشكلة السابقة:
+  openExamTab() عند الفتح العادي يختار أول دورة داخل coursesData،
+  وبعدها هذا الفلتر كان يحذف أي سؤال لا يحتوي تلك الدورة داخل coursesUsed،
+  لذلك كانت تظهر مجموعة ناقصة وقد يظهر سؤال واحد فقط.
+*/
+let questions = [...examQuestions];
+
+if(SIDEBAR_FOCUS_COURSE_ID){
+
+  const focusCourseId =
+    String(SIDEBAR_FOCUS_COURSE_ID || "").trim();
+
+  questions = questions.filter(q => {
 
     const used =
       Array.isArray(q.coursesUsed)
         ? q.coursesUsed
         : [];
 
+    /*
+      السؤال بدون coursesUsed يعتبر من أسئلة النموذج الأساسية،
+      لذلك يبقى ظاهرًا أيضًا.
+    */
     if(used.length === 0){
       return true;
     }
 
     return used.some(c =>
       String(c.courseId || "").trim() ===
-      String(CURRENT_COURSE_ID).trim()
+      focusCourseId
     );
 
   });
+
+}
 
 let totalDegree = 0;
 
@@ -13240,7 +13265,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
     if(roleLabel){
       roleLabel.textContent = isAdmin
         ? "Admin view — all trainers"
-        : "Trainer view — my published questions";
+        : "Trainer view — my published models";
     }
 
     const [coursesSnap, examsSnap, questionsSnap] = await Promise.all([
@@ -13354,17 +13379,21 @@ async function loadPublishedQuestionsSidebar(manual = false){
       return a.examTitle.localeCompare(b.examTitle);
     });
 
-    const totalQuestions = rows.reduce((sum,row)=>sum + row.questions.length,0);
+    /*
+      ✅ الشريط يعرض عدد النماذج/الاختبارات المنشورة، وليس عدد الأسئلة.
+      كل Exam داخل دورة = نموذج واحد مهما كان بداخله من أسئلة.
+    */
+    const totalModels = rows.length;
     const trainerSet = new Set(rows.map(r=>r.course.trainer));
     const courseSet = new Set(rows.map(r=>r.course.id));
 
     if(!rows.length){
       body.innerHTML = `
         <div class="published-sidebar-summary">
-          <span class="published-sidebar-pill">0 Questions</span>
+          <span class="published-sidebar-pill">0 Models</span>
         </div>
         <div class="published-sidebar-empty">
-          No questions are currently shown to students.
+          No models are currently shown to students.
         </div>
       `;
       return;
@@ -13385,24 +13414,44 @@ async function loadPublishedQuestionsSidebar(manual = false){
       }
       grouped[trainerKey][courseKey].exams.push(row);
 
-      // ✅ عدد الأسئلة المنشورة حسب المهارة داخل هذه الدورة
+      /*
+        ✅ عدد النماذج حسب المهارة — وليس عدد الأسئلة.
+
+        مثال:
+        نموذج Reading Quiz فيه 5 أسئلة Reading
+        النتيجة هنا = Reading 1 وليس Reading 5.
+
+        ولو كان النموذج يحتوي أكثر من سؤال من نفس المهارة،
+        يتم احتساب examId مرة واحدة فقط.
+      */
+      const skillsInThisModel = new Set();
+
       row.questions.forEach(q=>{
         const skill =
           String(q.skill || q.group || "General").trim() ||
           "General";
 
+        skillsInThisModel.add(skill);
+      });
+
+      skillsInThisModel.forEach(skill=>{
+        if(
+          !grouped[trainerKey][courseKey]
+            .skillCounts[skill]
+        ){
+          grouped[trainerKey][courseKey]
+            .skillCounts[skill] = new Set();
+        }
+
         grouped[trainerKey][courseKey]
-          .skillCounts[skill] =
-            (
-              grouped[trainerKey][courseKey]
-                .skillCounts[skill] || 0
-            ) + 1;
+          .skillCounts[skill]
+          .add(String(row.examId || ""));
       });
     });
 
     let html = `
       <div class="published-sidebar-summary">
-        <span class="published-sidebar-pill">${totalQuestions} Questions</span>
+        <span class="published-sidebar-pill">${totalModels} Models</span>
         <span class="published-sidebar-pill">${courseSet.size} Courses</span>
         ${isAdmin ? `<span class="published-sidebar-pill">${trainerSet.size} Trainers</span>` : ""}
       </div>
@@ -13421,6 +13470,12 @@ async function loadPublishedQuestionsSidebar(manual = false){
         const c = block.course;
         const skillEntries =
           Object.entries(block.skillCounts || {})
+            .map(([skill,examSet])=>[
+              skill,
+              examSet instanceof Set
+                ? examSet.size
+                : Number(examSet || 0)
+            ])
             .filter(([,count])=>Number(count || 0) > 0)
             .sort((a,b)=>
               String(a[0]).localeCompare(String(b[0]))
@@ -13433,7 +13488,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
                 ${skillEntries.map(([skill,count])=>`
                   <span
                     class="published-skill-chip"
-                    title="${esc(skill)}: ${Number(count || 0)} published question(s)"
+                    title="${esc(skill)}: ${Number(count || 0)} published model(s)"
                   >
                     <span class="published-skill-name">${esc(skill)}</span>
                     <strong class="published-skill-count">${Number(count || 0)}</strong>
