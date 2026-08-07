@@ -6182,61 +6182,83 @@ async function sendToCourse(questionId){
     }
   ]);
 
-await db.collection("questions")
-  .doc(questionId)
-  .update({
+/*
+  ✅ FIX — عند ربط سؤال بدورة، اربط جميع أسئلة نفس المجموعة
+  داخل نفس الاختبار بالدورة المختارة.
 
+  السبب في المشكلة السابقة:
+  sendToCourse() كان يضيف courseId إلى coursesUsed للسؤال
+  الذي ضغطت عليه فقط، ثم syncAllVisibleLinkedQuestions()
+  يجمع فقط الأسئلة التي تحتوي فعليًا على courseId داخل coursesUsed.
+  لذلك كان الطالب يرى سؤالًا واحدًا فقط.
+*/
+const targetGroup = String(q.group || "General").trim();
+
+const groupSnap = await db.collection("questions")
+  .where("examId","==",q.examId)
+  .get();
+
+const batch = db.batch();
+
+groupSnap.forEach(doc=>{
+
+  const item = doc.data() || {};
+
+  // لا نربط Reading Passage كسؤال مستقل
+  if(item.isMain === true) return;
+
+  const itemGroup =
+    String(item.group || "General").trim();
+
+  // فقط أسئلة نفس المجموعة التي تم الربط منها
+  if(itemGroup !== targetGroup) return;
+
+  const questionRef =
+    db.collection("questions").doc(doc.id);
+
+  const updatedCoursesUsed = dedupeCoursesUsed([
+    ...(Array.isArray(item.coursesUsed) ? item.coursesUsed : []),
+    {
+      courseId: selected.id,
+      TrainingCourse: selected.TrainingCourse || "",
+      Trainer: selected.Trainer || "",
+      Period: selected.Period || ""
+    }
+  ]);
+
+  batch.update(questionRef,{
     linkedCourseId: selected.id,
-
-    linkedCourseName:
-      selected.TrainingCourse || "",
-
-    linkedTrainer:
-      selected.Trainer || "",
-
-    linkedPeriod:
-      selected.Period || "",
-
-    // ✅ حفظ كل الدورات بشكل صحيح
-    coursesUsed: dedupeCoursesUsed([
-
-      ...(q.coursesUsed || []),
-
-      {
-        courseId: selected.id,
-
-        TrainingCourse:
-          selected.TrainingCourse || "",
-
-        Trainer:
-          selected.Trainer || "",
-
-        Period:
-          selected.Period || ""
-      }
-
-    ])
+    linkedCourseName: selected.TrainingCourse || "",
+    linkedTrainer: selected.Trainer || "",
+    linkedPeriod: selected.Period || "",
+    coursesUsed: updatedCoursesUsed
+  });
 
 });
 
-  // ✅ اجعل مهارة الدورة المرتبطة مطابقة للمهارة المختارة في الأعلى
-  await syncLinkedCourseSkillWithTop(
-    q.examId,
-    q.group || "General",
-    selected.id
-  );
+await batch.commit();
 
-  /*
-    تحديث قائمة الطالب بكل الأسئلة المرتبطة بالدورة،
-    وليس السؤال الحالي فقط.
-  */
-  await syncAllVisibleLinkedQuestions(
-    q.examId,
-    selected.id
-  );
+// ✅ اجعل مهارة الدورة المرتبطة مطابقة للمهارة المختارة في الأعلى
+await syncLinkedCourseSkillWithTop(
+  q.examId,
+  targetGroup,
+  selected.id
+);
 
-  alert("✅ The question has been linked and all linked questions are now visible");
-  await loadQuestions();
+/*
+  ✅ بعد ربط كل أسئلة المجموعة، أعد بناء القائمة الظاهرة للطالب.
+*/
+const linkedIds = await syncAllVisibleLinkedQuestions(
+  q.examId,
+  selected.id
+);
+
+alert(
+  "✅ All questions in this group were linked successfully.\n" +
+  "Questions shown to students: " + linkedIds.length
+);
+
+await loadQuestions();
 }
 function liveExamPreview(searchText){
 
