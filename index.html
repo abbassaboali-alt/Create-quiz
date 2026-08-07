@@ -12224,164 +12224,58 @@ async function resetLinkedCourseOne(
   courseId
 ){
 
-  questionId =
-    String(questionId || "").trim();
-
-  courseId =
-    String(courseId || "").trim();
-
-  if(!questionId || !courseId){
-    alert("Question or course is missing");
-    return;
-  }
-
-  const iqama =
-    String(
-      prompt("Insert Student ID") || ""
-    ).trim();
+  const iqama = prompt("Insert Student ID");
 
   if(!iqama) return;
 
-  try{
+  const qDoc = await db.collection("questions")
+    .doc(questionId)
+    .get();
 
-    const qDoc =
-      await db.collection("questions")
-        .doc(questionId)
-        .get();
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
 
-    if(!qDoc.exists){
-      alert("Question not found");
-      return;
-    }
+  const q = qDoc.data();
 
-    const q =
-      qDoc.data() || {};
+  const examId = q.examId;
 
-    const examId =
-      String(q.examId || "").trim();
+  // ✅ البحث عن الطالب
+  const studentSnap = await db.collection("students")
+    .where("iqama","==",iqama)
+    .get();
 
-    if(!examId){
-      alert("Exam not found");
-      return;
-    }
+  if(studentSnap.empty){
+    alert("Student not found");
+    return;
+  }
 
-    /*
-      ✅ اجلب كل سجلات الطالب المطابقة للهوية.
-      قد يكون للطالب أكثر من document في students بسبب أكثر من دورة،
-      لذلك لا نعتمد على أول document فقط.
-    */
-    const studentSnap =
-      await db.collection("students")
-        .where("iqama","==",iqama)
-        .get();
+  const studentId = studentSnap.docs[0].id;
 
-    const possibleStudentIds =
-      new Set();
+  // ✅ حذف نتيجة نفس الدورة فقط
+  const resultSnap = await db.collection("results")
+    .where("studentId","==",studentId)
+    .where("examId","==",examId)
+    .where("courseId","==",courseId)
+    .get();
 
-    studentSnap.forEach(doc=>{
-      possibleStudentIds.add(
-        String(doc.id || "").trim()
-      );
+  if(resultSnap.empty){
+    alert("No result for this course");
+    return;
+  }
 
-      const s = doc.data() || {};
+  for(const doc of resultSnap.docs){
 
-      if(s.studentId){
-        possibleStudentIds.add(
-          String(s.studentId).trim()
-        );
-      }
-    });
-
-    /*
-      ✅ لا نستخدم استعلام مركب examId + courseId + studentId
-      حتى لا يعتمد الزر على Firestore composite index.
-
-      نجلب نتائج هذا الاختبار ثم نفلتر محليًا حسب:
-      - نفس الدورة المرتبطة
-      - نفس رقم الهوية أو studentId
-    */
-    const resultSnap =
-      await db.collection("results")
-        .where("examId","==",examId)
-        .get();
-
-    const docsToDelete = [];
-
-    resultSnap.forEach(doc=>{
-
-      const r =
-        doc.data() || {};
-
-      const sameCourse =
-        String(r.courseId || "").trim() ===
-        courseId;
-
-      if(!sameCourse) return;
-
-      const resultIqama =
-        String(
-          r.studentIqama ||
-          r.iqama ||
-          ""
-        ).trim();
-
-      const resultStudentId =
-        String(
-          r.studentId || ""
-        ).trim();
-
-      const sameStudent =
-        resultIqama === iqama ||
-        possibleStudentIds.has(
-          resultStudentId
-        );
-
-      if(sameStudent){
-        docsToDelete.push(doc.ref);
-      }
-
-    });
-
-    if(!docsToDelete.length){
-      alert(
-        "No result found for this student in the selected linked course"
-      );
-      return;
-    }
-
-    /*
-      ✅ Batch delete لضمان حذف كل محاولات الطالب
-      لنفس النموذج داخل هذه الدورة فقط.
-    */
-    const batch =
-      db.batch();
-
-    docsToDelete.forEach(ref=>{
-      batch.delete(ref);
-    });
-
-    await batch.commit();
-
-    alert(
-      "✅ Student reset completed. The student can take this exam again in the linked course."
-    );
-
-  }catch(err){
-
-    console.error(
-      "RESET LINKED STUDENT ERROR:",
-      err
-    );
-
-    alert(
-      "❌ Failed to reset student: " +
-      (err?.message || String(err))
-    );
+    await db.collection("results")
+      .doc(doc.id)
+      .delete();
 
   }
 
-}
+  alert("✅ Student can do exam again");
 
+}
 
 // ✅ إعادة الاختبار لكل طلاب الدورة المرتبطة
 async function resetLinkedCourseAll(
@@ -12389,124 +12283,45 @@ async function resetLinkedCourseAll(
   courseId
 ){
 
-  questionId =
-    String(questionId || "").trim();
-
-  courseId =
-    String(courseId || "").trim();
-
-  if(!questionId || !courseId){
-    alert("Question or course is missing");
-    return;
-  }
-
   const ok = confirm(
-    "Reset this linked course only?
-
-" +
-    "All previous results for this exam in the selected linked course will be removed."
+    "Reset this linked course only?"
   );
 
   if(!ok) return;
 
-  try{
+  const qDoc = await db.collection("questions")
+    .doc(questionId)
+    .get();
 
-    const qDoc =
-      await db.collection("questions")
-        .doc(questionId)
-        .get();
+  if(!qDoc.exists){
+    alert("Question not found");
+    return;
+  }
 
-    if(!qDoc.exists){
-      alert("Question not found");
-      return;
-    }
+  const q = qDoc.data();
 
-    const q =
-      qDoc.data() || {};
+  const examId = q.examId;
 
-    const examId =
-      String(q.examId || "").trim();
+  // ✅ حذف نتائج نفس الدورة فقط
+  const resultSnap = await db.collection("results")
+    .where("examId","==",examId)
+    .where("courseId","==",courseId)
+    .get();
 
-    if(!examId){
-      alert("Exam not found");
-      return;
-    }
+  if(resultSnap.empty){
+    alert("No students");
+    return;
+  }
 
-    /*
-      ✅ نجلب نتائج الاختبار فقط ثم نفلتر courseId محليًا.
-      هذا أكثر ثباتًا ولا يحتاج composite index.
-    */
-    const resultSnap =
-      await db.collection("results")
-        .where("examId","==",examId)
-        .get();
+  for(const doc of resultSnap.docs){
 
-    const docsToDelete = [];
-
-    resultSnap.forEach(doc=>{
-
-      const r =
-        doc.data() || {};
-
-      if(
-        String(r.courseId || "").trim() ===
-        courseId
-      ){
-        docsToDelete.push(doc.ref);
-      }
-
-    });
-
-    if(!docsToDelete.length){
-      alert(
-        "No results found for this exam in the selected linked course"
-      );
-      return;
-    }
-
-    /*
-      Firestore batch maximum = 500 operations.
-      نحذف على دفعات حتى يعمل الزر حتى لو كانت النتائج كثيرة.
-    */
-    const BATCH_SIZE = 450;
-
-    for(
-      let i = 0;
-      i < docsToDelete.length;
-      i += BATCH_SIZE
-    ){
-
-      const batch =
-        db.batch();
-
-      docsToDelete
-        .slice(i, i + BATCH_SIZE)
-        .forEach(ref=>{
-          batch.delete(ref);
-        });
-
-      await batch.commit();
-    }
-
-    alert(
-      "✅ Linked course reset completed. " +
-      docsToDelete.length +
-      " result(s) were removed."
-    );
-
-  }catch(err){
-
-    console.error(
-      "RESET LINKED COURSE ERROR:",
-      err
-    );
-
-    alert(
-      "❌ Failed to reset linked course: " +
-      (err?.message || String(err))
-    );
+    await db.collection("results")
+      .doc(doc.id)
+      .delete();
 
   }
+
+  alert("✅ Linked course reset completed");
 
 }
 // ======================================
