@@ -1924,6 +1924,27 @@ button:hover{
   #publishedQuestionsSidebar{display:none!important}
 }
 
+
+/* Published sidebar — titles only; click title to open the real editor */
+.published-exam-open-btn{
+  width:100% !important;
+  margin:7px 0 0 !important;
+  border:1px solid #dbeafe !important;
+  background:#ffffff !important;
+  color:#164478 !important;
+  box-shadow:none !important;
+  text-align:left !important;
+  cursor:pointer !important;
+}
+.published-exam-open-btn:hover{
+  background:#eef6ff !important;
+  border-color:#93c5fd !important;
+  transform:translateY(-1px);
+}
+.published-exam-open-btn .published-exam-arrow{
+  margin-left:auto;
+  transform:none !important;
+}
 </style>
 </head>
 <body>
@@ -2620,6 +2641,13 @@ window.addEventListener("message", function(e){
       CURRENT_PREVIEW_EXAM
     ){
       loadQuestions();
+    }
+
+    // تحديث الشريط مباشرة بعد وصول بيانات دخول المدرب/الأدمن
+    if(typeof loadPublishedQuestionsSidebar === "function"){
+      loadPublishedQuestionsSidebar(false).catch(err=>
+        console.warn("Published sidebar auth refresh:", err)
+      );
     }
   }
 
@@ -10905,11 +10933,11 @@ async function showCourseSelector(questionId){
 }
 /* ================= تشغيل ================= */
 async function init(){
-  // الشريط يظهر ويبدأ التحميل من بداية فتح الصفحة
-  initPublishedQuestionsSidebar().catch(err=>
-    console.warn("Published sidebar init:", err)
-  );
-
+  /*
+    مهم:
+    لا نشغّل الشريط هنا لأن دوال الشريط موجودة في آخر الملف.
+    إبقاء init خاصًا بتحميل الصفحة يمنع توقف تحميل قائمة الاختبارات.
+  */
   await loadFilters();
   await loadCourses();
   await loadExams();
@@ -13011,32 +13039,19 @@ async function loadPublishedQuestionsSidebar(manual = false){
         `;
 
         block.exams.forEach(examRow=>{
-          const accordionId = `publishedExam_${String(examRow.examId).replace(/[^a-zA-Z0-9_-]/g,"_")}_${String(c.id).replace(/[^a-zA-Z0-9_-]/g,"_")}`;
-
           html += `
-            <div
-              class="published-exam-name"
-              onclick="togglePublishedExamQuestions('${accordionId}', this)"
-              title="Click to show questions"
+            <button
+              type="button"
+              class="published-exam-name published-exam-open-btn"
+              onclick='openPublishedExamForEdit(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)})'
+              title="Open this exam and edit its questions"
             >
               <i class="fa-regular fa-file-lines"></i>
               <span>${esc(examRow.examTitle)}</span>
               <span class="published-exam-count">${examRow.questions.length}</span>
-              <i class="fa-solid fa-chevron-down published-exam-arrow"></i>
-            </div>
-            <div class="published-exam-questions" id="${accordionId}">
+              <i class="fa-solid fa-arrow-up-right-from-square published-exam-arrow"></i>
+            </button>
           `;
-
-          examRow.questions.forEach((q,index)=>{
-            html += `
-              <div class="published-question-item" title="${esc(q.group || "General")}">
-                <span class="published-question-number">Q${index + 1}</span>
-                ${esc(q.text)}
-              </div>
-            `;
-          });
-
-          html += `</div>`;
         });
 
         html += `</div>`;
@@ -13060,18 +13075,60 @@ async function loadPublishedQuestionsSidebar(manual = false){
   }
 }
 
-function togglePublishedExamQuestions(targetId, trigger){
-  const box = document.getElementById(targetId);
-  if(!box) return;
+async function openPublishedExamForEdit(examId, courseId){
+  try{
+    examId = String(examId || "").trim();
+    courseId = String(courseId || "").trim();
 
-  const willOpen = !box.classList.contains("open");
-  box.classList.toggle("open", willOpen);
+    if(!examId) return;
 
-  if(trigger){
-    trigger.classList.toggle("open", willOpen);
-    trigger.title = willOpen
-      ? "Click to hide questions"
-      : "Click to show questions";
+    // اختيار الدورة الصحيحة قبل فتح الاختبار
+    if(courseId){
+      CURRENT_COURSE_ID = courseId;
+
+      try{
+        const cDoc = await db.collection("Courses").doc(courseId).get();
+        if(cDoc.exists){
+          const c = cDoc.data() || {};
+          CURRENT_COURSE_NAME =
+            c.TrainingCourse || c.course || "";
+          CURRENT_TRAINER =
+            c.Trainer || c.trainer || "";
+          CURRENT_PERIOD =
+            c.Period || c.period || "";
+        }
+      }catch(courseErr){
+        console.warn("Published sidebar course read:", courseErr);
+      }
+    }
+
+    /*
+      false = لا تعيد CURRENT_COURSE_ID لأول دورة.
+      بهذا يفتح نفس الاختبار ونفس دورة المدرب التي ضغط عليها.
+    */
+    await openExamTab(examId, false);
+
+    // التمرير تلقائيًا إلى منطقة تعديل الأسئلة
+    setTimeout(()=>{
+      const target =
+        document.getElementById("questionsList") ||
+        document.getElementById("courseTabs") ||
+        document.getElementById("examPreviewBox");
+
+      if(target){
+        target.scrollIntoView({
+          behavior:"smooth",
+          block:"start"
+        });
+      }
+    },120);
+
+  }catch(error){
+    console.error("OPEN PUBLISHED EXAM ERROR:", error);
+    alert(
+      "Unable to open this exam: " +
+      (error?.message || String(error))
+    );
   }
 }
 
@@ -13110,5 +13167,26 @@ window.addEventListener("DOMContentLoaded",function(){
   if(document.getElementById("fillItemsList") && !getFillRows().length){
     resetFillItems();
   }
+
+  /*
+    تشغيل الشريط بعد اكتمال تعريف جميع دوال الملف.
+    هذا يجعله يظهر تلقائيًا من أول فتح للصفحة
+    بدون الضغط على زر Refresh.
+  */
+  initPublishedQuestionsSidebar().catch(err=>{
+    console.warn("Published sidebar init:", err);
+
+    const body =
+      document.getElementById("publishedSidebarBody");
+
+    if(body){
+      body.innerHTML = `
+        <div class="published-sidebar-error">
+          Unable to load published questions.<br>
+          ${esc(err?.message || String(err))}
+        </div>
+      `;
+    }
+  });
 });
 </script>
