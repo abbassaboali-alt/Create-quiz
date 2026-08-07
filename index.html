@@ -1739,8 +1739,175 @@ button:hover{
 
 </style>
 
+<style id="prudle-published-sidebar-style">
+
+/* =========================================
+   PRUDLE — PUBLISHED QUESTIONS SIDEBAR
+   Shows questions currently visible to students.
+   Trainer: own courses only | Admin: all trainers.
+========================================= */
+#publishedQuestionsSidebar{
+  position:fixed;
+  top:18px;
+  right:18px;
+  width:min(390px,calc(100vw - 36px));
+  max-height:calc(100vh - 36px);
+  z-index:99990;
+  background:rgba(255,255,255,.98);
+  border:1px solid #cfe0ef;
+  border-radius:22px;
+  box-shadow:0 20px 55px rgba(15,23,42,.22);
+  overflow:hidden;
+  direction:ltr;
+  text-align:left;
+  font-family:"Poppins","Tajawal",sans-serif;
+}
+#publishedQuestionsSidebar.sidebar-collapsed{
+  width:62px;
+  height:62px;
+  border-radius:18px;
+}
+#publishedQuestionsSidebar.sidebar-collapsed .published-sidebar-head{
+  height:62px;
+  padding:0;
+  justify-content:center;
+}
+#publishedQuestionsSidebar.sidebar-collapsed .published-sidebar-title,
+#publishedQuestionsSidebar.sidebar-collapsed .published-sidebar-refresh,
+#publishedQuestionsSidebar.sidebar-collapsed .published-sidebar-body{
+  display:none!important;
+}
+.published-sidebar-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:13px 14px;
+  color:#fff;
+  background:linear-gradient(135deg,#164478,#2467a5);
+}
+.published-sidebar-title{flex:1;min-width:0}
+.published-sidebar-title strong{display:block;font-size:15px;font-weight:900}
+.published-sidebar-title small{display:block;margin-top:2px;font-size:11px;opacity:.82}
+.published-sidebar-icon-btn,
+.published-sidebar-refresh{
+  width:38px!important;
+  height:38px!important;
+  min-width:38px!important;
+  margin:0!important;
+  padding:0!important;
+  border-radius:11px!important;
+  display:grid!important;
+  place-items:center!important;
+  background:rgba(255,255,255,.16)!important;
+  border:1px solid rgba(255,255,255,.28)!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+.published-sidebar-body{
+  max-height:calc(100vh - 112px);
+  overflow:auto;
+  padding:12px;
+  background:#f7faff;
+}
+.published-sidebar-summary{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.published-sidebar-pill{
+  padding:6px 9px;
+  border-radius:999px;
+  background:#eaf3fb;
+  color:#164478;
+  font-size:11px;
+  font-weight:900;
+}
+.published-trainer-block{
+  border:1px solid #dbeafe;
+  border-radius:16px;
+  overflow:hidden;
+  margin-bottom:11px;
+  background:#fff;
+}
+.published-trainer-name{
+  padding:10px 12px;
+  font-weight:900;
+  color:#164478;
+  background:#eef6ff;
+  border-bottom:1px solid #dbeafe;
+}
+.published-course-block{padding:10px 11px;border-bottom:1px dashed #dbeafe}
+.published-course-block:last-child{border-bottom:0}
+.published-course-meta{font-size:12px;font-weight:900;color:#334155;line-height:1.55}
+.published-exam-name{margin-top:7px;font-size:12px;color:#64748b;font-weight:800}
+.published-question-item{
+  margin-top:7px;
+  padding:8px 9px;
+  border-left:4px solid #17a673;
+  border-radius:9px;
+  background:#f1fcf7;
+  color:#1f2937;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.published-question-number{color:#0b7953;font-weight:900;margin-right:5px}
+.published-sidebar-empty,
+.published-sidebar-loading,
+.published-sidebar-error{
+  padding:18px 14px;
+  text-align:center;
+  border-radius:14px;
+  font-size:13px;
+  font-weight:800;
+}
+.published-sidebar-empty{background:#fff;color:#64748b;border:1px dashed #cbd5e1}
+.published-sidebar-loading{background:#eef6ff;color:#164478}
+.published-sidebar-error{background:#fff0ee;color:#b42318}
+@media(max-width:800px){
+  #publishedQuestionsSidebar{
+    top:auto;
+    bottom:12px;
+    right:12px;
+    width:calc(100vw - 24px);
+    max-height:72vh;
+  }
+  #publishedQuestionsSidebar.sidebar-collapsed{
+    width:58px;
+    height:58px;
+    right:12px;
+  }
+  .published-sidebar-body{max-height:calc(72vh - 64px)}
+}
+@media print{
+  #publishedQuestionsSidebar{display:none!important}
+}
+
+</style>
 </head>
 <body>
+
+<!-- Published Questions Sidebar — visible immediately when page opens -->
+<aside id="publishedQuestionsSidebar" aria-label="Questions shown to students">
+  <div class="published-sidebar-head">
+    <button type="button" class="published-sidebar-icon-btn" id="publishedSidebarToggle" onclick="togglePublishedQuestionsSidebar()" title="Minimize / Open">
+      <i class="fa-solid fa-list-check"></i>
+    </button>
+    <div class="published-sidebar-title">
+      <strong>Questions Shown to Students</strong>
+      <small id="publishedSidebarRoleLabel">Loading published questions...</small>
+    </div>
+    <button type="button" class="published-sidebar-refresh" onclick="loadPublishedQuestionsSidebar(true)" title="Refresh">
+      <i class="fa-solid fa-rotate"></i>
+    </button>
+  </div>
+  <div class="published-sidebar-body" id="publishedSidebarBody">
+    <div class="published-sidebar-loading">⏳ Loading published questions...</div>
+  </div>
+</aside>
+
 
 <div class="page">
 
@@ -8445,6 +8612,9 @@ async function autoSaveVisibleQuestions(){
     CURRENT_COURSE_ID,
     selected.length
   );
+
+  // تحديث الشريط مباشرة بعد تغيير Show to students
+  schedulePublishedSidebarRefresh(50);
 }
 function toggleWholeGroup(groupName, checked){
 
@@ -10696,12 +10866,16 @@ async function showCourseSelector(questionId){
 }
 /* ================= تشغيل ================= */
 async function init(){
+  // الشريط يظهر ويبدأ التحميل من بداية فتح الصفحة
+  initPublishedQuestionsSidebar().catch(err=>
+    console.warn("Published sidebar init:", err)
+  );
+
   await loadFilters();
   await loadCourses();
   await loadExams();
   await loadExamBank(); // □ مهم جدًا
   toggleQuestionType();
-  startPublishedQuestionsSidebarWatch();
 }
 
 /* =========================================
@@ -11399,238 +11573,6 @@ async function repairAllLinkedQuestionVisibility(){
 }
 
 // □ تشغيل الصفحة
-
-
-/* =========================================================
-   PUBLISHED QUESTIONS SIDEBAR — TRAINER / ADMIN
-   - Trainer: sees only published questions for own courses
-   - Admin: sees all trainers and their published questions
-   - Source of truth: exams.visibleQuestionsByCourse
-========================================================= */
-let PUBLISHED_SIDEBAR_UNSUBS = [];
-let PUBLISHED_SIDEBAR_REFRESH_TIMER = null;
-let PUBLISHED_SIDEBAR_OPEN = true;
-
-function ensurePublishedQuestionsSidebar(){
-  if(document.getElementById('publishedQuestionsSidebar')) return;
-
-  const style = document.createElement('style');
-  style.id = 'publishedQuestionsSidebarStyle';
-  style.textContent = `
-    #publishedQuestionsSidebar{
-      position:fixed;top:0;right:0;width:min(390px,92vw);height:100vh;
-      background:#fff;border-left:1px solid #dbe5ef;box-shadow:-10px 0 35px rgba(22,68,120,.15);
-      z-index:99990;display:flex;flex-direction:column;transform:translateX(0);transition:.28s ease;
-      direction:rtl;font-family:'Tajawal','Poppins',sans-serif;
-    }
-    #publishedQuestionsSidebar.closed{transform:translateX(100%)}
-    #publishedQuestionsSidebar .pqs-head{
-      background:linear-gradient(135deg,#164478,#2467a5);color:#fff;padding:18px 16px 14px;
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-    }
-    #publishedQuestionsSidebar .pqs-title{font-size:19px;font-weight:900;line-height:1.35}
-    #publishedQuestionsSidebar .pqs-sub{font-size:12px;opacity:.86;margin-top:4px}
-    #publishedQuestionsSidebar .pqs-close{
-      width:38px!important;height:38px!important;min-width:38px!important;padding:0!important;margin:0!important;
-      border-radius:12px!important;background:rgba(255,255,255,.16)!important;border:1px solid rgba(255,255,255,.3)!important;
-    }
-    #publishedQuestionsSidebar .pqs-summary{padding:10px 14px;background:#eef6ff;color:#164478;font-weight:900;border-bottom:1px solid #dbe5ef}
-    #publishedQuestionsSidebar .pqs-body{padding:12px;overflow:auto;flex:1;background:#f7faff}
-    #publishedQuestionsSidebar .pqs-trainer{background:#fff;border:1px solid #dbe5ef;border-radius:16px;margin-bottom:12px;overflow:hidden}
-    #publishedQuestionsSidebar .pqs-trainer-head{padding:11px 13px;background:#edf5fd;color:#164478;font-weight:900;display:flex;justify-content:space-between;gap:8px}
-    #publishedQuestionsSidebar .pqs-course{padding:10px 12px;border-top:1px solid #edf2f7}
-    #publishedQuestionsSidebar .pqs-course-title{font-weight:900;color:#18324b;font-size:14px}
-    #publishedQuestionsSidebar .pqs-course-meta{font-size:11px;color:#6b7280;margin-top:2px}
-    #publishedQuestionsSidebar .pqs-question{margin-top:8px;padding:9px 10px;border-radius:11px;background:#f8fbff;border:1px solid #dbeafe;line-height:1.55}
-    #publishedQuestionsSidebar .pqs-qnum{display:inline-block;background:#16a34a;color:#fff;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:900;margin-left:6px}
-    #publishedQuestionsSidebar .pqs-qtext{font-size:13px;color:#1f2937;font-weight:700;word-break:break-word}
-    #publishedQuestionsSidebar .pqs-empty{padding:18px;text-align:center;color:#6b7280;background:#fff;border:1px dashed #cbd5e1;border-radius:14px;font-weight:800}
-    #publishedQuestionsSidebarToggle{
-      position:fixed;right:14px;bottom:18px;z-index:99991;width:auto!important;min-width:170px!important;margin:0!important;
-      padding:11px 16px!important;border-radius:999px!important;background:#164478!important;color:#fff!important;
-      box-shadow:0 10px 28px rgba(22,68,120,.28)!important;font-weight:900!important;
-    }
-    #publishedQuestionsSidebarToggle .count{background:#16a34a;color:#fff;border-radius:999px;padding:2px 8px;margin-right:6px}
-    @media(max-width:700px){
-      #publishedQuestionsSidebar{width:92vw}
-      #publishedQuestionsSidebarToggle{right:10px;bottom:10px;min-width:150px!important;font-size:13px!important}
-    }
-  `;
-  document.head.appendChild(style);
-
-  const sidebar = document.createElement('aside');
-  sidebar.id = 'publishedQuestionsSidebar';
-  sidebar.innerHTML = `
-    <div class="pqs-head">
-      <div>
-        <div class="pqs-title">📌 الأسئلة الظاهرة للطلاب</div>
-        <div class="pqs-sub" id="publishedQuestionsSidebarScope">جاري التحميل...</div>
-      </div>
-      <button type="button" class="pqs-close" onclick="togglePublishedQuestionsSidebar(false)">✕</button>
-    </div>
-    <div class="pqs-summary" id="publishedQuestionsSidebarSummary">0 سؤال منشور</div>
-    <div class="pqs-body" id="publishedQuestionsSidebarBody">
-      <div class="pqs-empty">جاري تحميل الأسئلة المنشورة...</div>
-    </div>
-  `;
-  document.body.appendChild(sidebar);
-
-  const toggle = document.createElement('button');
-  toggle.id = 'publishedQuestionsSidebarToggle';
-  toggle.type = 'button';
-  toggle.onclick = ()=>togglePublishedQuestionsSidebar(true);
-  toggle.innerHTML = `📚 الأسئلة المنشورة <span class="count" id="publishedQuestionsSidebarToggleCount">0</span>`;
-  document.body.appendChild(toggle);
-}
-
-function togglePublishedQuestionsSidebar(openState){
-  ensurePublishedQuestionsSidebar();
-  const sidebar = document.getElementById('publishedQuestionsSidebar');
-  PUBLISHED_SIDEBAR_OPEN = openState !== false;
-  sidebar?.classList.toggle('closed', !PUBLISHED_SIDEBAR_OPEN);
-}
-
-function schedulePublishedQuestionsSidebarRefresh(){
-  clearTimeout(PUBLISHED_SIDEBAR_REFRESH_TIMER);
-  PUBLISHED_SIDEBAR_REFRESH_TIMER = setTimeout(()=>{
-    loadPublishedQuestionsSidebar().catch(err=>console.error('SIDEBAR LOAD ERROR',err));
-  },180);
-}
-
-function escapeSidebarHtml(v){
-  return String(v ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-}
-
-function getCourseTrainerName(course){
-  return String(course?.Trainer || course?.trainer || course?.TrainerName || course?.trainerName || '').trim();
-}
-
-async function loadPublishedQuestionsSidebar(){
-  ensurePublishedQuestionsSidebar();
-
-  const body = document.getElementById('publishedQuestionsSidebarBody');
-  const summary = document.getElementById('publishedQuestionsSidebarSummary');
-  const scope = document.getElementById('publishedQuestionsSidebarScope');
-  const toggleCount = document.getElementById('publishedQuestionsSidebarToggleCount');
-  if(!body) return;
-
-  const isAdmin = canViewAllOpenCourses();
-  const currentUser = getCurrentUsername();
-  scope.textContent = isAdmin ? 'عرض جميع المدربين' : 'عرض أسئلتك المنشورة فقط';
-
-  const [coursesSnap, examsSnap, questionsSnap] = await Promise.all([
-    db.collection('Courses').get(),
-    db.collection('exams').get(),
-    db.collection('questions').get()
-  ]);
-
-  const courses = new Map();
-  coursesSnap.forEach(doc=>courses.set(doc.id,{id:doc.id,...(doc.data()||{})}));
-
-  const questions = new Map();
-  questionsSnap.forEach(doc=>questions.set(doc.id,{id:doc.id,...(doc.data()||{})}));
-
-  const grouped = new Map();
-  let totalVisible = 0;
-
-  examsSnap.forEach(examDoc=>{
-    const exam = examDoc.data() || {};
-    const visibleMap = exam.visibleQuestionsByCourse || {};
-
-    Object.entries(visibleMap).forEach(([courseId, ids])=>{
-      if(!Array.isArray(ids) || ids.length === 0) return;
-
-      const course = courses.get(courseId) || {};
-      const trainer = getCourseTrainerName(course) || 'Unassigned Trainer';
-      const trainerKey = normalizeTrainerUser(trainer);
-
-      if(!isAdmin && trainerKey !== currentUser) return;
-
-      const validQuestions = ids
-        .map(id=>questions.get(String(id)))
-        .filter(Boolean)
-        .filter(q=>q.showQuestion !== false && q.visible !== false && q.hidden !== true)
-        .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
-
-      if(validQuestions.length === 0) return;
-      totalVisible += validQuestions.length;
-
-      const trainerLabel = trainer || 'Unassigned Trainer';
-      if(!grouped.has(trainerLabel)) grouped.set(trainerLabel,[]);
-      grouped.get(trainerLabel).push({
-        courseId,
-        courseName: course.TrainingCourse || course.CourseName || course.courseName || '-',
-        period: course.Period || course.period || '',
-        examId: examDoc.id,
-        examTitle: exam.title || exam.name || 'Exam',
-        questions: validQuestions
-      });
-    });
-  });
-
-  if(summary) summary.textContent = `${totalVisible} سؤال منشور للطلاب`;
-  if(toggleCount) toggleCount.textContent = String(totalVisible);
-
-  if(totalVisible === 0){
-    body.innerHTML = `<div class="pqs-empty">لا توجد حاليًا أسئلة محددة بـ <b>Show to students</b> في دوراتك.</div>`;
-    return;
-  }
-
-  const trainerEntries = [...grouped.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-  body.innerHTML = trainerEntries.map(([trainer, courseGroups])=>{
-    const trainerCount = courseGroups.reduce((n,g)=>n+g.questions.length,0);
-    return `
-      <section class="pqs-trainer">
-        <div class="pqs-trainer-head">
-          <span>👨‍🏫 ${escapeSidebarHtml(trainer)}</span>
-          <span>${trainerCount} سؤال</span>
-        </div>
-        ${courseGroups.map(group=>`
-          <div class="pqs-course">
-            <div class="pqs-course-title">${escapeSidebarHtml(group.courseName)}</div>
-            <div class="pqs-course-meta">${escapeSidebarHtml(group.examTitle)}${group.period ? ' • '+escapeSidebarHtml(group.period) : ''}</div>
-            ${group.questions.map((q,i)=>`
-              <div class="pqs-question">
-                <span class="pqs-qnum">Q${i+1}</span>
-                <span class="pqs-qtext">${escapeSidebarHtml(q.question || '(بدون نص سؤال)')}</span>
-              </div>
-            `).join('')}
-          </div>
-        `).join('')}
-      </section>
-    `;
-  }).join('');
-}
-
-/* إصلاح مباشر: الـ checkbox في الكود يستدعي saveVisibleQuestions()
-   بينما الحفظ الفعلي موجود باسم autoSaveVisibleQuestions(). */
-async function saveVisibleQuestions(){
-  await autoSaveVisibleQuestions();
-  await loadPublishedQuestionsSidebar();
-}
-
-function startPublishedQuestionsSidebarWatch(){
-  ensurePublishedQuestionsSidebar();
-  PUBLISHED_SIDEBAR_UNSUBS.forEach(fn=>{ try{fn();}catch(e){} });
-  PUBLISHED_SIDEBAR_UNSUBS = [];
-
-  ['exams','questions','Courses'].forEach(collectionName=>{
-    try{
-      const unsub = db.collection(collectionName).onSnapshot(
-        ()=>schedulePublishedQuestionsSidebarRefresh(),
-        err=>console.warn('Sidebar watcher:',collectionName,err)
-      );
-      PUBLISHED_SIDEBAR_UNSUBS.push(unsub);
-    }catch(err){
-      console.warn('Sidebar watcher unavailable:',collectionName,err);
-    }
-  });
-
-  schedulePublishedQuestionsSidebarRefresh();
-}
-
 init();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -12801,6 +12743,302 @@ function filterModalQuestions(value){
       : "none";
 
   });
+}
+
+
+
+/* =========================================
+   PUBLISHED QUESTIONS SIDEBAR LOGIC
+========================================= */
+let PUBLISHED_SIDEBAR_EXAMS_UNSUB = null;
+let PUBLISHED_SIDEBAR_REFRESH_TIMER = null;
+let PUBLISHED_SIDEBAR_LOADING = false;
+
+function publishedNormalize(value){
+  return String(value || "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function publishedCurrentRole(){
+  return String(localStorage.getItem("role") || "")
+    .trim()
+    .toLowerCase();
+}
+
+function publishedCurrentUsername(){
+  return publishedNormalize(localStorage.getItem("username") || "");
+}
+
+function publishedIsAdmin(){
+  return publishedCurrentRole() === "admin";
+}
+
+function togglePublishedQuestionsSidebar(forceOpen = false){
+  const sidebar = document.getElementById("publishedQuestionsSidebar");
+  if(!sidebar) return;
+
+  if(forceOpen){
+    sidebar.classList.remove("sidebar-collapsed");
+    localStorage.setItem("prudlePublishedSidebarCollapsed", "false");
+    return;
+  }
+
+  const collapsed = sidebar.classList.toggle("sidebar-collapsed");
+  localStorage.setItem(
+    "prudlePublishedSidebarCollapsed",
+    collapsed ? "true" : "false"
+  );
+}
+
+function restorePublishedSidebarState(){
+  const sidebar = document.getElementById("publishedQuestionsSidebar");
+  if(!sidebar) return;
+  const collapsed =
+    localStorage.getItem("prudlePublishedSidebarCollapsed") === "true";
+  sidebar.classList.toggle("sidebar-collapsed", collapsed);
+}
+
+function schedulePublishedSidebarRefresh(delay = 250){
+  clearTimeout(PUBLISHED_SIDEBAR_REFRESH_TIMER);
+  PUBLISHED_SIDEBAR_REFRESH_TIMER = setTimeout(()=>{
+    loadPublishedQuestionsSidebar(false);
+  }, delay);
+}
+
+async function loadPublishedQuestionsSidebar(manual = false){
+  const body = document.getElementById("publishedSidebarBody");
+  const roleLabel = document.getElementById("publishedSidebarRoleLabel");
+  if(!body) return;
+  if(PUBLISHED_SIDEBAR_LOADING && !manual) return;
+
+  PUBLISHED_SIDEBAR_LOADING = true;
+
+  if(manual){
+    body.innerHTML = '<div class="published-sidebar-loading">⏳ Refreshing...</div>';
+  }
+
+  try{
+    const isAdmin = publishedIsAdmin();
+    const currentUser = publishedCurrentUsername();
+
+    if(roleLabel){
+      roleLabel.textContent = isAdmin
+        ? "Admin view — all trainers"
+        : "Trainer view — my published questions";
+    }
+
+    const [coursesSnap, examsSnap, questionsSnap] = await Promise.all([
+      db.collection("Courses").get(),
+      db.collection("exams").get(),
+      db.collection("questions").get()
+    ]);
+
+    const courseMap = {};
+    coursesSnap.forEach(doc=>{
+      const c = doc.data() || {};
+      const trainer = String(
+        c.Trainer || c.trainer || c.TrainerName || c.trainerName || ""
+      ).trim();
+
+      if(!isAdmin && publishedNormalize(trainer) !== currentUser){
+        return;
+      }
+
+      courseMap[doc.id] = {
+        id:doc.id,
+        trainer:trainer || "Unknown Trainer",
+        name:String(c.TrainingCourse || c.courseName || c.Level || "Course").trim(),
+        period:String(c.Period || c.period || "").trim(),
+        branch:String(c.Branch || c.branch || "").trim()
+      };
+    });
+
+    const questionMap = {};
+    questionsSnap.forEach(doc=>{
+      const q = doc.data() || {};
+      if(q.showQuestion === false || q.visible === false || q.hidden === true){
+        return;
+      }
+      questionMap[doc.id] = {
+        id:doc.id,
+        text:String(q.question || q.q || q.title || "(Question without text)").trim(),
+        order:Number(q.order || 0),
+        group:String(q.group || "General").trim()
+      };
+    });
+
+    const rows = [];
+
+    examsSnap.forEach(examDoc=>{
+      const exam = examDoc.data() || {};
+      const visibleMap = exam.visibleQuestionsByCourse || {};
+      const examTitle = String(
+        exam.title || exam.examTitle || exam.name || "Untitled Exam"
+      ).trim();
+
+      Object.entries(visibleMap).forEach(([courseId, ids])=>{
+        const course = courseMap[courseId];
+        if(!course || !Array.isArray(ids) || !ids.length) return;
+
+        const visibleQuestions = ids
+          .map(id=>questionMap[id])
+          .filter(Boolean)
+          .sort((a,b)=>{
+            const diff = Number(a.order || 0) - Number(b.order || 0);
+            if(diff) return diff;
+            return a.text.localeCompare(b.text);
+          });
+
+        if(!visibleQuestions.length) return;
+
+        rows.push({
+          examId:examDoc.id,
+          examTitle,
+          course,
+          questions:visibleQuestions
+        });
+      });
+    });
+
+    rows.sort((a,b)=>{
+      const ta = publishedNormalize(a.course.trainer);
+      const tb = publishedNormalize(b.course.trainer);
+      if(ta !== tb) return ta.localeCompare(tb);
+      const ca = String(a.course.name || "");
+      const cb = String(b.course.name || "");
+      if(ca !== cb) return ca.localeCompare(cb);
+      return a.examTitle.localeCompare(b.examTitle);
+    });
+
+    const totalQuestions = rows.reduce((sum,row)=>sum + row.questions.length,0);
+    const trainerSet = new Set(rows.map(r=>r.course.trainer));
+    const courseSet = new Set(rows.map(r=>r.course.id));
+
+    if(!rows.length){
+      body.innerHTML = `
+        <div class="published-sidebar-summary">
+          <span class="published-sidebar-pill">0 Questions</span>
+        </div>
+        <div class="published-sidebar-empty">
+          No questions are currently shown to students.
+        </div>
+      `;
+      return;
+    }
+
+    const grouped = {};
+    rows.forEach(row=>{
+      const trainerKey = row.course.trainer || "Unknown Trainer";
+      if(!grouped[trainerKey]) grouped[trainerKey] = {};
+
+      const courseKey = row.course.id;
+      if(!grouped[trainerKey][courseKey]){
+        grouped[trainerKey][courseKey] = {
+          course:row.course,
+          exams:[]
+        };
+      }
+      grouped[trainerKey][courseKey].exams.push(row);
+    });
+
+    let html = `
+      <div class="published-sidebar-summary">
+        <span class="published-sidebar-pill">${totalQuestions} Questions</span>
+        <span class="published-sidebar-pill">${courseSet.size} Courses</span>
+        ${isAdmin ? `<span class="published-sidebar-pill">${trainerSet.size} Trainers</span>` : ""}
+      </div>
+    `;
+
+    Object.keys(grouped).forEach(trainer=>{
+      html += `
+        <section class="published-trainer-block">
+          <div class="published-trainer-name">
+            <i class="fa-solid fa-chalkboard-user"></i>
+            ${esc(trainer)}
+          </div>
+      `;
+
+      Object.values(grouped[trainer]).forEach(block=>{
+        const c = block.course;
+        html += `
+          <div class="published-course-block">
+            <div class="published-course-meta">
+              ${esc(c.name || "Course")}
+              ${c.period ? ` | ${esc(c.period)}` : ""}
+              ${c.branch ? ` | ${esc(c.branch)}` : ""}
+            </div>
+        `;
+
+        block.exams.forEach(examRow=>{
+          html += `
+            <div class="published-exam-name">
+              <i class="fa-regular fa-file-lines"></i>
+              ${esc(examRow.examTitle)}
+            </div>
+          `;
+
+          examRow.questions.forEach((q,index)=>{
+            html += `
+              <div class="published-question-item" title="${esc(q.group || "General")}">
+                <span class="published-question-number">Q${index + 1}</span>
+                ${esc(q.text)}
+              </div>
+            `;
+          });
+        });
+
+        html += `</div>`;
+      });
+
+      html += `</section>`;
+    });
+
+    body.innerHTML = html;
+
+  }catch(error){
+    console.error("PUBLISHED SIDEBAR ERROR:", error);
+    body.innerHTML = `
+      <div class="published-sidebar-error">
+        Unable to load published questions.<br>
+        ${esc(error?.message || String(error))}
+      </div>
+    `;
+  }finally{
+    PUBLISHED_SIDEBAR_LOADING = false;
+  }
+}
+
+function startPublishedQuestionsSidebarWatcher(){
+  if(PUBLISHED_SIDEBAR_EXAMS_UNSUB){
+    try{ PUBLISHED_SIDEBAR_EXAMS_UNSUB(); }catch(e){}
+    PUBLISHED_SIDEBAR_EXAMS_UNSUB = null;
+  }
+
+  /*
+    visibleQuestionsByCourse is stored in exam documents.
+    Listening to exams makes the sidebar update whenever a checkbox,
+    Show/Hide button, link, or unlink changes student visibility.
+  */
+  PUBLISHED_SIDEBAR_EXAMS_UNSUB = db.collection("exams")
+    .onSnapshot(
+      ()=>schedulePublishedSidebarRefresh(180),
+      err=>console.warn("Published sidebar watcher:", err)
+    );
+}
+
+async function initPublishedQuestionsSidebar(){
+  restorePublishedSidebarState();
+  await loadPublishedQuestionsSidebar(false);
+  startPublishedQuestionsSidebarWatcher();
+}
+
+/* The existing question checkbox calls saveVisibleQuestions().
+   Keep that API and refresh the sidebar immediately after saving. */
+async function saveVisibleQuestions(){
+  await autoSaveVisibleQuestions();
+  schedulePublishedSidebarRefresh(50);
 }
 
 window.addEventListener("DOMContentLoaded",function(){
