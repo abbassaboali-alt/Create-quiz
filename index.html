@@ -1925,6 +1925,89 @@ button:hover{
 }
 
 
+
+/* Published sidebar — exam row + show/hide checkbox */
+.published-exam-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  margin-top:7px;
+}
+.published-exam-row .published-exam-open-btn{
+  margin:0 !important;
+  min-width:0;
+}
+.published-visibility-toggle{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  padding:7px 8px;
+  border:1px solid #bbf7d0;
+  border-radius:12px;
+  background:#f0fdf4;
+  color:#166534;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+}
+.published-visibility-toggle input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.published-toggle-track{
+  position:relative;
+  width:34px;
+  height:19px;
+  flex:0 0 auto;
+  border-radius:999px;
+  background:#cbd5e1;
+  transition:.2s;
+}
+.published-toggle-thumb{
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);
+  transition:.2s;
+}
+.published-visibility-toggle input:checked + .published-toggle-track{
+  background:#16a34a;
+}
+.published-visibility-toggle input:checked + .published-toggle-track .published-toggle-thumb{
+  transform:translateX(15px);
+}
+.published-toggle-text{
+  font-size:10px;
+  font-weight:900;
+}
+.published-visibility-toggle:has(input:not(:checked)){
+  background:#fff7ed;
+  border-color:#fed7aa;
+  color:#c2410c;
+}
+.published-visibility-toggle:has(input:not(:checked)) .published-toggle-text::after{
+  content:" → Hide";
+}
+.published-visibility-toggle input:disabled + .published-toggle-track{
+  opacity:.55;
+}
+@media(max-width:650px){
+  .published-exam-row{
+    grid-template-columns:1fr;
+  }
+  .published-visibility-toggle{
+    justify-self:end;
+    margin-top:-3px;
+  }
+}
+
 /* Published sidebar — titles only; click title to open the real editor */
 .published-exam-open-btn{
   width:100% !important;
@@ -12909,6 +12992,11 @@ async function loadPublishedQuestionsSidebar(manual = false){
         c.Trainer || c.trainer || c.TrainerName || c.trainerName || ""
       ).trim();
 
+      // ✅ الشريط يعرض الدورات المفتوحة فقط
+      if(!isOpenCourse(c)){
+        return;
+      }
+
       if(!isAdmin && publishedNormalize(trainer) !== currentUser){
         return;
       }
@@ -13039,18 +13127,45 @@ async function loadPublishedQuestionsSidebar(manual = false){
         `;
 
         block.exams.forEach(examRow=>{
+          const checkboxId =
+            "publishedVisible_" +
+            String(examRow.examId).replace(/[^a-zA-Z0-9_-]/g,"_") +
+            "_" +
+            String(c.id).replace(/[^a-zA-Z0-9_-]/g,"_");
+
           html += `
-            <button
-              type="button"
-              class="published-exam-name published-exam-open-btn"
-              onclick='openPublishedExamForEdit(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)})'
-              title="Open this exam and edit its questions"
-            >
-              <i class="fa-regular fa-file-lines"></i>
-              <span>${esc(examRow.examTitle)}</span>
-              <span class="published-exam-count">${examRow.questions.length}</span>
-              <i class="fa-solid fa-arrow-up-right-from-square published-exam-arrow"></i>
-            </button>
+            <div class="published-exam-row">
+              <button
+                type="button"
+                class="published-exam-name published-exam-open-btn"
+                onclick='openPublishedExamForEdit(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)})'
+                title="Open this exam and edit its questions"
+              >
+                <i class="fa-regular fa-file-lines"></i>
+                <span>${esc(examRow.examTitle)}</span>
+                <span class="published-exam-count">${examRow.questions.length}</span>
+                <i class="fa-solid fa-arrow-up-right-from-square published-exam-arrow"></i>
+              </button>
+
+              <label
+                class="published-visibility-toggle"
+                for="${checkboxId}"
+                title="Uncheck to hide this exam from students in this course"
+                onclick="event.stopPropagation()"
+              >
+                <input
+                  id="${checkboxId}"
+                  type="checkbox"
+                  checked
+                  onchange='togglePublishedExamVisibility(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)}, this)'
+                  onclick="event.stopPropagation()"
+                >
+                <span class="published-toggle-track">
+                  <span class="published-toggle-thumb"></span>
+                </span>
+                <span class="published-toggle-text">Shown</span>
+              </label>
+            </div>
           `;
         });
 
@@ -13072,6 +13187,114 @@ async function loadPublishedQuestionsSidebar(manual = false){
     `;
   }finally{
     PUBLISHED_SIDEBAR_LOADING = false;
+  }
+}
+
+
+async function togglePublishedExamVisibility(examId, courseId, checkbox){
+  const desiredVisible = checkbox?.checked === true;
+
+  /*
+    الصفوف الموجودة داخل هذا الشريط هي اختبارات منشورة بالفعل،
+    لذلك الاستخدام الأساسي هنا هو إلغاء التحديد لإخفائها.
+    لو أعيد التحديد قبل اختفاء الصف، نعيد مزامنة جميع الأسئلة المرتبطة بالدورة.
+  */
+  try{
+    examId = String(examId || "").trim();
+    courseId = String(courseId || "").trim();
+
+    if(!examId || !courseId){
+      throw new Error("Missing exam or course ID");
+    }
+
+    if(checkbox){
+      checkbox.disabled = true;
+    }
+
+    const examRef = db.collection("exams").doc(examId);
+    const examDoc = await examRef.get();
+
+    if(!examDoc.exists){
+      throw new Error("Exam not found");
+    }
+
+    const examData = examDoc.data() || {};
+    const visibleMap = {
+      ...(examData.visibleQuestionsByCourse || {})
+    };
+
+    if(desiredVisible){
+      /*
+        إعادة بناء الأسئلة الظاهرة من الأسئلة المرتبطة بهذه الدورة.
+        هذا يحافظ على نفس منطق الصفحة الحالي.
+      */
+      const linkedIds = await syncAllVisibleLinkedQuestions(
+        examId,
+        courseId
+      );
+
+      // syncAllVisibleLinkedQuestions يحفظ الخريطة بالفعل
+      console.log(
+        "✅ Published from sidebar:",
+        examId,
+        courseId,
+        linkedIds?.length || 0
+      );
+    }else{
+      // ✅ إخفاء هذا الاختبار عن طلاب هذه الدورة فقط
+      visibleMap[courseId] = [];
+
+      const updateData = {
+        visibleQuestionsByCourse: visibleMap,
+        updatedAt:
+          firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      /*
+        visibleQuestions حقل قديم للتوافق.
+        لا نمسحه إلا إذا كانت هذه هي الدورة المفتوحة حاليًا،
+        حتى لا نؤثر على دورة أخرى.
+      */
+      if(
+        String(CURRENT_COURSE_ID || "").trim() === courseId &&
+        String(CURRENT_PREVIEW_EXAM || "").trim() === examId
+      ){
+        updateData.visibleQuestions = [];
+      }
+
+      await examRef.set(updateData,{merge:true});
+
+      console.log(
+        "✅ Hidden from sidebar:",
+        examId,
+        courseId
+      );
+    }
+
+    // إذا كان نفس الاختبار مفتوحًا في المحرر، حدّث الـ checkbox والمحتوى فورًا
+    if(
+      String(CURRENT_PREVIEW_EXAM || "").trim() === examId &&
+      String(CURRENT_COURSE_ID || "").trim() === courseId &&
+      typeof loadQuestions === "function"
+    ){
+      await loadQuestions();
+    }
+
+    // تحديث الشريط مباشرة، بالإضافة إلى onSnapshot
+    schedulePublishedSidebarRefresh(30);
+
+  }catch(error){
+    console.error("SIDEBAR VISIBILITY TOGGLE ERROR:", error);
+
+    if(checkbox){
+      checkbox.checked = !desiredVisible;
+      checkbox.disabled = false;
+    }
+
+    alert(
+      "Unable to change student visibility: " +
+      (error?.message || String(error))
+    );
   }
 }
 
