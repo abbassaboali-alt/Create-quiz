@@ -1926,6 +1926,48 @@ button:hover{
 
 
 
+
+/* Published sidebar — skill counts per course */
+.published-course-skills{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  padding:10px 0 4px;
+}
+.published-skill-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:30px;
+  padding:5px 8px 5px 10px;
+  border:1px solid #cfe0f5;
+  border-radius:999px;
+  background:#eef6ff;
+  color:#164478;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+}
+.published-skill-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:120px;
+  white-space:nowrap;
+}
+.published-skill-count{
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#164478;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+
 /* Published sidebar — exam row + show/hide checkbox */
 .published-exam-row{
   display:grid;
@@ -13167,8 +13209,26 @@ async function loadPublishedQuestionsSidebar(manual = false){
         const course = courseMap[courseId];
         if(!course || !Array.isArray(ids) || !ids.length) return;
 
+        const courseSkillMap =
+          exam.groupSkillsByCourse?.[courseId] || {};
+
         const visibleQuestions = ids
-          .map(id=>questionMap[id])
+          .map(id=>{
+            const base = questionMap[id];
+            if(!base) return null;
+
+            const savedSkill =
+              String(
+                courseSkillMap?.[base.group] ||
+                base.group ||
+                "General"
+              ).trim() || "General";
+
+            return {
+              ...base,
+              skill:savedSkill
+            };
+          })
           .filter(Boolean)
           .sort((a,b)=>{
             const diff = Number(a.order || 0) - Number(b.order || 0);
@@ -13222,10 +13282,25 @@ async function loadPublishedQuestionsSidebar(manual = false){
       if(!grouped[trainerKey][courseKey]){
         grouped[trainerKey][courseKey] = {
           course:row.course,
-          exams:[]
+          exams:[],
+          skillCounts:{}
         };
       }
       grouped[trainerKey][courseKey].exams.push(row);
+
+      // ✅ عدد الأسئلة المنشورة حسب المهارة داخل هذه الدورة
+      row.questions.forEach(q=>{
+        const skill =
+          String(q.skill || q.group || "General").trim() ||
+          "General";
+
+        grouped[trainerKey][courseKey]
+          .skillCounts[skill] =
+            (
+              grouped[trainerKey][courseKey]
+                .skillCounts[skill] || 0
+            ) + 1;
+      });
     });
 
     let html = `
@@ -13247,6 +13322,30 @@ async function loadPublishedQuestionsSidebar(manual = false){
 
       Object.values(grouped[trainer]).forEach(block=>{
         const c = block.course;
+        const skillEntries =
+          Object.entries(block.skillCounts || {})
+            .filter(([,count])=>Number(count || 0) > 0)
+            .sort((a,b)=>
+              String(a[0]).localeCompare(String(b[0]))
+            );
+
+        const skillSummaryHtml =
+          skillEntries.length
+            ? `
+              <div class="published-course-skills">
+                ${skillEntries.map(([skill,count])=>`
+                  <span
+                    class="published-skill-chip"
+                    title="${esc(skill)}: ${Number(count || 0)} published question(s)"
+                  >
+                    <span class="published-skill-name">${esc(skill)}</span>
+                    <strong class="published-skill-count">${Number(count || 0)}</strong>
+                  </span>
+                `).join("")}
+              </div>
+            `
+            : "";
+
         html += `
           <div class="published-course-block">
             <div class="published-course-meta">
@@ -13254,6 +13353,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
               ${c.period ? ` | ${esc(c.period)}` : ""}
               ${c.branch ? ` | ${esc(c.branch)}` : ""}
             </div>
+
+            ${skillSummaryHtml}
         `;
 
         block.exams.forEach(examRow=>{
