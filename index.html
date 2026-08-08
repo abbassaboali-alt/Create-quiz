@@ -1990,9 +1990,10 @@ button:hover{
   border-radius:12px;
   background:#f0fdf4;
   color:#166534;
-  cursor:pointer;
+  cursor:default;
   user-select:none;
   white-space:nowrap;
+  pointer-events:none;
 }
 .published-visibility-toggle input{
   position:absolute;
@@ -2030,15 +2031,21 @@ button:hover{
   font-weight:900;
 }
 .published-visibility-toggle:has(input:not(:checked)){
-  background:#fff7ed;
-  border-color:#fed7aa;
-  color:#c2410c;
+  background:#fef2f2;
+  border-color:#fecaca;
+  color:#b91c1c;
 }
-.published-visibility-toggle:has(input:not(:checked)) .published-toggle-text::after{
-  content:" → Hide";
+.published-visibility-toggle:has(input:not(:checked)) .published-toggle-track{
+  background:#dc2626;
 }
 .published-visibility-toggle input:disabled + .published-toggle-track{
-  opacity:.55;
+  opacity:1;
+}
+.published-visibility-toggle input:not(:checked) + .published-toggle-track .published-toggle-thumb{
+  transform:translateX(0);
+}
+.published-visibility-toggle input:checked + .published-toggle-track{
+  background:#16a34a;
 }
 @media(max-width:650px){
   .published-exam-row{
@@ -13649,13 +13656,15 @@ function schedulePublishedSidebarRefresh(delay = 250){
 async function loadPublishedQuestionsSidebar(manual = false){
   const body = document.getElementById("publishedSidebarBody");
   const roleLabel = document.getElementById("publishedSidebarRoleLabel");
+
   if(!body) return;
   if(PUBLISHED_SIDEBAR_LOADING && !manual) return;
 
   PUBLISHED_SIDEBAR_LOADING = true;
 
   if(manual){
-    body.innerHTML = '<div class="published-sidebar-loading">⏳ Refreshing...</div>';
+    body.innerHTML =
+      '<div class="published-sidebar-loading">⏳ Refreshing...</div>';
   }
 
   try{
@@ -13664,44 +13673,69 @@ async function loadPublishedQuestionsSidebar(manual = false){
 
     if(roleLabel){
       roleLabel.textContent = isAdmin
-        ? "Admin view — all trainers"
-        : "Trainer view — my published models";
+        ? "Admin view — linked models status"
+        : "Trainer view — my linked models status";
     }
 
-    const [coursesSnap, examsSnap, questionsSnap] = await Promise.all([
-      db.collection("Courses").get(),
-      db.collection("exams").get(),
-      db.collection("questions").get()
-    ]);
+    const [coursesSnap, examsSnap, questionsSnap] =
+      await Promise.all([
+        db.collection("Courses").get(),
+        db.collection("exams").get(),
+        db.collection("questions").get()
+      ]);
 
+    // =========================================================
+    // ✅ الدورات المسموح عرضها في الشريط
+    // المدرب يرى دوراته فقط، حتى لو أصل الأسئلة لمدرب آخر.
+    // =========================================================
     const courseMap = {};
+
     coursesSnap.forEach(doc=>{
       const c = doc.data() || {};
-      const trainer = String(
-        c.Trainer || c.trainer || c.TrainerName || c.trainerName || ""
-      ).trim();
 
-      // ✅ الشريط يعرض الدورات المفتوحة فقط
       if(!isOpenCourse(c)){
         return;
       }
 
-      if(!isAdmin && publishedNormalize(trainer) !== currentUser){
+      const trainer = String(
+        c.Trainer ||
+        c.trainer ||
+        c.TrainerName ||
+        c.trainerName ||
+        ""
+      ).trim();
+
+      if(
+        !isAdmin &&
+        publishedNormalize(trainer) !== currentUser
+      ){
         return;
       }
 
       courseMap[doc.id] = {
         id:doc.id,
         trainer:trainer || "Unknown Trainer",
-        name:String(c.TrainingCourse || c.courseName || c.Level || "Course").trim(),
+        name:String(
+          c.TrainingCourse ||
+          c.courseName ||
+          c.Level ||
+          "Course"
+        ).trim(),
         period:String(c.Period || c.period || "").trim(),
         branch:String(c.Branch || c.branch || "").trim()
       };
     });
 
-    const questionMap = {};
+    // =========================================================
+    // ✅ نجمع كل الأسئلة المرتبطة بالدورات من coursesUsed.
+    // لا نعتمد على visibleQuestionsByCourse هنا،
+    // لأن النموذج يجب أن يبقى في الشريط حتى لو أصبح Hidden.
+    // =========================================================
+    const linkedByExamCourse = {};
+
     questionsSnap.forEach(doc=>{
       const q = doc.data() || {};
+
       if(
         q.showQuestion === false ||
         q.visible === false ||
@@ -13710,101 +13744,235 @@ async function loadPublishedQuestionsSidebar(manual = false){
       ){
         return;
       }
-      questionMap[doc.id] = {
-        id:doc.id,
-        text:String(q.question || q.q || q.title || "(Question without text)").trim(),
-        order:Number(q.order || 0),
-        group:String(q.group || "General").trim()
-      };
-    });
 
-    const rows = [];
+      const examId =
+        String(q.examId || "").trim();
 
-    examsSnap.forEach(examDoc=>{
-      const exam = examDoc.data() || {};
-      const visibleMap = exam.visibleQuestionsByCourse || {};
-      const examTitle = String(
-        exam.title || exam.examTitle || exam.name || "Untitled Exam"
-      ).trim();
+      if(!examId) return;
 
-      Object.entries(visibleMap).forEach(([courseId, ids])=>{
-        const course = courseMap[courseId];
-        if(!course || !Array.isArray(ids) || !ids.length) return;
+      const used =
+        Array.isArray(q.coursesUsed)
+          ? q.coursesUsed
+          : [];
 
-        const courseSkillMap =
-          exam.groupSkillsByCourse?.[courseId] || {};
+      used.forEach(c=>{
+        const courseId =
+          String(c?.courseId || "").trim();
 
-        const visibleQuestions = ids
-          .map(id=>{
-            const base = questionMap[id];
-            if(!base) return null;
+        if(
+          !courseId ||
+          !courseMap[courseId]
+        ){
+          return;
+        }
 
-            const savedSkill =
-              String(
-                courseSkillMap?.[base.group] ||
-                base.group ||
-                "General"
-              ).trim() || "General";
+        const key =
+          examId + "__" + courseId;
 
-            return {
-              ...base,
-              skill:savedSkill
-            };
-          })
-          .filter(Boolean)
-          .sort((a,b)=>{
-            const diff = Number(a.order || 0) - Number(b.order || 0);
-            if(diff) return diff;
-            return a.text.localeCompare(b.text);
-          });
+        if(!linkedByExamCourse[key]){
+          linkedByExamCourse[key] = [];
+        }
 
-        if(!visibleQuestions.length) return;
-
-        rows.push({
-          examId:examDoc.id,
-          examTitle,
-          course,
-          questions:visibleQuestions
+        linkedByExamCourse[key].push({
+          id:doc.id,
+          text:String(
+            q.question ||
+            q.q ||
+            q.title ||
+            "(Question without text)"
+          ).trim(),
+          order:Number(q.order || 0),
+          group:String(q.group || "General").trim()
         });
       });
     });
 
+    const rows = [];
+
+    // =========================================================
+    // ✅ حالة Shown / Hidden
+    //
+    // GREEN / Shown:
+    // يوجد سؤال واحد على الأقل داخل visibleQuestionsByCourse
+    // => الطالب يستطيع رؤية الأسئلة المؤكدة.
+    //
+    // RED / Hidden:
+    // النموذج ما زال Linked بالدورة، لكن لا توجد أسئلة مؤكدة
+    // => لا يظهر شيء للطالب.
+    //
+    // الزر هنا مؤشر حالة فقط، ولا يغير Firebase.
+    // الإلغاء/الإظهار الرئيسي يتم من صفحة الأسئلة.
+    // =========================================================
+    examsSnap.forEach(examDoc=>{
+      const exam = examDoc.data() || {};
+
+      const examId = examDoc.id;
+
+      const visibleMap =
+        exam.visibleQuestionsByCourse || {};
+
+      const examTitle = String(
+        exam.title ||
+        exam.examTitle ||
+        exam.name ||
+        "Untitled Exam"
+      ).trim();
+
+      Object.entries(courseMap).forEach(
+        ([courseId, course])=>{
+
+          const key =
+            examId + "__" + courseId;
+
+          const linkedQuestions =
+            linkedByExamCourse[key] || [];
+
+          // إذا النموذج غير مرتبط أصلاً بهذه الدورة، لا يظهر في الشريط.
+          if(!linkedQuestions.length){
+            return;
+          }
+
+          const visibleIds =
+            Array.isArray(visibleMap[courseId])
+              ? visibleMap[courseId]
+              : [];
+
+          const visibleSet =
+            new Set(
+              visibleIds
+                .map(id=>String(id || "").trim())
+                .filter(Boolean)
+            );
+
+          const shownQuestions =
+            linkedQuestions.filter(q =>
+              visibleSet.has(
+                String(q.id || "").trim()
+              )
+            );
+
+          const isShown =
+            shownQuestions.length > 0;
+
+          const courseSkillMap =
+            exam.groupSkillsByCourse?.[courseId] || {};
+
+          /*
+            لو Shown نعرض عدد الأسئلة المؤكدة فعلياً.
+            لو Hidden نعرض عدد الأسئلة المرتبطة، مع الحالة الحمراء.
+          */
+          const sourceQuestions =
+            isShown
+              ? shownQuestions
+              : linkedQuestions;
+
+          const questions =
+            sourceQuestions
+              .map(base=>{
+                const savedSkill =
+                  String(
+                    courseSkillMap?.[base.group] ||
+                    base.group ||
+                    "General"
+                  ).trim() || "General";
+
+                return {
+                  ...base,
+                  skill:savedSkill
+                };
+              })
+              .sort((a,b)=>{
+                const diff =
+                  Number(a.order || 0) -
+                  Number(b.order || 0);
+
+                if(diff) return diff;
+
+                return a.text.localeCompare(b.text);
+              });
+
+          rows.push({
+            examId,
+            examTitle,
+            course,
+            questions,
+            linkedCount:linkedQuestions.length,
+            shownCount:shownQuestions.length,
+            isShown
+          });
+        }
+      );
+    });
+
     rows.sort((a,b)=>{
-      const ta = publishedNormalize(a.course.trainer);
-      const tb = publishedNormalize(b.course.trainer);
-      if(ta !== tb) return ta.localeCompare(tb);
-      const ca = String(a.course.name || "");
-      const cb = String(b.course.name || "");
-      if(ca !== cb) return ca.localeCompare(cb);
+      const ta =
+        publishedNormalize(a.course.trainer);
+
+      const tb =
+        publishedNormalize(b.course.trainer);
+
+      if(ta !== tb){
+        return ta.localeCompare(tb);
+      }
+
+      const ca =
+        String(a.course.name || "");
+
+      const cb =
+        String(b.course.name || "");
+
+      if(ca !== cb){
+        return ca.localeCompare(cb);
+      }
+
       return a.examTitle.localeCompare(b.examTitle);
     });
 
-    /*
-      ✅ الشريط يعرض عدد النماذج/الاختبارات المنشورة، وليس عدد الأسئلة.
-      كل Exam داخل دورة = نموذج واحد مهما كان بداخله من أسئلة.
-    */
     const totalModels = rows.length;
-    const trainerSet = new Set(rows.map(r=>r.course.trainer));
-    const courseSet = new Set(rows.map(r=>r.course.id));
+
+    const shownModels =
+      rows.filter(r=>r.isShown).length;
+
+    const hiddenModels =
+      rows.filter(r=>!r.isShown).length;
+
+    const trainerSet =
+      new Set(
+        rows.map(r=>r.course.trainer)
+      );
+
+    const courseSet =
+      new Set(
+        rows.map(r=>r.course.id)
+      );
 
     if(!rows.length){
       body.innerHTML = `
         <div class="published-sidebar-summary">
           <span class="published-sidebar-pill">0 Models</span>
         </div>
+
         <div class="published-sidebar-empty">
-          No models are currently shown to students.
+          No linked models found for your courses.
         </div>
       `;
       return;
     }
 
     const grouped = {};
-    rows.forEach(row=>{
-      const trainerKey = row.course.trainer || "Unknown Trainer";
-      if(!grouped[trainerKey]) grouped[trainerKey] = {};
 
-      const courseKey = row.course.id;
+    rows.forEach(row=>{
+      const trainerKey =
+        row.course.trainer ||
+        "Unknown Trainer";
+
+      if(!grouped[trainerKey]){
+        grouped[trainerKey] = {};
+      }
+
+      const courseKey =
+        row.course.id;
+
       if(!grouped[trainerKey][courseKey]){
         grouped[trainerKey][courseKey] = {
           course:row.course,
@@ -13812,24 +13980,24 @@ async function loadPublishedQuestionsSidebar(manual = false){
           skillCounts:{}
         };
       }
-      grouped[trainerKey][courseKey].exams.push(row);
+
+      grouped[trainerKey][courseKey]
+        .exams.push(row);
 
       /*
-        ✅ عدد النماذج حسب المهارة — وليس عدد الأسئلة.
-
-        مثال:
-        نموذج Reading Quiz فيه 5 أسئلة Reading
-        النتيجة هنا = Reading 1 وليس Reading 5.
-
-        ولو كان النموذج يحتوي أكثر من سؤال من نفس المهارة،
-        يتم احتساب examId مرة واحدة فقط.
+        عدد النماذج حسب المهارة.
+        نستخدم المهارات المرتبطة بالنموذج.
       */
-      const skillsInThisModel = new Set();
+      const skillsInThisModel =
+        new Set();
 
       row.questions.forEach(q=>{
         const skill =
-          String(q.skill || q.group || "General").trim() ||
-          "General";
+          String(
+            q.skill ||
+            q.group ||
+            "General"
+          ).trim() || "General";
 
         skillsInThisModel.add(skill);
       });
@@ -13840,120 +14008,186 @@ async function loadPublishedQuestionsSidebar(manual = false){
             .skillCounts[skill]
         ){
           grouped[trainerKey][courseKey]
-            .skillCounts[skill] = new Set();
+            .skillCounts[skill] =
+              new Set();
         }
 
         grouped[trainerKey][courseKey]
           .skillCounts[skill]
-          .add(String(row.examId || ""));
+          .add(
+            String(row.examId || "")
+          );
       });
     });
 
     let html = `
       <div class="published-sidebar-summary">
         <span class="published-sidebar-pill">${totalModels} Models</span>
+        <span class="published-sidebar-pill">${shownModels} Shown</span>
+        <span class="published-sidebar-pill">${hiddenModels} Hidden</span>
         <span class="published-sidebar-pill">${courseSet.size} Courses</span>
-        ${isAdmin ? `<span class="published-sidebar-pill">${trainerSet.size} Trainers</span>` : ""}
+        ${
+          isAdmin
+            ? `<span class="published-sidebar-pill">${trainerSet.size} Trainers</span>`
+            : ""
+        }
       </div>
     `;
 
     Object.keys(grouped).forEach(trainer=>{
       html += `
         <section class="published-trainer-block">
+
           <div class="published-trainer-name">
             <i class="fa-solid fa-chalkboard-user"></i>
             ${esc(trainer)}
           </div>
       `;
 
-      Object.values(grouped[trainer]).forEach(block=>{
-        const c = block.course;
-        const skillEntries =
-          Object.entries(block.skillCounts || {})
+      Object.values(grouped[trainer])
+        .forEach(block=>{
+
+          const c = block.course;
+
+          const skillEntries =
+            Object.entries(
+              block.skillCounts || {}
+            )
             .map(([skill,examSet])=>[
               skill,
               examSet instanceof Set
                 ? examSet.size
                 : Number(examSet || 0)
             ])
-            .filter(([,count])=>Number(count || 0) > 0)
+            .filter(([,count])=>
+              Number(count || 0) > 0
+            )
             .sort((a,b)=>
-              String(a[0]).localeCompare(String(b[0]))
+              String(a[0])
+                .localeCompare(
+                  String(b[0])
+                )
             );
 
-        const skillSummaryHtml =
-          skillEntries.length
-            ? `
-              <div class="published-course-skills">
-                ${skillEntries.map(([skill,count])=>`
-                  <span
-                    class="published-skill-chip"
-                    title="${esc(skill)}: ${Number(count || 0)} published model(s)"
-                  >
-                    <span class="published-skill-name">${esc(skill)}</span>
-                    <strong class="published-skill-count">${Number(count || 0)}</strong>
-                  </span>
-                `).join("")}
-              </div>
-            `
-            : "";
-
-        html += `
-          <div class="published-course-block">
-            <div class="published-course-meta">
-              ${esc(c.name || "Course")}
-              ${c.period ? ` | ${esc(c.period)}` : ""}
-              ${c.branch ? ` | ${esc(c.branch)}` : ""}
-            </div>
-
-            ${skillSummaryHtml}
-        `;
-
-        block.exams.forEach(examRow=>{
-          const checkboxId =
-            "publishedVisible_" +
-            String(examRow.examId).replace(/[^a-zA-Z0-9_-]/g,"_") +
-            "_" +
-            String(c.id).replace(/[^a-zA-Z0-9_-]/g,"_");
+          const skillSummaryHtml =
+            skillEntries.length
+              ? `
+                <div class="published-course-skills">
+                  ${
+                    skillEntries
+                      .map(([skill,count])=>`
+                        <span
+                          class="published-skill-chip"
+                          title="${esc(skill)}: ${Number(count || 0)} linked model(s)"
+                        >
+                          <span class="published-skill-name">${esc(skill)}</span>
+                          <strong class="published-skill-count">${Number(count || 0)}</strong>
+                        </span>
+                      `)
+                      .join("")
+                  }
+                </div>
+              `
+              : "";
 
           html += `
-            <div class="published-exam-row">
-              <button
-                type="button"
-                class="published-exam-name published-exam-open-btn"
-                onclick='openPublishedExamForEdit(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)})'
-                title="Open this exam and edit its questions"
-              >
-                <i class="fa-regular fa-file-lines"></i>
-                <span>${esc(examRow.examTitle)}</span>
-                <span class="published-exam-count">${examRow.questions.length}</span>
-                <i class="fa-solid fa-arrow-up-right-from-square published-exam-arrow"></i>
-              </button>
+            <div class="published-course-block">
 
-              <label
-                class="published-visibility-toggle"
-                for="${checkboxId}"
-                title="Uncheck to hide this exam from students in this course"
-                onclick="event.stopPropagation()"
-              >
-                <input
-                  id="${checkboxId}"
-                  type="checkbox"
-                  checked
-                  onchange='togglePublishedExamVisibility(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)}, this)'
-                  onclick="event.stopPropagation()"
-                >
-                <span class="published-toggle-track">
-                  <span class="published-toggle-thumb"></span>
-                </span>
-                <span class="published-toggle-text">Shown</span>
-              </label>
-            </div>
+              <div class="published-course-meta">
+                ${esc(c.name || "Course")}
+                ${c.period ? ` | ${esc(c.period)}` : ""}
+                ${c.branch ? ` | ${esc(c.branch)}` : ""}
+              </div>
+
+              ${skillSummaryHtml}
           `;
-        });
 
-        html += `</div>`;
-      });
+          block.exams.forEach(examRow=>{
+
+            const checkboxId =
+              "publishedVisible_" +
+              String(examRow.examId)
+                .replace(
+                  /[^a-zA-Z0-9_-]/g,
+                  "_"
+                ) +
+              "_" +
+              String(c.id)
+                .replace(
+                  /[^a-zA-Z0-9_-]/g,
+                  "_"
+                );
+
+            const checkedAttr =
+              examRow.isShown
+                ? "checked"
+                : "";
+
+            const statusText =
+              examRow.isShown
+                ? "Shown"
+                : "Hidden";
+
+            const statusTitle =
+              examRow.isShown
+                ? "Confirmed for students. To hide it, uncheck the questions from the main questions page."
+                : "Hidden from students. Enable the questions from the main questions page to show it.";
+
+            const count =
+              examRow.isShown
+                ? examRow.shownCount
+                : examRow.linkedCount;
+
+            html += `
+              <div class="published-exam-row">
+
+                <button
+                  type="button"
+                  class="published-exam-name published-exam-open-btn"
+                  onclick='openPublishedExamForEdit(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)})'
+                  title="Open this exam and edit its questions"
+                >
+                  <i class="fa-regular fa-file-lines"></i>
+
+                  <span>
+                    ${esc(examRow.examTitle)}
+                  </span>
+
+                  <span class="published-exam-count">
+                    ${Number(count || 0)}
+                  </span>
+
+                  <i class="fa-solid fa-arrow-up-right-from-square published-exam-arrow"></i>
+                </button>
+
+                <label
+                  class="published-visibility-toggle"
+                  for="${checkboxId}"
+                  title="${esc(statusTitle)}"
+                >
+                  <input
+                    id="${checkboxId}"
+                    type="checkbox"
+                    ${checkedAttr}
+                    disabled
+                    aria-label="${esc(statusText)}"
+                  >
+
+                  <span class="published-toggle-track">
+                    <span class="published-toggle-thumb"></span>
+                  </span>
+
+                  <span class="published-toggle-text">
+                    ${statusText}
+                  </span>
+                </label>
+
+              </div>
+            `;
+          });
+
+          html += `</div>`;
+        });
 
       html += `</section>`;
     });
@@ -13961,18 +14195,23 @@ async function loadPublishedQuestionsSidebar(manual = false){
     body.innerHTML = html;
 
   }catch(error){
-    console.error("PUBLISHED SIDEBAR ERROR:", error);
+
+    console.error(
+      "PUBLISHED SIDEBAR ERROR:",
+      error
+    );
+
     body.innerHTML = `
       <div class="published-sidebar-error">
-        Unable to load published questions.<br>
+        Unable to load linked models status.<br>
         ${esc(error?.message || String(error))}
       </div>
     `;
+
   }finally{
     PUBLISHED_SIDEBAR_LOADING = false;
   }
 }
-
 
 async function togglePublishedExamVisibility(examId, courseId, checkbox){
   const desiredVisible = checkbox?.checked === true;
