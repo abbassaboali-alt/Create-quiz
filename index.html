@@ -12338,6 +12338,27 @@ init();
   color:#fff !important;
 }
 </style>
+
+<style id="prudle-basic-exam-green-summary">
+/* كل ما يظهر للطلاب في الملخص العلوي يكون أخضر */
+.published-course-skills .published-skill-chip{
+  background:#ecfdf5 !important;
+  border-color:#86efac !important;
+  color:#166534 !important;
+}
+
+.published-course-skills .published-skill-count{
+  background:#16a34a !important;
+  color:#fff !important;
+}
+
+/* الاختبارات الأساسية: Midterm / Final / Listening / Speaking ... */
+.published-course-skills .published-basic-exam-chip{
+  background:#dcfce7 !important;
+  border-color:#4ade80 !important;
+  color:#14532d !important;
+}
+</style>
 </body>
 </html>
 <script>
@@ -13745,57 +13766,83 @@ async function loadPublishedQuestionsSidebar(manual = false){
     });
 
     // =========================================================
-    // ✅ نجمع كل ما يخص الطلاب:
-    // 1) الدورات الأساسية للاختبار من exams.coursesData / courseIds
-    // 2) الدورات المرتبطة من questions.coursesUsed
+    // ✅ نجمع كل ما يمكن أن يظهر للطالب:
     //
-    // بهذا يظهر في الشريط كل اختبار يمكن أن يظهر للطالب،
-    // سواء كان اختباراً أساسياً أو Linked Course.
+    // 1) الاختبارات الأساسية للدورة:
+    //    courseIds / coursesData داخل exam
+    //
+    // 2) الاختبارات المرتبطة:
+    //    coursesUsed داخل questions
+    //
+    // وبذلك الاختبار الأساسي Midterm / Final / Listening /
+    // Speaking / Quiz Evaluation يظهر في الشريط أيضاً.
     // =========================================================
-    const linkedByExamCourse = {};
 
+    const linkedByExamCourse = {};
+    const allQuestionsByExam = {};
+    const fullExamQuestionCount = {};
     const baseCoursesByExam = {};
 
+    // ✅ جميع أسئلة كل اختبار
+    questionsSnap.forEach(doc=>{
+      const q = doc.data() || {};
+      const examId = String(q.examId || "").trim();
+
+      if(!examId) return;
+
+      if(!allQuestionsByExam[examId]){
+        allQuestionsByExam[examId] = [];
+      }
+
+      const info = {
+        id:doc.id,
+        text:String(
+          q.question ||
+          q.q ||
+          q.title ||
+          "(Question without text)"
+        ).trim(),
+        order:Number(q.order || 0),
+        group:String(q.group || "General").trim(),
+        raw:q
+      };
+
+      allQuestionsByExam[examId].push(info);
+
+      fullExamQuestionCount[examId] =
+        Number(fullExamQuestionCount[examId] || 0) + 1;
+    });
+
+    // ✅ الدورات الأساسية لكل اختبار
     examsSnap.forEach(examDoc=>{
       const exam = examDoc.data() || {};
       const examId = examDoc.id;
-
       const ids = new Set();
 
       if(Array.isArray(exam.courseIds)){
         exam.courseIds.forEach(id=>{
           id = String(id || "").trim();
-          if(id && courseMap[id]) ids.add(id);
+          if(id && courseMap[id]){
+            ids.add(id);
+          }
         });
       }
 
       if(Array.isArray(exam.coursesData)){
         exam.coursesData.forEach(c=>{
-          const id = String(c?.courseId || "").trim();
-          if(id && courseMap[id]) ids.add(id);
+          const id =
+            String(c?.courseId || "").trim();
+
+          if(id && courseMap[id]){
+            ids.add(id);
+          }
         });
       }
 
       baseCoursesByExam[examId] = ids;
     });
 
-    /*
-      ✅ عدد الأسئلة المطابق تماماً للواجهة الرئيسية:
-      الواجهة الرئيسية تحمل جميع documents التابعة لنفس examId
-      ثم تعرض النموذج كاملاً، لذلك نحسب هنا بنفس الطريقة.
-    */
-    const fullExamQuestionCount = {};
-
-    questionsSnap.forEach(doc=>{
-      const q = doc.data() || {};
-      const examId = String(q.examId || "").trim();
-
-      if(examId){
-        fullExamQuestionCount[examId] =
-          Number(fullExamQuestionCount[examId] || 0) + 1;
-      }
-    });
-
+    // ✅ الدورات المرتبطة من coursesUsed
     questionsSnap.forEach(doc=>{
       const q = doc.data() || {};
 
@@ -13818,41 +13865,17 @@ async function loadPublishedQuestionsSidebar(manual = false){
           ? q.coursesUsed
           : [];
 
-      const questionInfo = {
-        id:doc.id,
-        text:String(
-          q.question ||
-          q.q ||
-          q.title ||
-          "(Question without text)"
-        ).trim(),
-        order:Number(q.order || 0),
-        group:String(q.group || "General").trim()
-      };
-
-      const allCourseIds = new Set();
-
-      // ✅ الدورات المرتبطة
       used.forEach(c=>{
         const courseId =
           String(c?.courseId || "").trim();
 
-        if(courseId && courseMap[courseId]){
-          allCourseIds.add(courseId);
+        if(
+          !courseId ||
+          !courseMap[courseId]
+        ){
+          return;
         }
-      });
 
-      // ✅ الدورات الأساسية للاختبار
-      const baseIds =
-        baseCoursesByExam[examId] || new Set();
-
-      baseIds.forEach(courseId=>{
-        if(courseId && courseMap[courseId]){
-          allCourseIds.add(courseId);
-        }
-      });
-
-      allCourseIds.forEach(courseId=>{
         const key =
           examId + "__" + courseId;
 
@@ -13860,35 +13883,47 @@ async function loadPublishedQuestionsSidebar(manual = false){
           linkedByExamCourse[key] = [];
         }
 
-        // منع تكرار نفس السؤال في نفس الدورة
         if(
           !linkedByExamCourse[key]
-            .some(item => item.id === doc.id)
+            .some(item=>item.id === doc.id)
         ){
-          linkedByExamCourse[key].push(questionInfo);
+          linkedByExamCourse[key].push({
+            id:doc.id,
+            text:String(
+              q.question ||
+              q.q ||
+              q.title ||
+              "(Question without text)"
+            ).trim(),
+            order:Number(q.order || 0),
+            group:String(q.group || "General").trim()
+          });
         }
       });
     });
 
+    // ✅ أسماء أنواع الاختبارات الأساسية
+    const BASIC_EXAM_TYPE_LABELS = {
+      midterm:"Midterm",
+      finalExam:"Final Exam",
+      listening:"Listening",
+      speaking:"Speaking",
+      quizEvaluation:"Quiz & Evaluation"
+    };
+
+    function getBasicExamTypeLabel(value){
+      return BASIC_EXAM_TYPE_LABELS[
+        String(value || "").trim()
+      ] || "";
+    }
+
     const rows = [];
 
     // =========================================================
-    // ✅ حالة Shown / Hidden
-    //
-    // GREEN / Shown:
-    // يوجد سؤال واحد على الأقل داخل visibleQuestionsByCourse
-    // => الطالب يستطيع رؤية الأسئلة المؤكدة.
-    //
-    // RED / Hidden:
-    // النموذج ما زال Linked بالدورة، لكن لا توجد أسئلة مؤكدة
-    // => لا يظهر شيء للطالب.
-    //
-    // الزر هنا مؤشر حالة فقط، ولا يغير Firebase.
-    // الإلغاء/الإظهار الرئيسي يتم من صفحة الأسئلة.
+    // ✅ حالة Shown / Hidden لكل دورة
     // =========================================================
     examsSnap.forEach(examDoc=>{
       const exam = examDoc.data() || {};
-
       const examId = examDoc.id;
 
       const visibleMap =
@@ -13901,6 +13936,15 @@ async function loadPublishedQuestionsSidebar(manual = false){
         "Untitled Exam"
       ).trim();
 
+      const examCategory =
+        String(exam.examCategory || "").trim();
+
+      const basicExamTypeLabel =
+        getBasicExamTypeLabel(examCategory);
+
+      const baseCourseIds =
+        baseCoursesByExam[examId] || new Set();
+
       Object.entries(courseMap).forEach(
         ([courseId, course])=>{
 
@@ -13910,9 +13954,44 @@ async function loadPublishedQuestionsSidebar(manual = false){
           const linkedQuestions =
             linkedByExamCourse[key] || [];
 
-          // لا يظهر إلا إذا كان الاختبار أساسياً لهذه الدورة
-          // أو مرتبطاً بها فعلياً.
-          if(!linkedQuestions.length){
+          const isBaseCourse =
+            baseCourseIds.has(courseId);
+
+          /*
+            ✅ إذا كان اختباراً أساسياً لهذه الدورة:
+            نستخدم كل أسئلة الاختبار.
+
+            ✅ إذا كان Linked فقط:
+            نستخدم الأسئلة المرتبطة بهذه الدورة.
+          */
+          let courseQuestions = [];
+
+          if(isBaseCourse){
+            courseQuestions =
+              (allQuestionsByExam[examId] || [])
+                .filter(item=>{
+                  const q = item.raw || {};
+
+                  return !(
+                    q.showQuestion === false ||
+                    q.visible === false ||
+                    q.hidden === true ||
+                    q.isMain === true
+                  );
+                })
+                .map(item=>({
+                  id:item.id,
+                  text:item.text,
+                  order:item.order,
+                  group:item.group
+                }));
+          }else{
+            courseQuestions =
+              linkedQuestions;
+          }
+
+          // ليس أساسياً ولا Linked لهذه الدورة
+          if(!courseQuestions.length){
             return;
           }
 
@@ -13929,7 +14008,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
             );
 
           const shownQuestions =
-            linkedQuestions.filter(q =>
+            courseQuestions.filter(q =>
               visibleSet.has(
                 String(q.id || "").trim()
               )
@@ -13941,14 +14020,10 @@ async function loadPublishedQuestionsSidebar(manual = false){
           const courseSkillMap =
             exam.groupSkillsByCourse?.[courseId] || {};
 
-          /*
-            لو Shown نعرض عدد الأسئلة المؤكدة فعلياً.
-            لو Hidden نعرض عدد الأسئلة المرتبطة، مع الحالة الحمراء.
-          */
           const sourceQuestions =
             isShown
               ? shownQuestions
-              : linkedQuestions;
+              : courseQuestions;
 
           const questions =
             sourceQuestions
@@ -13978,15 +14053,21 @@ async function loadPublishedQuestionsSidebar(manual = false){
           rows.push({
             examId,
             examTitle,
+            examCategory,
+            basicExamTypeLabel,
+            isBaseCourse,
             course,
             questions,
 
-            // ✅ نفس عدد الأسئلة في الواجهة الرئيسية
             fullQuestionCount:
               Number(fullExamQuestionCount[examId] || 0),
 
-            linkedCount:linkedQuestions.length,
-            shownCount:shownQuestions.length,
+            linkedCount:
+              linkedQuestions.length,
+
+            shownCount:
+              shownQuestions.length,
+
             isShown
           });
         }
@@ -14066,7 +14147,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
         grouped[trainerKey][courseKey] = {
           course:row.course,
           exams:[],
-          skillCounts:{}
+          skillCounts:{},
+          basicExamCounts:{}
         };
       }
 
@@ -14074,10 +14156,20 @@ async function loadPublishedQuestionsSidebar(manual = false){
         .exams.push(row);
 
       /*
-        ✅ عدادات المهارات تعرض النماذج المفعلة Shown فقط.
-        Hidden لا يدخل في General / Homework / Reading / Vocabulary.
+        ✅ الأخضر بالأعلى = كل ما هو Shown للطلاب فقط.
+
+        1) Linked / Skills:
+           General / Grammar / Reading / Vocabulary ...
+
+        2) الاختبارات الأساسية للدورة:
+           Midterm / Final Exam / Listening / Speaking /
+           Quiz & Evaluation
+
+        Hidden لا يدخل في أي عداد أخضر.
       */
       if(row.isShown){
+
+        // ✅ المهارات
         const skillsInThisModel =
           new Set();
 
@@ -14108,6 +14200,30 @@ async function loadPublishedQuestionsSidebar(manual = false){
               String(row.examId || "")
             );
         });
+
+        // ✅ نوع الاختبار الأساسي
+        if(
+          row.isBaseCourse &&
+          row.basicExamTypeLabel
+        ){
+          const typeLabel =
+            row.basicExamTypeLabel;
+
+          if(
+            !grouped[trainerKey][courseKey]
+              .basicExamCounts[typeLabel]
+          ){
+            grouped[trainerKey][courseKey]
+              .basicExamCounts[typeLabel] =
+                new Set();
+          }
+
+          grouped[trainerKey][courseKey]
+            .basicExamCounts[typeLabel]
+            .add(
+              String(row.examId || "")
+            );
+        }
       }
     });
 
@@ -14144,12 +14260,35 @@ async function loadPublishedQuestionsSidebar(manual = false){
             Object.entries(
               block.skillCounts || {}
             )
-            .map(([skill,examSet])=>[
-              skill,
+            .map(([label,examSet])=>[
+              label,
               examSet instanceof Set
                 ? examSet.size
-                : Number(examSet || 0)
-            ])
+                : Number(examSet || 0),
+              "skill"
+            ]);
+
+          const basicExamEntries =
+            Object.entries(
+              block.basicExamCounts || {}
+            )
+            .map(([label,examSet])=>[
+              label,
+              examSet instanceof Set
+                ? examSet.size
+                : Number(examSet || 0),
+              "basic"
+            ]);
+
+          /*
+            ✅ نفس المنطقة الخضراء تعرض الآن:
+            المهارات + أنواع الاختبارات الأساسية المفعلة Shown.
+          */
+          const greenEntries =
+            [
+              ...skillEntries,
+              ...basicExamEntries
+            ]
             .filter(([,count])=>
               Number(count || 0) > 0
             )
@@ -14161,17 +14300,17 @@ async function loadPublishedQuestionsSidebar(manual = false){
             );
 
           const skillSummaryHtml =
-            skillEntries.length
+            greenEntries.length
               ? `
                 <div class="published-course-skills">
                   ${
-                    skillEntries
-                      .map(([skill,count])=>`
+                    greenEntries
+                      .map(([label,count,kind])=>`
                         <span
-                          class="published-skill-chip"
-                          title="${esc(skill)}: ${Number(count || 0)} linked model(s)"
+                          class="published-skill-chip ${kind === "basic" ? "published-basic-exam-chip" : ""}"
+                          title="${esc(label)}: ${Number(count || 0)} Shown model(s)"
                         >
-                          <span class="published-skill-name">${esc(skill)}</span>
+                          <span class="published-skill-name">${esc(label)}</span>
                           <strong class="published-skill-count">${Number(count || 0)}</strong>
                         </span>
                       `)
@@ -14297,7 +14436,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
 
     body.innerHTML = `
       <div class="published-sidebar-error">
-        Unable to load linked models status.<br>
+        Unable to load student models status.<br>
         ${esc(error?.message || String(error))}
       </div>
     `;
@@ -14398,22 +14537,24 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
           );
 
         /*
-          ✅ دعم الاختبارات الأساسية أيضاً:
-          إذا كانت الدورة ضمن coursesData / courseIds للاختبار
-          فالسؤال تابع للدورة الأساسية حتى لو لم يوجد coursesUsed.
+          ✅ الاختبار الأساسي:
+          إذا كانت الدورة موجودة في courseIds أو coursesData
+          في نفس exam، فكل أسئلة الاختبار الأساسية يمكن إظهارها.
         */
-        const baseCourseIds = new Set(
-          [
-            ...(Array.isArray(examData.courseIds)
-              ? examData.courseIds
-              : []),
-            ...(Array.isArray(examData.coursesData)
-              ? examData.coursesData.map(c=>c?.courseId)
-              : [])
-          ]
-          .map(id=>String(id || "").trim())
-          .filter(Boolean)
-        );
+        const baseCourseIds =
+          new Set(
+            [
+              ...(Array.isArray(examData.courseIds)
+                ? examData.courseIds
+                : []),
+
+              ...(Array.isArray(examData.coursesData)
+                ? examData.coursesData.map(c=>c?.courseId)
+                : [])
+            ]
+            .map(id=>String(id || "").trim())
+            .filter(Boolean)
+          );
 
         const belongsToBaseCourse =
           baseCourseIds.has(courseId);
