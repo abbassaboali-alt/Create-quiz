@@ -12325,6 +12325,19 @@ init();
 }
 </style>
 
+
+<style id="shown-skills-green-only">
+/* المهارات في أعلى الدورة = Shown فقط */
+.published-course-skills .published-skill-chip{
+  background:#ecfdf5 !important;
+  border-color:#86efac !important;
+  color:#166534 !important;
+}
+.published-course-skills .published-skill-count{
+  background:#16a34a !important;
+  color:#fff !important;
+}
+</style>
 </body>
 </html>
 <script>
@@ -14012,39 +14025,41 @@ async function loadPublishedQuestionsSidebar(manual = false){
         .exams.push(row);
 
       /*
-        عدد النماذج حسب المهارة.
-        نستخدم المهارات المرتبطة بالنموذج.
+        ✅ عدادات المهارات تعرض النماذج المفعلة Shown فقط.
+        Hidden لا يدخل في General / Homework / Reading / Vocabulary.
       */
-      const skillsInThisModel =
-        new Set();
+      if(row.isShown){
+        const skillsInThisModel =
+          new Set();
 
-      row.questions.forEach(q=>{
-        const skill =
-          String(
-            q.skill ||
-            q.group ||
-            "General"
-          ).trim() || "General";
+        row.questions.forEach(q=>{
+          const skill =
+            String(
+              q.skill ||
+              q.group ||
+              "General"
+            ).trim() || "General";
 
-        skillsInThisModel.add(skill);
-      });
+          skillsInThisModel.add(skill);
+        });
 
-      skillsInThisModel.forEach(skill=>{
-        if(
-          !grouped[trainerKey][courseKey]
-            .skillCounts[skill]
-        ){
+        skillsInThisModel.forEach(skill=>{
+          if(
+            !grouped[trainerKey][courseKey]
+              .skillCounts[skill]
+          ){
+            grouped[trainerKey][courseKey]
+              .skillCounts[skill] =
+                new Set();
+          }
+
           grouped[trainerKey][courseKey]
-            .skillCounts[skill] =
-              new Set();
-        }
-
-        grouped[trainerKey][courseKey]
-          .skillCounts[skill]
-          .add(
-            String(row.examId || "")
-          );
-      });
+            .skillCounts[skill]
+            .add(
+              String(row.examId || "")
+            );
+        });
+      }
     });
 
     let html = `
