@@ -1990,10 +1990,10 @@ button:hover{
   border-radius:12px;
   background:#f0fdf4;
   color:#166534;
-  cursor:default;
+  cursor:pointer;
   user-select:none;
   white-space:nowrap;
-  pointer-events:none;
+  pointer-events:auto;
 }
 .published-visibility-toggle input{
   position:absolute;
@@ -13673,8 +13673,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
 
     if(roleLabel){
       roleLabel.textContent = isAdmin
-        ? "Admin view — linked models status"
-        : "Trainer view — my linked models status";
+        ? "Admin view — control linked models visibility"
+        : "Trainer view — control my linked models visibility";
     }
 
     const [coursesSnap, examsSnap, questionsSnap] =
@@ -14130,8 +14130,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
 
             const statusTitle =
               examRow.isShown
-                ? "Confirmed for students. To hide it, uncheck the questions from the main questions page."
-                : "Hidden from students. Enable the questions from the main questions page to show it.";
+                ? "Click to hide this model from students in this linked course."
+                : "Click to show this model to students in this linked course.";
 
             const count =
               examRow.isShown
@@ -14169,7 +14169,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
                     id="${checkboxId}"
                     type="checkbox"
                     ${checkedAttr}
-                    disabled
+                    onchange='togglePublishedExamVisibility(${JSON.stringify(examRow.examId)}, ${JSON.stringify(c.id)}, this)'
+                    onclick="event.stopPropagation()"
                     aria-label="${esc(statusText)}"
                   >
 
@@ -14214,102 +14215,243 @@ async function loadPublishedQuestionsSidebar(manual = false){
 }
 
 async function togglePublishedExamVisibility(examId, courseId, checkbox){
-  const desiredVisible = checkbox?.checked === true;
+  const desiredVisible =
+    checkbox?.checked === true;
+
+  examId =
+    String(examId || "").trim();
+
+  courseId =
+    String(courseId || "").trim();
+
+  if(!examId || !courseId){
+    if(checkbox){
+      checkbox.checked = !desiredVisible;
+    }
+    alert("Missing exam or course ID");
+    return;
+  }
 
   /*
-    الصفوف الموجودة داخل هذا الشريط هي اختبارات منشورة بالفعل،
-    لذلك الاستخدام الأساسي هنا هو إلغاء التحديد لإخفائها.
-    لو أعيد التحديد قبل اختفاء الصف، نعيد مزامنة جميع الأسئلة المرتبطة بالدورة.
+    ✅ التحكم من الشريط الجانبي:
+    ON  = إظهار كل الأسئلة المرتبطة بهذه الدورة للطالب.
+    OFF = إخفاء كل أسئلة هذا النموذج عن طلاب هذه الدورة فقط.
+
+    مهم:
+    هذا لا يعمل Remove Link.
+    coursesUsed يبقى كما هو، وبالتالي يبقى النموذج مرتبطاً بالدورة
+    ويمكن تشغيله مرة أخرى من نفس الزر.
   */
+
   try{
-    examId = String(examId || "").trim();
-    courseId = String(courseId || "").trim();
-
-    if(!examId || !courseId){
-      throw new Error("Missing exam or course ID");
-    }
-
     if(checkbox){
       checkbox.disabled = true;
     }
 
-    const examRef = db.collection("exams").doc(examId);
-    const examDoc = await examRef.get();
+    const examRef =
+      db.collection("exams").doc(examId);
+
+    const examDoc =
+      await examRef.get();
 
     if(!examDoc.exists){
       throw new Error("Exam not found");
     }
 
-    const examData = examDoc.data() || {};
+    const examData =
+      examDoc.data() || {};
+
     const visibleMap = {
       ...(examData.visibleQuestionsByCourse || {})
     };
 
     if(desiredVisible){
-      /*
-        إعادة بناء الأسئلة الظاهرة من الأسئلة المرتبطة بهذه الدورة.
-        هذا يحافظ على نفس منطق الصفحة الحالي.
-      */
-      const linkedIds = await syncAllVisibleLinkedQuestions(
-        examId,
-        courseId
-      );
 
-      // syncAllVisibleLinkedQuestions يحفظ الخريطة بالفعل
-      console.log(
-        "✅ Published from sidebar:",
-        examId,
-        courseId,
-        linkedIds?.length || 0
-      );
-    }else{
-      // ✅ إخفاء هذا الاختبار عن طلاب هذه الدورة فقط
-      visibleMap[courseId] = [];
+      /*
+        ✅ اجلب الأسئلة المرتبطة فعلياً بهذه الدورة
+        حتى لو كان أصل النموذج أو الأسئلة لمدرب آخر.
+        معيار السماح هنا هو coursesUsed للدورة نفسها،
+        وليس مالك السؤال الأصلي.
+      */
+      const qSnap =
+        await db.collection("questions")
+          .where("examId","==",examId)
+          .get();
+
+      const linkedIds = [];
+
+      qSnap.forEach(doc=>{
+        const q =
+          doc.data() || {};
+
+        if(
+          q.showQuestion === false ||
+          q.visible === false ||
+          q.hidden === true ||
+          q.isMain === true
+        ){
+          return;
+        }
+
+        const used =
+          Array.isArray(q.coursesUsed)
+            ? q.coursesUsed
+            : [];
+
+        const belongsToLinkedCourse =
+          used.some(c =>
+            String(c?.courseId || "").trim() ===
+            courseId
+          );
+
+        if(belongsToLinkedCourse){
+          linkedIds.push(doc.id);
+        }
+      });
+
+      if(!linkedIds.length){
+        throw new Error(
+          "No linked questions were found for this course"
+        );
+      }
+
+      visibleMap[courseId] =
+        [...new Set(linkedIds)];
 
       const updateData = {
-        visibleQuestionsByCourse: visibleMap,
+        visibleQuestionsByCourse:
+          visibleMap,
+
         updatedAt:
           firebase.firestore.FieldValue.serverTimestamp()
       };
 
       /*
-        visibleQuestions حقل قديم للتوافق.
-        لا نمسحه إلا إذا كانت هذه هي الدورة المفتوحة حاليًا،
-        حتى لا نؤثر على دورة أخرى.
+        الحقل القديم visibleQuestions يُحدّث فقط إذا كانت
+        هذه هي الدورة المفتوحة حالياً في صفحة الإدارة.
       */
       if(
-        String(CURRENT_COURSE_ID || "").trim() === courseId &&
-        String(CURRENT_PREVIEW_EXAM || "").trim() === examId
+        String(CURRENT_COURSE_ID || "").trim() ===
+        courseId &&
+        String(CURRENT_PREVIEW_EXAM || "").trim() ===
+        examId
+      ){
+        updateData.visibleQuestions =
+          [...new Set(linkedIds)];
+      }
+
+      await examRef.set(
+        updateData,
+        {merge:true}
+      );
+
+      console.log(
+        "✅ SHOWN ON FROM SIDEBAR:",
+        examId,
+        courseId,
+        linkedIds.length
+      );
+
+    }else{
+
+      /*
+        ✅ RED / HIDDEN:
+        لا نحذف الربط ولا coursesUsed.
+        فقط نمنع ظهور الأسئلة للطالب في هذه الدورة.
+      */
+      visibleMap[courseId] = [];
+
+      const updateData = {
+        visibleQuestionsByCourse:
+          visibleMap,
+
+        updatedAt:
+          firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if(
+        String(CURRENT_COURSE_ID || "").trim() ===
+        courseId &&
+        String(CURRENT_PREVIEW_EXAM || "").trim() ===
+        examId
       ){
         updateData.visibleQuestions = [];
       }
 
-      await examRef.set(updateData,{merge:true});
+      await examRef.set(
+        updateData,
+        {merge:true}
+      );
 
       console.log(
-        "✅ Hidden from sidebar:",
+        "✅ HIDDEN FROM SIDEBAR:",
         examId,
         courseId
       );
     }
 
-    // إذا كان نفس الاختبار مفتوحًا في المحرر، حدّث الـ checkbox والمحتوى فورًا
+    /*
+      تحديث نص/لون الزر فوراً قبل إعادة بناء الشريط.
+    */
+    if(checkbox){
+      const label =
+        checkbox.closest(
+          ".published-visibility-toggle"
+        );
+
+      const statusTextEl =
+        label?.querySelector(
+          ".published-toggle-text"
+        );
+
+      if(statusTextEl){
+        statusTextEl.textContent =
+          desiredVisible
+            ? "Shown"
+            : "Hidden";
+      }
+    }
+
+    /*
+      إذا كانت نفس الدورة/الاختبار مفتوحة في الصفحة،
+      أعد تحميل الأسئلة لتتزامن checkboxes الرئيسية أيضاً.
+    */
     if(
-      String(CURRENT_PREVIEW_EXAM || "").trim() === examId &&
-      String(CURRENT_COURSE_ID || "").trim() === courseId &&
+      String(CURRENT_PREVIEW_EXAM || "").trim() ===
+      examId &&
+      String(CURRENT_COURSE_ID || "").trim() ===
+      courseId &&
       typeof loadQuestions === "function"
     ){
       await loadQuestions();
     }
 
-    // تحديث الشريط مباشرة، بالإضافة إلى onSnapshot
-    schedulePublishedSidebarRefresh(30);
+    /*
+      أعد تحميل الشريط لتحديث العدادات والحالة.
+    */
+    if(
+      typeof loadPublishedQuestionsSidebar ===
+      "function"
+    ){
+      await loadPublishedQuestionsSidebar(true);
+    }else if(
+      typeof schedulePublishedSidebarRefresh ===
+      "function"
+    ){
+      schedulePublishedSidebarRefresh(0);
+    }
 
   }catch(error){
-    console.error("SIDEBAR VISIBILITY TOGGLE ERROR:", error);
+
+    console.error(
+      "SIDEBAR VISIBILITY TOGGLE ERROR:",
+      error
+    );
 
     if(checkbox){
-      checkbox.checked = !desiredVisible;
+      checkbox.checked =
+        !desiredVisible;
+
       checkbox.disabled = false;
     }
 
@@ -14317,6 +14459,15 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
       "Unable to change student visibility: " +
       (error?.message || String(error))
     );
+
+  }finally{
+
+    if(
+      checkbox &&
+      document.body.contains(checkbox)
+    ){
+      checkbox.disabled = false;
+    }
   }
 }
 
