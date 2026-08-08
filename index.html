@@ -13691,8 +13691,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
 
     if(roleLabel){
       roleLabel.textContent = isAdmin
-        ? "Admin view — control linked models visibility"
-        : "Trainer view — control my linked models visibility";
+        ? "Admin view — all student models visibility"
+        : "Trainer view — all my student models visibility";
     }
 
     const [coursesSnap, examsSnap, questionsSnap] =
@@ -13745,11 +13745,39 @@ async function loadPublishedQuestionsSidebar(manual = false){
     });
 
     // =========================================================
-    // ✅ نجمع كل الأسئلة المرتبطة بالدورات من coursesUsed.
-    // لا نعتمد على visibleQuestionsByCourse هنا،
-    // لأن النموذج يجب أن يبقى في الشريط حتى لو أصبح Hidden.
+    // ✅ نجمع كل ما يخص الطلاب:
+    // 1) الدورات الأساسية للاختبار من exams.coursesData / courseIds
+    // 2) الدورات المرتبطة من questions.coursesUsed
+    //
+    // بهذا يظهر في الشريط كل اختبار يمكن أن يظهر للطالب،
+    // سواء كان اختباراً أساسياً أو Linked Course.
     // =========================================================
     const linkedByExamCourse = {};
+
+    const baseCoursesByExam = {};
+
+    examsSnap.forEach(examDoc=>{
+      const exam = examDoc.data() || {};
+      const examId = examDoc.id;
+
+      const ids = new Set();
+
+      if(Array.isArray(exam.courseIds)){
+        exam.courseIds.forEach(id=>{
+          id = String(id || "").trim();
+          if(id && courseMap[id]) ids.add(id);
+        });
+      }
+
+      if(Array.isArray(exam.coursesData)){
+        exam.coursesData.forEach(c=>{
+          const id = String(c?.courseId || "").trim();
+          if(id && courseMap[id]) ids.add(id);
+        });
+      }
+
+      baseCoursesByExam[examId] = ids;
+    });
 
     /*
       ✅ عدد الأسئلة المطابق تماماً للواجهة الرئيسية:
@@ -13790,17 +13818,41 @@ async function loadPublishedQuestionsSidebar(manual = false){
           ? q.coursesUsed
           : [];
 
+      const questionInfo = {
+        id:doc.id,
+        text:String(
+          q.question ||
+          q.q ||
+          q.title ||
+          "(Question without text)"
+        ).trim(),
+        order:Number(q.order || 0),
+        group:String(q.group || "General").trim()
+      };
+
+      const allCourseIds = new Set();
+
+      // ✅ الدورات المرتبطة
       used.forEach(c=>{
         const courseId =
           String(c?.courseId || "").trim();
 
-        if(
-          !courseId ||
-          !courseMap[courseId]
-        ){
-          return;
+        if(courseId && courseMap[courseId]){
+          allCourseIds.add(courseId);
         }
+      });
 
+      // ✅ الدورات الأساسية للاختبار
+      const baseIds =
+        baseCoursesByExam[examId] || new Set();
+
+      baseIds.forEach(courseId=>{
+        if(courseId && courseMap[courseId]){
+          allCourseIds.add(courseId);
+        }
+      });
+
+      allCourseIds.forEach(courseId=>{
         const key =
           examId + "__" + courseId;
 
@@ -13808,17 +13860,13 @@ async function loadPublishedQuestionsSidebar(manual = false){
           linkedByExamCourse[key] = [];
         }
 
-        linkedByExamCourse[key].push({
-          id:doc.id,
-          text:String(
-            q.question ||
-            q.q ||
-            q.title ||
-            "(Question without text)"
-          ).trim(),
-          order:Number(q.order || 0),
-          group:String(q.group || "General").trim()
-        });
+        // منع تكرار نفس السؤال في نفس الدورة
+        if(
+          !linkedByExamCourse[key]
+            .some(item => item.id === doc.id)
+        ){
+          linkedByExamCourse[key].push(questionInfo);
+        }
       });
     });
 
@@ -13862,7 +13910,8 @@ async function loadPublishedQuestionsSidebar(manual = false){
           const linkedQuestions =
             linkedByExamCourse[key] || [];
 
-          // إذا النموذج غير مرتبط أصلاً بهذه الدورة، لا يظهر في الشريط.
+          // لا يظهر إلا إذا كان الاختبار أساسياً لهذه الدورة
+          // أو مرتبطاً بها فعلياً.
           if(!linkedQuestions.length){
             return;
           }
@@ -13993,7 +14042,7 @@ async function loadPublishedQuestionsSidebar(manual = false){
         </div>
 
         <div class="published-sidebar-empty">
-          No linked models found for your courses.
+          No student models found for your courses.
         </div>
       `;
       return;
@@ -14348,7 +14397,31 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
             courseId
           );
 
-        if(belongsToLinkedCourse){
+        /*
+          ✅ دعم الاختبارات الأساسية أيضاً:
+          إذا كانت الدورة ضمن coursesData / courseIds للاختبار
+          فالسؤال تابع للدورة الأساسية حتى لو لم يوجد coursesUsed.
+        */
+        const baseCourseIds = new Set(
+          [
+            ...(Array.isArray(examData.courseIds)
+              ? examData.courseIds
+              : []),
+            ...(Array.isArray(examData.coursesData)
+              ? examData.coursesData.map(c=>c?.courseId)
+              : [])
+          ]
+          .map(id=>String(id || "").trim())
+          .filter(Boolean)
+        );
+
+        const belongsToBaseCourse =
+          baseCourseIds.has(courseId);
+
+        if(
+          belongsToLinkedCourse ||
+          belongsToBaseCourse
+        ){
           linkedIds.push(doc.id);
         }
       });
