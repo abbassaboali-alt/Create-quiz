@@ -12324,70 +12324,199 @@ async function resetLinkedCourseOne(
   courseId
 ){
 
-  const iqama = prompt("Insert Student ID");
+  const enteredId =
+    String(prompt("Insert Student ID") || "").trim();
 
-  if(!iqama) return;
+  if(!enteredId) return;
 
-  const access = await verifyLinkedCourseAccess(courseId);
+  courseId =
+    String(courseId || "").trim();
+
+  if(!courseId){
+    alert("Choose linked course first");
+    return;
+  }
+
+  const access =
+    await verifyLinkedCourseAccess(courseId);
 
   if(!access.allowed){
     alert("⛔ You can reset your linked course only");
     return;
   }
 
-  const qDoc = await db.collection("questions")
-    .doc(questionId)
-    .get();
+  const qDoc =
+    await db.collection("questions")
+      .doc(questionId)
+      .get();
 
   if(!qDoc.exists){
     alert("Question not found");
     return;
   }
 
-  const q = qDoc.data();
+  const q = qDoc.data() || {};
+  const examId =
+    String(q.examId || "").trim();
 
-  const examId = q.examId;
+  if(!examId){
+    alert("Exam not found");
+    return;
+  }
 
-  // ✅ البحث عن الطالب
-  const studentSnap = await db.collection("students")
-    .where("iqama","==",iqama)
-    .get();
+  /*
+    ✅ مهم للدورات المرتبطة:
+    بعض النتائج القديمة قد تحفظ studentId كـ Firestore document ID،
+    وبعضها قد تحفظ رقم الهوية نفسه أو حقلاً مختلفاً.
+    لذلك لا نستخدم استعلام studentId واحد فقط.
+  */
 
-  if(studentSnap.empty){
+  // 1) ابحث عن سجل الطالب من رقم الهوية
+  let studentDoc = null;
+
+  const studentSnap =
+    await db.collection("students")
+      .where("iqama","==",enteredId)
+      .get();
+
+  if(!studentSnap.empty){
+    studentDoc = studentSnap.docs[0];
+  }else{
+    /*
+      دعم إضافي إذا كان رقم الطالب محفوظاً في studentID بدلاً من iqama.
+    */
+    try{
+      const byStudentID =
+        await db.collection("students")
+          .where("studentID","==",enteredId)
+          .get();
+
+      if(!byStudentID.empty){
+        studentDoc = byStudentID.docs[0];
+      }
+    }catch(e){
+      console.warn("studentID fallback:", e);
+    }
+  }
+
+  if(!studentDoc){
     alert("Student not found");
     return;
   }
 
-  const studentId = studentSnap.docs[0].id;
+  const studentData =
+    studentDoc.data() || {};
 
-  // ✅ حذف نتيجة نفس الدورة فقط
-  const resultSnap = await db.collection("results")
-    .where("studentId","==",studentId)
-    .where("examId","==",examId)
-    .where("courseId","==",courseId)
-    .get();
+  const firestoreStudentId =
+    String(studentDoc.id || "").trim();
 
-  if(resultSnap.empty){
-    alert("No result for this course");
+  /*
+    جميع القيم الممكن أن تكون قد استخدمت تاريخياً
+    كـ studentId داخل results.
+  */
+  const possibleStudentIds = new Set(
+    [
+      firestoreStudentId,
+      enteredId,
+      studentData.iqama,
+      studentData.studentId,
+      studentData.studentID,
+      studentData.id,
+      studentData.ID
+    ]
+    .map(v => String(v || "").trim())
+    .filter(Boolean)
+  );
+
+  /*
+    ✅ نبحث أولاً عن نتائج نفس الاختبار + نفس الدورة.
+    هذا نفس الأسلوب الذي يجعل Reset Course يعمل بشكل صحيح.
+    بعد ذلك نحدد نتيجة الطالب محلياً بدل فرض أن studentId
+    يساوي document ID فقط.
+  */
+  const courseResultsSnap =
+    await db.collection("results")
+      .where("examId","==",examId)
+      .where("courseId","==",courseId)
+      .get();
+
+  if(courseResultsSnap.empty){
+    alert("No results for this linked course");
     return;
   }
 
-  for(const doc of resultSnap.docs){
+  const matchedResultDocs =
+    courseResultsSnap.docs.filter(doc => {
 
-    await db.collection("results")
-      .doc(doc.id)
-      .delete();
+      const r = doc.data() || {};
 
+      const resultValues = [
+        r.studentId,
+        r.studentID,
+        r.iqama,
+        r.studentIqama,
+        r.id,
+        r.ID
+      ]
+      .map(v => String(v || "").trim())
+      .filter(Boolean);
+
+      return resultValues.some(v =>
+        possibleStudentIds.has(v)
+      );
+
+    });
+
+  if(!matchedResultDocs.length){
+
+    console.warn(
+      "RESET LINKED STUDENT: no matching result",
+      {
+        enteredId,
+        firestoreStudentId,
+        examId,
+        courseId,
+        possibleStudentIds:[...possibleStudentIds],
+        courseResults:
+          courseResultsSnap.docs.map(d => ({
+            id:d.id,
+            ...d.data()
+          }))
+      }
+    );
+
+    alert(
+      "No result found for this student in the selected linked course"
+    );
+    return;
   }
 
+  // ✅ حذف نتيجة هذا الطالب فقط من هذه الدورة المرتبطة
+  const batch = db.batch();
+
+  matchedResultDocs.forEach(doc=>{
+    batch.delete(
+      db.collection("results").doc(doc.id)
+    );
+  });
+
+  await batch.commit();
+
+  /*
+    ✅ السماح بإعادة الاختبار.
+    نستخدم document ID الحقيقي للطالب لأنه المستخدم
+    في آلية examRetakes الحالية.
+  */
   await allowStudentRetake(
     examId,
     courseId,
-    studentId,
-    iqama
+    firestoreStudentId,
+    enteredId
   );
 
-  alert("✅ Student can do exam again for this linked course only");
+  alert(
+    "✅ Student can do the exam again for this linked course only"
+  );
 
 }
 
@@ -13849,10 +13978,9 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
   const desiredVisible = checkbox?.checked === true;
 
   /*
-    ✅ ربط ثنائي الاتجاه:
-    Shown ON  = Link كامل + إظهار الأسئلة للطلاب.
-    Shown OFF = Remove Link كامل + إخفاء الأسئلة عن الطلاب.
-    Remove Link من Linked Courses يغلق Shown كذلك.
+    الصفوف الموجودة داخل هذا الشريط هي اختبارات منشورة بالفعل،
+    لذلك الاستخدام الأساسي هنا هو إلغاء التحديد لإخفائها.
+    لو أعيد التحديد قبل اختفاء الصف، نعيد مزامنة جميع الأسئلة المرتبطة بالدورة.
   */
   try{
     examId = String(examId || "").trim();
@@ -13896,128 +14024,20 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
         linkedIds?.length || 0
       );
     }else{
-      /*
-        ✅ TWO-WAY SYNC:
-        إغلاق Shown من الشريط = Remove Link كامل للدورة المحددة.
-        أي أن Shown و Remove Link أصبحا مرتبطين في الاتجاهين.
-      */
-
-      const access =
-        await verifyLinkedCourseAccess(courseId);
-
-      if(!access.allowed){
-        throw new Error(
-          "You can manage linked courses for your user only"
-        );
-      }
-
-      const qSnap =
-        await db.collection("questions")
-          .where("examId","==",examId)
-          .get();
-
-      const baseCourses =
-        Array.isArray(examData.coursesData)
-          ? examData.coursesData
-          : [];
-
-      const batch = db.batch();
-
-      qSnap.forEach(doc=>{
-        const q = doc.data() || {};
-
-        const oldUsed =
-          Array.isArray(q.coursesUsed)
-            ? q.coursesUsed
-            : [];
-
-        let filtered =
-          oldUsed.filter(c =>
-            String(c?.courseId || "").trim() !==
-            courseId
-          );
-
-        /*
-          إذا لم يبقَ أي course في السؤال،
-          احتفظ فقط بالدورات الأساسية الأخرى،
-          ولا تعِد الدورة التي تم إغلاق Shown لها.
-        */
-        if(filtered.length === 0){
-          filtered =
-            baseCourses
-              .filter(c =>
-                String(c?.courseId || "").trim() !==
-                courseId
-              )
-              .map(c => ({
-                courseId:
-                  c.courseId || "",
-                TrainingCourse:
-                  c.TrainingCourse || "",
-                Trainer:
-                  c.Trainer || "",
-                Period:
-                  c.Period || ""
-              }));
-        }
-
-        const questionUpdate = {
-          coursesUsed:
-            dedupeCoursesUsed(filtered)
-        };
-
-        /*
-          تنظيف حقول الربط القديمة إذا كانت تشير
-          إلى نفس الدورة التي تم إلغاء Shown لها.
-        */
-        if(
-          String(q.linkedCourseId || "").trim() ===
-          courseId
-        ){
-          questionUpdate.linkedCourseId =
-            firebase.firestore.FieldValue.delete();
-
-          questionUpdate.linkedCourseName =
-            firebase.firestore.FieldValue.delete();
-
-          questionUpdate.linkedTrainer =
-            firebase.firestore.FieldValue.delete();
-
-          questionUpdate.linkedPeriod =
-            firebase.firestore.FieldValue.delete();
-        }
-
-        batch.update(
-          db.collection("questions").doc(doc.id),
-          questionUpdate
-        );
-      });
-
-      await batch.commit();
-
-      /*
-        حذف الدورة من خريطة الظهور نهائيًا،
-        بدل إبقائها بقائمة فارغة فقط.
-      */
-      delete visibleMap[courseId];
-
-      const groupSkillsByCourse = {
-        ...(examData.groupSkillsByCourse || {})
-      };
-
-      delete groupSkillsByCourse[courseId];
+      // ✅ إخفاء هذا الاختبار عن طلاب هذه الدورة فقط
+      visibleMap[courseId] = [];
 
       const updateData = {
-        visibleQuestionsByCourse:
-          visibleMap,
-
-        groupSkillsByCourse:
-          groupSkillsByCourse,
-
+        visibleQuestionsByCourse: visibleMap,
         updatedAt:
           firebase.firestore.FieldValue.serverTimestamp()
       };
 
+      /*
+        visibleQuestions حقل قديم للتوافق.
+        لا نمسحه إلا إذا كانت هذه هي الدورة المفتوحة حاليًا،
+        حتى لا نؤثر على دورة أخرى.
+      */
       if(
         String(CURRENT_COURSE_ID || "").trim() === courseId &&
         String(CURRENT_PREVIEW_EXAM || "").trim() === examId
@@ -14025,25 +14045,10 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
         updateData.visibleQuestions = [];
       }
 
-      await examRef.set(
-        updateData,
-        {merge:true}
-      );
-
-      /*
-        إذا كان الشريط مركزًا على الدورة التي ألغيناها،
-        ألغِ التركيز حتى لا تظهر من بيانات محلية قديمة.
-      */
-      if(
-        typeof SIDEBAR_FOCUS_COURSE_ID !== "undefined" &&
-        String(SIDEBAR_FOCUS_COURSE_ID || "").trim() ===
-        courseId
-      ){
-        SIDEBAR_FOCUS_COURSE_ID = "";
-      }
+      await examRef.set(updateData,{merge:true});
 
       console.log(
-        "✅ Shown OFF = link removed completely:",
+        "✅ Hidden from sidebar:",
         examId,
         courseId
       );
