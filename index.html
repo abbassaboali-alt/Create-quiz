@@ -2814,6 +2814,8 @@ let CURRENT_COURSE_ID = "";
   أثناء هذا الوضع لا نعرض روابط دورات المدربين الآخرين.
 */
 let SIDEBAR_FOCUS_COURSE_ID = "";
+// ✅ عند فتح الاختبار من الشريط: اعرض جميع أسئلة النموذج مثل الشاشة الرئيسية
+let SIDEBAR_SHOW_FULL_EXAM = false;
 let CURRENT_COURSE_NAME = "";
 let CURRENT_TRAINER = "";
 let CURRENT_PERIOD = "";
@@ -4040,6 +4042,7 @@ function changeCourseTab(courseId){
 
   // الانتقال اليدوي بين الدورات يعيد العرض العادي
   SIDEBAR_FOCUS_COURSE_ID = "";
+  SIDEBAR_SHOW_FULL_EXAM = false;
   CURRENT_COURSE_ID = courseId;
 
   const examId = CURRENT_PREVIEW_EXAM;
@@ -4098,6 +4101,7 @@ function changeCourseTab(courseId){
 
     // الفتح العادي من قائمة الاختبارات يلغي وضع التركيز القادم من الشريط
     SIDEBAR_FOCUS_COURSE_ID = "";
+    SIDEBAR_SHOW_FULL_EXAM = false;
 
     CURRENT_COURSE_ID = "";
     CURRENT_COURSE_NAME = "";
@@ -7776,8 +7780,9 @@ if(deleteExamBtn){
      نعرض جميع الأسئلة الفعلية التابعة لنفس examId بدون فلترة coursesUsed.
 
   2) عند الضغط على الاختبار من "Questions Shown to Students":
-     نكون في SIDEBAR_FOCUS_COURSE_ID، وهنا فقط نعرض الأسئلة الخاصة
-     بالدورة التي ضغط عليها المدرب.
+     نحافظ على SIDEBAR_FOCUS_COURSE_ID لمعرفة دورة المدرب والتحكم بها،
+     لكن SIDEBAR_SHOW_FULL_EXAM يجعلنا نعرض جميع أسئلة النموذج كاملة
+     تماماً مثل الضغط على الاختبار من الشاشة الرئيسية.
 
   المشكلة السابقة:
   openExamTab() عند الفتح العادي يختار أول دورة داخل coursesData،
@@ -7786,7 +7791,7 @@ if(deleteExamBtn){
 */
 let questions = [...examQuestions];
 
-if(SIDEBAR_FOCUS_COURSE_ID){
+if(SIDEBAR_FOCUS_COURSE_ID && SIDEBAR_SHOW_FULL_EXAM !== true){
 
   const focusCourseId =
     String(SIDEBAR_FOCUS_COURSE_ID || "").trim();
@@ -14480,9 +14485,13 @@ async function openPublishedExamForEdit(examId, courseId){
 
     // اختيار الدورة الصحيحة قبل فتح الاختبار
     if(courseId){
-      // ✅ وضع تركيز: لا تظهر دورات المدربين الآخرين داخل Linked Courses
+      // ✅ نحافظ على دورة المدرب المختارة للسياق والتحكم
       SIDEBAR_FOCUS_COURSE_ID = courseId;
       CURRENT_COURSE_ID = courseId;
+
+      // ✅ لكن عرض الأسئلة نفسه يكون كاملاً مثل الشاشة الرئيسية
+      // لا نفلتر أسئلة النموذج حسب coursesUsed عند الفتح من الشريط.
+      SIDEBAR_SHOW_FULL_EXAM = true;
 
       try{
         const cDoc = await db.collection("Courses").doc(courseId).get();
