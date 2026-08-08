@@ -6626,13 +6626,52 @@ async function removeSelectedLinkedCourse(questionId){
       SIDEBAR_FOCUS_COURSE_ID = "";
     }
 
-    alert(
-      "✅ Link removed completely. Students can no longer see this model in the selected course."
-    );
+    /*
+      ✅ تحديث زر Shown فورًا في الشريط الجانبي.
+      لا ننتظر onSnapshot أو إعادة تحميل الشريط حتى يرى المستخدم النتيجة.
+    */
+    const sidebarCheckboxId =
+      "publishedVisible_" +
+      String(examId).replace(/[^a-zA-Z0-9_-]/g,"_") +
+      "_" +
+      String(courseId).replace(/[^a-zA-Z0-9_-]/g,"_");
 
-    if(typeof schedulePublishedSidebarRefresh === "function"){
-      schedulePublishedSidebarRefresh(30);
+    const sidebarCheckbox =
+      document.getElementById(sidebarCheckboxId);
+
+    if(sidebarCheckbox){
+      sidebarCheckbox.checked = false;
+      sidebarCheckbox.disabled = true;
+
+      const toggleLabel =
+        sidebarCheckbox.closest(".published-visibility-toggle");
+
+      if(toggleLabel){
+        toggleLabel.classList.add("is-hidden");
+
+        const toggleText =
+          toggleLabel.querySelector(".published-toggle-text");
+
+        if(toggleText){
+          toggleText.textContent = "Hidden";
+        }
+      }
     }
+
+    /*
+      ✅ أعد بناء الشريط مباشرة من Firebase بعد حذف الربط.
+      بما أن visibleQuestionsByCourse[courseId] حُذف أعلاه،
+      سيختفي النموذج من قائمة Shown بدل أن يبقى أخضر من الكاش.
+    */
+    if(typeof loadPublishedQuestionsSidebar === "function"){
+      await loadPublishedQuestionsSidebar(true);
+    }else if(typeof schedulePublishedSidebarRefresh === "function"){
+      schedulePublishedSidebarRefresh(0);
+    }
+
+    alert(
+      "✅ Link removed completely. Shown has been turned off and students can no longer see this model in the selected course."
+    );
 
     await loadQuestions();
 
@@ -13810,9 +13849,10 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
   const desiredVisible = checkbox?.checked === true;
 
   /*
-    الصفوف الموجودة داخل هذا الشريط هي اختبارات منشورة بالفعل،
-    لذلك الاستخدام الأساسي هنا هو إلغاء التحديد لإخفائها.
-    لو أعيد التحديد قبل اختفاء الصف، نعيد مزامنة جميع الأسئلة المرتبطة بالدورة.
+    ✅ ربط ثنائي الاتجاه:
+    Shown ON  = Link كامل + إظهار الأسئلة للطلاب.
+    Shown OFF = Remove Link كامل + إخفاء الأسئلة عن الطلاب.
+    Remove Link من Linked Courses يغلق Shown كذلك.
   */
   try{
     examId = String(examId || "").trim();
@@ -13856,20 +13896,128 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
         linkedIds?.length || 0
       );
     }else{
-      // ✅ إخفاء هذا الاختبار عن طلاب هذه الدورة فقط
-      visibleMap[courseId] = [];
+      /*
+        ✅ TWO-WAY SYNC:
+        إغلاق Shown من الشريط = Remove Link كامل للدورة المحددة.
+        أي أن Shown و Remove Link أصبحا مرتبطين في الاتجاهين.
+      */
+
+      const access =
+        await verifyLinkedCourseAccess(courseId);
+
+      if(!access.allowed){
+        throw new Error(
+          "You can manage linked courses for your user only"
+        );
+      }
+
+      const qSnap =
+        await db.collection("questions")
+          .where("examId","==",examId)
+          .get();
+
+      const baseCourses =
+        Array.isArray(examData.coursesData)
+          ? examData.coursesData
+          : [];
+
+      const batch = db.batch();
+
+      qSnap.forEach(doc=>{
+        const q = doc.data() || {};
+
+        const oldUsed =
+          Array.isArray(q.coursesUsed)
+            ? q.coursesUsed
+            : [];
+
+        let filtered =
+          oldUsed.filter(c =>
+            String(c?.courseId || "").trim() !==
+            courseId
+          );
+
+        /*
+          إذا لم يبقَ أي course في السؤال،
+          احتفظ فقط بالدورات الأساسية الأخرى،
+          ولا تعِد الدورة التي تم إغلاق Shown لها.
+        */
+        if(filtered.length === 0){
+          filtered =
+            baseCourses
+              .filter(c =>
+                String(c?.courseId || "").trim() !==
+                courseId
+              )
+              .map(c => ({
+                courseId:
+                  c.courseId || "",
+                TrainingCourse:
+                  c.TrainingCourse || "",
+                Trainer:
+                  c.Trainer || "",
+                Period:
+                  c.Period || ""
+              }));
+        }
+
+        const questionUpdate = {
+          coursesUsed:
+            dedupeCoursesUsed(filtered)
+        };
+
+        /*
+          تنظيف حقول الربط القديمة إذا كانت تشير
+          إلى نفس الدورة التي تم إلغاء Shown لها.
+        */
+        if(
+          String(q.linkedCourseId || "").trim() ===
+          courseId
+        ){
+          questionUpdate.linkedCourseId =
+            firebase.firestore.FieldValue.delete();
+
+          questionUpdate.linkedCourseName =
+            firebase.firestore.FieldValue.delete();
+
+          questionUpdate.linkedTrainer =
+            firebase.firestore.FieldValue.delete();
+
+          questionUpdate.linkedPeriod =
+            firebase.firestore.FieldValue.delete();
+        }
+
+        batch.update(
+          db.collection("questions").doc(doc.id),
+          questionUpdate
+        );
+      });
+
+      await batch.commit();
+
+      /*
+        حذف الدورة من خريطة الظهور نهائيًا،
+        بدل إبقائها بقائمة فارغة فقط.
+      */
+      delete visibleMap[courseId];
+
+      const groupSkillsByCourse = {
+        ...(examData.groupSkillsByCourse || {})
+      };
+
+      delete groupSkillsByCourse[courseId];
 
       const updateData = {
-        visibleQuestionsByCourse: visibleMap,
+        visibleQuestionsByCourse:
+          visibleMap,
+
+        groupSkillsByCourse:
+          groupSkillsByCourse,
+
         updatedAt:
           firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      /*
-        visibleQuestions حقل قديم للتوافق.
-        لا نمسحه إلا إذا كانت هذه هي الدورة المفتوحة حاليًا،
-        حتى لا نؤثر على دورة أخرى.
-      */
       if(
         String(CURRENT_COURSE_ID || "").trim() === courseId &&
         String(CURRENT_PREVIEW_EXAM || "").trim() === examId
@@ -13877,10 +14025,25 @@ async function togglePublishedExamVisibility(examId, courseId, checkbox){
         updateData.visibleQuestions = [];
       }
 
-      await examRef.set(updateData,{merge:true});
+      await examRef.set(
+        updateData,
+        {merge:true}
+      );
+
+      /*
+        إذا كان الشريط مركزًا على الدورة التي ألغيناها،
+        ألغِ التركيز حتى لا تظهر من بيانات محلية قديمة.
+      */
+      if(
+        typeof SIDEBAR_FOCUS_COURSE_ID !== "undefined" &&
+        String(SIDEBAR_FOCUS_COURSE_ID || "").trim() ===
+        courseId
+      ){
+        SIDEBAR_FOCUS_COURSE_ID = "";
+      }
 
       console.log(
-        "✅ Hidden from sidebar:",
+        "✅ Shown OFF = link removed completely:",
         examId,
         courseId
       );
