@@ -13738,6 +13738,23 @@ async function loadPublishedQuestionsSidebar(manual = false){
     // =========================================================
     const linkedByExamCourse = {};
 
+    /*
+      ✅ عدد الأسئلة المطابق تماماً للواجهة الرئيسية:
+      الواجهة الرئيسية تحمل جميع documents التابعة لنفس examId
+      ثم تعرض النموذج كاملاً، لذلك نحسب هنا بنفس الطريقة.
+    */
+    const fullExamQuestionCount = {};
+
+    questionsSnap.forEach(doc=>{
+      const q = doc.data() || {};
+      const examId = String(q.examId || "").trim();
+
+      if(examId){
+        fullExamQuestionCount[examId] =
+          Number(fullExamQuestionCount[examId] || 0) + 1;
+      }
+    });
+
     questionsSnap.forEach(doc=>{
       const q = doc.data() || {};
 
@@ -13901,6 +13918,11 @@ async function loadPublishedQuestionsSidebar(manual = false){
             examTitle,
             course,
             questions,
+
+            // ✅ نفس عدد الأسئلة في الواجهة الرئيسية
+            fullQuestionCount:
+              Number(fullExamQuestionCount[examId] || 0),
+
             linkedCount:linkedQuestions.length,
             shownCount:shownQuestions.length,
             isShown
@@ -14138,10 +14160,12 @@ async function loadPublishedQuestionsSidebar(manual = false){
                 ? "Click to hide this model from students in this linked course."
                 : "Click to show this model to students in this linked course.";
 
+            /*
+              ✅ الرقم بجانب اسم الاختبار مطابق للواجهة الرئيسية دائماً.
+              لا يتغير بسبب Shown / Hidden أو بسبب الدورة المرتبطة.
+            */
             const count =
-              examRow.isShown
-                ? examRow.shownCount
-                : examRow.linkedCount;
+              Number(examRow.fullQuestionCount || 0);
 
             html += `
               <div class="published-exam-row">
