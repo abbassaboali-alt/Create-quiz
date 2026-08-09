@@ -8714,6 +8714,20 @@ function setActiveQuestion(questionId){
       );
     });
 
+  const deleteBtn = document.getElementById("activeQuestionDeleteBtn");
+  if(deleteBtn){
+    const activeCard = ACTIVE_QUESTION_ID
+      ? document.querySelector(`.pro-question-card[data-question-id="${ACTIVE_QUESTION_ID}"]`)
+      : null;
+    const isLocked = activeCard?.dataset.questionLocked === "true";
+    deleteBtn.disabled = !ACTIVE_QUESTION_ID || isLocked;
+    deleteBtn.style.opacity = isLocked ? ".45" : "1";
+    deleteBtn.style.cursor = isLocked ? "not-allowed" : "pointer";
+    deleteBtn.title = isLocked
+      ? "Unlock this question before deleting it"
+      : "Delete the selected unlocked question";
+  }
+
   const label = document.getElementById("activeQuestionLabel");
   if(label){
     if(ACTIVE_QUESTION_ID){
@@ -9009,18 +9023,13 @@ async function loadQuestions(){
           👤 Reset Student
         </button>
 
-        ${
-          USER_ROLE === "admin"
-            ? `
-              <button
-                type="button"
-                onclick="deleteActiveQuestion()"
-                style="background:#dc2626">
-                🗑️ Delete Selected Question
-              </button>
-            `
-            : ""
-        }
+        <button
+          id="activeQuestionDeleteBtn"
+          type="button"
+          onclick="deleteActiveQuestion()"
+          style="background:#dc2626">
+          🗑️ Delete Selected Question
+        </button>
 
       </div>
     `;
@@ -10237,6 +10246,7 @@ questionsList.innerHTML += `
   data-question-id="${q.id}"
   data-question-order="${Number(q.order || 0)}"
   data-question-number="${questionNumberMap.get(q.id) || ""}"
+  data-question-locked="${q.locked === true ? "true" : "false"}"
   onclick="setActiveQuestion('${q.id}')"
 >
 
@@ -13330,36 +13340,55 @@ async function copySelectedBankQuestions(){
 
 async function deleteQuestion(id){
 
+  id = String(id || "").trim();
   if(!id){
     alert("معرّف السؤال غير موجود");
     return;
   }
 
-  const ok = confirm("⚠️ delete only this question");
-  if(!ok) return;
-
   try{
-    const qDoc = await db.collection("questions").doc(id).get();
-const examId = qDoc.exists ? qDoc.data().examId : "";
+    const qRef = db.collection("questions").doc(id);
+    const qDoc = await qRef.get();
 
-await db.collection("questions").doc(id).delete();
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
 
-if(examId){
-  await updateVisibleQuestions(examId);
-}
+    const qData = qDoc.data() || {};
 
-    alert("✅ the question has deleted successfully");
+    // الحذف متاح لأي مستخدم فقط عندما يكون السؤال غير مقفل.
+    // حتى admin لا يستطيع حذف السؤال وهو Locked.
+    if(qData.locked === true){
+      alert("🔒 This question is locked. Unlock it before deleting.");
+      return;
+    }
 
-    // إذا كنت تعدّل نفس السؤال المحذوف
+    const ok = confirm("⚠️ Delete only this selected question?");
+    if(!ok) return;
+
+    const examId = String(qData.examId || "").trim();
+    await qRef.delete();
+
+    if(examId){
+      await updateVisibleQuestions(examId);
+    }
+
+    alert("✅ The selected question has been deleted successfully");
+
     if(EDIT_QUESTION_ID === id){
       clearForm();
+    }
+
+    if(ACTIVE_QUESTION_ID === id){
+      ACTIVE_QUESTION_ID = "";
     }
 
     await loadQuestions();
 
   }catch(err){
     console.error(err);
-    alert("❌ فشل حذف السؤال");
+    alert("❌ Failed to delete the question. If this user should be allowed to delete, check Firestore security rules too.");
   }
 }
 async function toggleMediaVisibility(questionId, currentState){
@@ -14833,6 +14862,20 @@ async function openFullQuestions(examId){
           Total Questions: ${questions.length}
         </div>
 
+        <div id="pdfLayoutEditor" class="pdf-layout-editor">
+          <span id="pdfSelectedQuestionLabel" class="pdf-editor-selected">Select a question</span>
+          <button type="button" onclick="pdfNudgeSelected(0,-2)" title="Move up">⬆</button>
+          <button type="button" onclick="pdfNudgeSelected(0,2)" title="Move down">⬇</button>
+          <button type="button" onclick="pdfNudgeSelected(-2,0)" title="Move left">⬅</button>
+          <button type="button" onclick="pdfNudgeSelected(2,0)" title="Move right">➡</button>
+          <button type="button" onclick="pdfScaleSelected(-0.05)" title="Make smaller">➖</button>
+          <button type="button" onclick="pdfScaleSelected(0.05)" title="Make larger">➕</button>
+          <button type="button" onclick="pdfMoveQuestionOrder(-1)" title="Move question before previous question">⇧ Order</button>
+          <button type="button" onclick="pdfMoveQuestionOrder(1)" title="Move question after next question">⇩ Order</button>
+          <button type="button" onclick="pdfResetSelectedLayout()" class="pdf-reset-one">Reset Q</button>
+          <button type="button" onclick="pdfResetAllLayout()" class="pdf-reset-all">Reset All</button>
+        </div>
+
       </div>
 
       <div id="modalQuestionsWrap" style="direction:ltr;">
@@ -14843,7 +14886,10 @@ async function openFullQuestions(examId){
       const correct = q.correct;
 
       html += `
-        <div class="modal-q-card" data-search="${esc(
+        <div class="modal-q-card"
+          data-question-id="${q.id}"
+          data-pdf-question-index="${index}"
+          data-search="${esc(
           (q.question || "") + " " + (q.options || []).join(" ")
         ).toLowerCase()}" style="
           direction:ltr;
@@ -16819,4 +16865,299 @@ window.addEventListener("DOMContentLoaded",function(){
     }
   });
 });
+</script>
+
+<!-- =========================================
+     PRUDLE PDF QUESTION LAYOUT EDITOR
+     Manual per-question position / size / order.
+     Changes are stored per exam in localStorage and are applied to print/PDF.
+========================================= -->
+<style id="prudle-pdf-layout-editor-final">
+  #questionsModal .pdf-layout-editor{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    flex-wrap:wrap;
+    padding:10px;
+    border:1px solid #cfe0ef;
+    border-radius:14px;
+    background:#f8fbff;
+    direction:ltr;
+  }
+  #questionsModal .pdf-layout-editor button{
+    width:auto !important;
+    min-width:46px;
+    margin:0 !important;
+    padding:8px 11px !important;
+    border-radius:10px !important;
+    font-size:13px !important;
+  }
+  #questionsModal .pdf-editor-selected{
+    min-width:120px;
+    padding:8px 12px;
+    border-radius:999px;
+    background:#164478;
+    color:#fff;
+    font-weight:900;
+    text-align:center;
+  }
+  #questionsModal .pdf-reset-one{background:#f59e0b !important}
+  #questionsModal .pdf-reset-all{background:#dc2626 !important}
+
+  #questionsModal .modal-q-card.pdf-layout-selected{
+    outline:4px solid rgba(14,165,233,.38) !important;
+    outline-offset:3px;
+    cursor:move;
+  }
+
+  /* Screen preview uses the exact same variables as print. */
+  #questionsModal .modal-q-card[data-pdf-layout-ready="true"]{
+    position:relative !important;
+    left:var(--pdf-x,0mm) !important;
+    top:var(--pdf-y,0mm) !important;
+    zoom:var(--pdf-scale,1);
+    transform-origin:top left;
+  }
+
+  @media print{
+    #pdfLayoutEditor{display:none !important}
+    #questionsModal .modal-q-card[data-pdf-layout-ready="true"]{
+      position:relative !important;
+      left:var(--pdf-x,0mm) !important;
+      top:var(--pdf-y,0mm) !important;
+      zoom:var(--pdf-scale,1) !important;
+      transform-origin:top left !important;
+    }
+    #questionsModal .modal-q-card.pdf-layout-selected{
+      outline:none !important;
+    }
+  }
+</style>
+<script id="prudle-pdf-layout-editor-final-script">
+let PDF_SELECTED_QUESTION_ID = "";
+
+function getPdfLayoutStorageKey(){
+  const examId = String(
+    CURRENT_PRINT_EXAM_DATA?.examId || CURRENT_PREVIEW_EXAM || "default"
+  ).trim() || "default";
+  return "prudlePdfQuestionLayout:" + examId;
+}
+
+function getPdfLayoutMap(){
+  try{
+    const raw = localStorage.getItem(getPdfLayoutStorageKey());
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function savePdfLayoutMap(map){
+  localStorage.setItem(getPdfLayoutStorageKey(), JSON.stringify(map || {}));
+}
+
+function getPdfOrderStorageKey(){
+  return getPdfLayoutStorageKey() + ":order";
+}
+
+function savePdfQuestionOrder(){
+  const ids = [...document.querySelectorAll("#modalQuestionsWrap .modal-q-card[data-question-id]")]
+    .map(card=>String(card.dataset.questionId || "").trim())
+    .filter(Boolean);
+  localStorage.setItem(getPdfOrderStorageKey(), JSON.stringify(ids));
+}
+
+function applySavedPdfQuestionOrder(){
+  const wrap = document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
+  let ids = [];
+  try{
+    ids = JSON.parse(localStorage.getItem(getPdfOrderStorageKey()) || "[]");
+  }catch(e){
+    ids = [];
+  }
+  if(!Array.isArray(ids) || !ids.length) return;
+  const byId = new Map(
+    [...wrap.querySelectorAll(":scope > .modal-q-card[data-question-id]")]
+      .map(card=>[String(card.dataset.questionId || ""),card])
+  );
+  ids.forEach(id=>{
+    const card = byId.get(String(id));
+    if(card) wrap.appendChild(card);
+  });
+  renumberPdfPreviewQuestions();
+}
+
+function normalizePdfLayout(item){
+  item = item || {};
+  return {
+    x: Math.max(-35, Math.min(35, Number(item.x || 0))),
+    y: Math.max(-80, Math.min(80, Number(item.y || 0))),
+    scale: Math.max(.55, Math.min(1.60, Number(item.scale || 1)))
+  };
+}
+
+function applyPdfLayoutToCard(card, item){
+  if(!card) return;
+  const v = normalizePdfLayout(item);
+  card.dataset.pdfLayoutReady = "true";
+  card.style.setProperty("--pdf-x", v.x + "mm");
+  card.style.setProperty("--pdf-y", v.y + "mm");
+  card.style.setProperty("--pdf-scale", String(v.scale));
+}
+
+function applySavedPdfLayouts(){
+  const map = getPdfLayoutMap();
+  document.querySelectorAll("#modalQuestionsWrap .modal-q-card[data-question-id]")
+    .forEach(card=>{
+      const id = String(card.dataset.questionId || "").trim();
+      applyPdfLayoutToCard(card, map[id]);
+    });
+}
+
+function selectPdfQuestion(questionId){
+  PDF_SELECTED_QUESTION_ID = String(questionId || "").trim();
+  document.querySelectorAll("#modalQuestionsWrap .modal-q-card")
+    .forEach(card=>{
+      card.classList.toggle(
+        "pdf-layout-selected",
+        String(card.dataset.questionId || "") === PDF_SELECTED_QUESTION_ID
+      );
+    });
+  const card = PDF_SELECTED_QUESTION_ID
+    ? document.querySelector(`#modalQuestionsWrap .modal-q-card[data-question-id="${CSS.escape(PDF_SELECTED_QUESTION_ID)}"]`)
+    : null;
+  const label = document.getElementById("pdfSelectedQuestionLabel");
+  if(label){
+    const cards = [...document.querySelectorAll("#modalQuestionsWrap .modal-q-card")];
+    const index = card ? cards.indexOf(card) : -1;
+    label.textContent = index >= 0 ? `Q${index + 1} selected` : "Select a question";
+  }
+}
+
+function getSelectedPdfCard(){
+  if(!PDF_SELECTED_QUESTION_ID){
+    alert("Select a question in the preview first");
+    return null;
+  }
+  return document.querySelector(
+    `#modalQuestionsWrap .modal-q-card[data-question-id="${CSS.escape(PDF_SELECTED_QUESTION_ID)}"]`
+  );
+}
+
+function updateSelectedPdfLayout(mutator){
+  const card = getSelectedPdfCard();
+  if(!card) return;
+  const id = String(card.dataset.questionId || "");
+  const map = getPdfLayoutMap();
+  const current = normalizePdfLayout(map[id]);
+  const next = normalizePdfLayout(mutator({...current}) || current);
+  map[id] = next;
+  savePdfLayoutMap(map);
+  applyPdfLayoutToCard(card, next);
+}
+
+function pdfNudgeSelected(dx,dy){
+  updateSelectedPdfLayout(v=>{
+    v.x += Number(dx || 0);
+    v.y += Number(dy || 0);
+    return v;
+  });
+}
+
+function pdfScaleSelected(delta){
+  updateSelectedPdfLayout(v=>{
+    v.scale = Math.round((v.scale + Number(delta || 0))*100)/100;
+    return v;
+  });
+}
+
+function pdfResetSelectedLayout(){
+  const card = getSelectedPdfCard();
+  if(!card) return;
+  const id = String(card.dataset.questionId || "");
+  const map = getPdfLayoutMap();
+  delete map[id];
+  savePdfLayoutMap(map);
+  applyPdfLayoutToCard(card,{x:0,y:0,scale:1});
+}
+
+function pdfResetAllLayout(){
+  if(!confirm("Reset PDF position and size for all questions in this exam?")) return;
+  localStorage.removeItem(getPdfLayoutStorageKey());
+  localStorage.removeItem(getPdfOrderStorageKey());
+  applySavedPdfLayouts();
+}
+
+function pdfMoveQuestionOrder(step){
+  const card = getSelectedPdfCard();
+  if(!card) return;
+  const wrap = document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
+  const cards = [...wrap.querySelectorAll(":scope > .modal-q-card")];
+  const index = cards.indexOf(card);
+  if(index < 0) return;
+  const targetIndex = index + Number(step || 0);
+  if(targetIndex < 0 || targetIndex >= cards.length) return;
+
+  if(step < 0){
+    wrap.insertBefore(card, cards[targetIndex]);
+  }else{
+    const target = cards[targetIndex];
+    wrap.insertBefore(target, card);
+  }
+
+  renumberPdfPreviewQuestions();
+  savePdfQuestionOrder();
+  selectPdfQuestion(PDF_SELECTED_QUESTION_ID);
+}
+
+function renumberPdfPreviewQuestions(){
+  [...document.querySelectorAll("#modalQuestionsWrap .modal-q-card")]
+    .forEach((card,index)=>{
+      const firstBadge = card.querySelector(":scope > div:first-child > div:first-child");
+      if(firstBadge) firstBadge.textContent = `Q${index + 1}`;
+    });
+}
+
+function initializePdfLayoutEditor(){
+  const wrap = document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
+  applySavedPdfQuestionOrder();
+  applySavedPdfLayouts();
+
+  if(wrap.dataset.pdfEditorBound !== "true"){
+    wrap.dataset.pdfEditorBound = "true";
+    wrap.addEventListener("click",event=>{
+      const card = event.target.closest(".modal-q-card[data-question-id]");
+      if(!card) return;
+      selectPdfQuestion(card.dataset.questionId || "");
+    });
+  }
+}
+
+// Re-apply layout after View All rebuilds the modal.
+const PDF_LAYOUT_OBSERVER = new MutationObserver(()=>{
+  if(document.getElementById("modalQuestionsWrap")){
+    requestAnimationFrame(initializePdfLayoutEditor);
+  }
+});
+PDF_LAYOUT_OBSERVER.observe(document.documentElement,{childList:true,subtree:true});
+
+window.addEventListener("beforeprint",()=>{
+  applySavedPdfLayouts();
+});
+
+// Safety: deletion button state also refreshes after question list DOM updates.
+const DELETE_BUTTON_OBSERVER = new MutationObserver(()=>{
+  const btn = document.getElementById("activeQuestionDeleteBtn");
+  if(!btn) return;
+  if(typeof setActiveQuestion === "function"){
+    const id = String(ACTIVE_QUESTION_ID || "").trim();
+    if(id) setActiveQuestion(id);
+  }
+});
+DELETE_BUTTON_OBSERVER.observe(document.documentElement,{childList:true,subtree:true});
 </script>
