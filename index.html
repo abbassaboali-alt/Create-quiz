@@ -17480,3 +17480,468 @@ function setupPdfA4DragManager(examId){
 }
 </script>
 
+
+<!-- =========================================================
+     PRUDLE FINAL — SCREEN A4 PREVIEW = QUESTIONS PDF
+     1) Never show answers/correct highlighting in the general preview.
+     2) Make the on-screen A4 question layout match print dimensions/styles.
+     3) Drag controls do not consume printable question height.
+========================================================= -->
+<style id="prudle-a4-screen-pdf-match-final">
+
+/* =========================================================
+   GENERAL PREVIEW MUST ALWAYS BE QUESTIONS-ONLY
+   These rules apply on screen only. The Answers PDF still uses
+   body.print-answers inside @media print and is not affected.
+========================================================= */
+@media screen{
+
+  /* Hide every answer-key block in the normal preview. */
+  #questionsModal .answer-only,
+  #questionsModal .answer-key-box,
+  #questionsModal [data-answer-key],
+  #questionsModal [data-correct-answer],
+  #questionsModal .correct-mark,
+  #questionsModal .correct-badge{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  /* Always show the actual question portion. */
+  #questionsModal .question-only{
+    display:block !important;
+    visibility:visible !important;
+  }
+
+  /*
+    MCQ correct choices are created with .correct-answer and inline green
+    styles. Remove all visual clues in the general preview.
+  */
+  #questionsModal .question-option.correct-answer,
+  #questionsModal .correct-answer{
+    background:#fff !important;
+    border-color:transparent !important;
+    color:#111 !important;
+    box-shadow:none !important;
+  }
+
+  /* =========================================================
+     A4 SCREEN SHEET
+     Real A4 ratio and the same inner printable width used by PDF.
+  ========================================================= */
+  #questionsModal #a4PagesCanvas{
+    width:100% !important;
+    max-width:100% !important;
+    display:grid !important;
+    gap:34px !important;
+    padding:14px 0 30px !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal .a4-question-page{
+    width:min(100%, 210mm) !important;
+    min-height:297mm !important;
+    height:auto !important;
+    margin:0 auto !important;
+
+    /*
+      Screen sheet padding mirrors the effective PDF question area:
+      PDF #modalQuestions = horizontal 10mm;
+      here page labels sit above the content, so content starts at 16mm.
+    */
+    padding:16mm 10mm 14mm !important;
+
+    box-sizing:border-box !important;
+    background:#fff !important;
+    border:1.5px solid #164478 !important;
+    border-radius:2.5mm !important;
+    box-shadow:0 10px 28px rgba(22,68,120,.12) !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal .a4-page-dropzone{
+    width:100% !important;
+    max-width:100% !important;
+    min-height:267mm !important;
+    padding:0 !important;
+    margin:0 !important;
+    box-sizing:border-box !important;
+  }
+
+  /* =========================================================
+     QUESTION CARD — same compact document style as PDF
+  ========================================================= */
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    position:relative !important;
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+
+    margin:0 0 3.5mm !important;
+    padding:2.8mm 2mm 3.5mm !important;
+
+    border:0 !important;
+    border-bottom:0 !important;
+    border-radius:0 !important;
+    background:#fff !important;
+    box-shadow:none !important;
+
+    direction:ltr !important;
+    text-align:left !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+
+  /*
+    Drag bar floats over the card instead of increasing question height.
+    Therefore what you see inside A4 consumes nearly the same height as PDF.
+  */
+  #questionsModal #a4PagesCanvas .a4-question-drag-handle{
+    position:absolute !important;
+    top:1mm !important;
+    right:1mm !important;
+    z-index:20 !important;
+
+    display:inline-flex !important;
+    width:auto !important;
+    min-width:0 !important;
+    max-width:48mm !important;
+    gap:5px !important;
+
+    margin:0 !important;
+    padding:4px 7px !important;
+
+    border:1px solid #bfdbfe !important;
+    border-radius:999px !important;
+    background:rgba(239,246,255,.96) !important;
+    color:#164478 !important;
+
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:8.5pt !important;
+    line-height:1.1 !important;
+    box-shadow:0 2px 6px rgba(22,68,120,.08) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-drag-handle > span:first-child{
+    font-size:0 !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-drag-handle > span:first-child i{
+    font-size:10pt !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-current-page{
+    padding:3px 6px !important;
+    font-size:7.8pt !important;
+    white-space:nowrap !important;
+  }
+
+  /* The original Q / Marks / Type row, which is now the second direct div
+     because drag-handle is inserted as the first direct child. */
+  #questionsModal #a4PagesCanvas .modal-q-card > div:nth-child(2){
+    margin-bottom:2mm !important;
+    align-items:center !important;
+    gap:2mm !important;
+  }
+
+  #questionsModal #a4PagesCanvas .modal-q-card > div:nth-child(2) > div{
+    padding:1.1mm 3mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:9pt !important;
+    line-height:1.1 !important;
+  }
+
+  /* Passage = PDF passage */
+  #questionsModal #a4PagesCanvas .question-passage-block{
+    display:block !important;
+    margin:0 0 2.5mm !important;
+    padding:2.5mm 3mm !important;
+
+    border:1px solid #d7d7d7 !important;
+    border-radius:1.5mm !important;
+    background:#fff !important;
+    color:#111 !important;
+
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.5pt !important;
+    font-weight:600 !important;
+    line-height:1.35 !important;
+
+    direction:ltr !important;
+    box-sizing:border-box !important;
+  }
+
+  /* Question title = PDF title */
+  #questionsModal #a4PagesCanvas .question-print-title{
+    width:100% !important;
+    margin:0 0 2mm !important;
+
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11.5pt !important;
+    font-weight:700 !important;
+    line-height:1.3 !important;
+
+    text-align:left !important;
+    direction:ltr !important;
+    color:#111 !important;
+  }
+
+  /* Ordinary MCQ / matching / order option = PDF option */
+  #questionsModal #a4PagesCanvas .question-option{
+    padding:.75mm 1.5mm !important;
+    margin-top:.4mm !important;
+
+    border:0 !important;
+    border-radius:0 !important;
+    background:#fff !important;
+    color:#111 !important;
+
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.3pt !important;
+    font-weight:600 !important;
+    line-height:1.24 !important;
+
+    text-align:left !important;
+    direction:ltr !important;
+    box-shadow:none !important;
+  }
+
+  /* Hide green correct-choice appearance even if inline styles exist. */
+  #questionsModal #a4PagesCanvas .question-option.correct-answer{
+    background:#fff !important;
+    color:#111 !important;
+    border:0 !important;
+  }
+
+  /* Images use the same print limits. */
+  #questionsModal #a4PagesCanvas .modal-q-card img{
+    display:block !important;
+    max-width:140mm !important;
+    max-height:75mm !important;
+    width:auto !important;
+    height:auto !important;
+    object-fit:contain !important;
+    margin:3mm auto !important;
+    border-radius:1mm !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-match-image{
+    max-width:70mm !important;
+    max-height:48mm !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-match-image-bank{
+    display:grid !important;
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:5mm !important;
+  }
+
+  /* =========================================================
+     FILL IN THE BLANKS — screen must be the Questions PDF grid.
+  ========================================================= */
+  #questionsModal #a4PagesCanvas .print-fill-grid{
+    display:grid !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+
+    margin-top:2mm !important;
+    direction:ltr !important;
+
+    border-top:1px solid #111 !important;
+    border-left:1px solid #111 !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{
+    grid-template-columns:
+      repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical{
+    grid-template-columns:1fr !important;
+    width:75mm !important;
+    max-width:100% !important;
+    border:0 !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-cell{
+    min-width:0 !important;
+    min-height:10mm !important;
+    padding:1.2mm .8mm !important;
+
+    border-right:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+
+    background:#fff !important;
+    color:#111 !important;
+
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11pt !important;
+    line-height:1.05 !important;
+    font-weight:500 !important;
+
+    text-align:center !important;
+    overflow:hidden !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical .print-fill-cell{
+    justify-content:flex-start !important;
+    text-align:left !important;
+    min-height:12mm !important;
+    font-size:14pt !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-only .print-fill-cell.blank{
+    background:#fff !important;
+    color:#111 !important;
+    letter-spacing:.45mm !important;
+    font-size:10pt !important;
+    font-weight:500 !important;
+  }
+
+  /*
+    Critical: answer fill grid must NEVER appear in general preview,
+    regardless of old CSS that sets .answer-only display:block.
+  */
+  #questionsModal #a4PagesCanvas .answer-only,
+  #questionsModal #a4PagesCanvas .answer-only.print-fill-grid,
+  #questionsModal #a4PagesCanvas .answer-only .print-fill-grid{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  /* Text-answer lines = PDF */
+  #questionsModal #a4PagesCanvas .text-answer-lines{
+    display:grid !important;
+    gap:2mm !important;
+    margin-top:2mm !important;
+  }
+
+  #questionsModal #a4PagesCanvas .text-answer-line{
+    height:8mm !important;
+    border-bottom:1px solid #111827 !important;
+  }
+
+  /* Rearrange = compact PDF */
+  #questionsModal #a4PagesCanvas .rearrange-print-item{
+    display:flex !important;
+    align-items:flex-start !important;
+    justify-content:flex-start !important;
+    gap:2mm !important;
+  }
+
+  #questionsModal #a4PagesCanvas .rearrange-answer-bracket{
+    min-width:13mm !important;
+    margin-right:1.5mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11pt !important;
+    font-weight:700 !important;
+    color:#111 !important;
+  }
+
+  /*
+    Page boundary label stays outside the printable content semantics,
+    while the physical A4 ratio remains visible.
+  */
+  #questionsModal .a4-page-label{
+    top:5mm !important;
+    left:7mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:8.5pt !important;
+    padding:1.5mm 3mm !important;
+  }
+
+  #questionsModal .a4-page-bottom-line{
+    left:7mm !important;
+    right:7mm !important;
+    bottom:5mm !important;
+  }
+}
+
+/* =========================================================
+   PRINT SAFETY:
+   Answers PDF still works, Questions PDF stays questions only.
+========================================================= */
+@media print{
+
+  body:not(.print-answers) #questionsModal .answer-only,
+  body:not(.print-answers) #questionsModal .answer-key-box,
+  body:not(.print-answers) #questionsModal .correct-mark,
+  body:not(.print-answers) #questionsModal .correct-badge{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  body:not(.print-answers) #questionsModal .question-only{
+    display:block !important;
+    visibility:visible !important;
+  }
+
+  body.print-answers #questionsModal .answer-only{
+    display:block !important;
+    visibility:visible !important;
+  }
+
+  body.print-answers #questionsModal .question-only{
+    display:none !important;
+  }
+}
+</style>
+
+<script id="prudle-a4-screen-question-only-final-script">
+/*
+  openFullQuestions() can be opened after an Answers PDF operation while
+  body still carries print-answers. Screen CSS above already protects the
+  preview, but this also keeps the semantic screen state explicitly clean.
+*/
+(function(){
+  function enforceGeneralPreviewQuestionsOnly(){
+    const modal = document.getElementById("questionsModal");
+    if(!modal) return;
+
+    /*
+      Do NOT remove print mode classes here because mobile printing relies
+      on them. Only mark the modal itself as a questions-only screen preview.
+    */
+    modal.classList.add("screen-questions-only");
+
+    modal.querySelectorAll(".answer-only").forEach(el=>{
+      el.setAttribute("aria-hidden","true");
+    });
+
+    modal.querySelectorAll(".question-only").forEach(el=>{
+      el.removeAttribute("aria-hidden");
+    });
+  }
+
+  const observer = new MutationObserver(()=>{
+    const modal = document.getElementById("questionsModal");
+    if(
+      modal &&
+      modal.style.display !== "none"
+    ){
+      enforceGeneralPreviewQuestionsOnly();
+    }
+  });
+
+  window.addEventListener("DOMContentLoaded",()=>{
+    observer.observe(document.body,{
+      childList:true,
+      subtree:true
+    });
+  });
+
+  window.enforceGeneralPreviewQuestionsOnly =
+    enforceGeneralPreviewQuestionsOnly;
+})();
+</script>
+
