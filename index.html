@@ -2115,6 +2115,175 @@ button:hover{
   transform:none !important;
 }
 </style>
+
+<style id="prudle-passage-rich-editor-style">
+.passage-editor-modal{
+  position:fixed;
+  inset:0;
+  z-index:200000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(15,23,42,.72);
+  backdrop-filter:blur(5px);
+}
+.passage-editor-modal.show{display:flex}
+.passage-editor-shell{
+  width:min(1180px,97vw);
+  height:min(90vh,900px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#fff;
+  border-radius:24px;
+  box-shadow:0 30px 90px rgba(0,0,0,.32);
+  direction:ltr;
+}
+.passage-editor-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding:18px 22px;
+  background:linear-gradient(135deg,#164478,#2467a5);
+  color:#fff;
+}
+.passage-editor-title{font-size:24px;font-weight:900}
+.passage-editor-subtitle{margin-top:5px;font-size:13px;font-weight:600;opacity:.88}
+.passage-editor-close{
+  width:44px!important;
+  min-width:44px!important;
+  height:44px;
+  margin:0!important;
+  padding:0!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.17)!important;
+  border:1px solid rgba(255,255,255,.35)!important;
+  font-size:20px!important;
+}
+.passage-editor-toolbar{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+  padding:11px 14px;
+  background:#f8fbff;
+  border-bottom:1px solid #dbeafe;
+}
+.passage-editor-toolbar button{
+  width:auto!important;
+  min-width:42px;
+  margin:0!important;
+  padding:8px 11px!important;
+  border:1px solid #cfe0ef!important;
+  border-radius:9px!important;
+  background:#fff!important;
+  color:#164478!important;
+  box-shadow:none!important;
+  font-size:14px!important;
+}
+.passage-editor-toolbar button:hover{
+  background:#eaf4ff!important;
+  transform:none!important;
+}
+.passage-editor-toolbar select{
+  width:auto!important;
+  min-width:120px;
+  margin:0!important;
+  padding:8px 10px!important;
+  border-radius:9px!important;
+}
+.passage-toolbar-separator{
+  width:1px;
+  height:30px;
+  background:#d1dbe8;
+  margin:0 2px;
+}
+.passage-rich-editor{
+  flex:1;
+  min-height:360px;
+  overflow:auto;
+  padding:30px 34px;
+  outline:none;
+  background:#fff;
+  color:#111827;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:18px;
+  line-height:1.75;
+  white-space:normal;
+  text-align:left;
+}
+.passage-rich-editor:empty::before{
+  content:attr(data-placeholder);
+  color:#9ca3af;
+  pointer-events:none;
+}
+.passage-rich-editor p,
+.passage-rich-editor div{
+  margin-top:0;
+  margin-bottom:10px;
+}
+.passage-rich-editor ul,
+.passage-rich-editor ol{
+  padding-left:28px;
+}
+.passage-editor-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:13px 18px;
+  border-top:1px solid #e5e7eb;
+  background:#f8fafc;
+}
+.passage-editor-tip{
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+.passage-editor-actions{
+  display:flex;
+  gap:9px;
+}
+.passage-editor-actions button{
+  width:auto!important;
+  min-width:135px;
+  margin:0!important;
+}
+.passage-editor-cancel{background:#64748b!important}
+.passage-editor-save{background:#16a34a!important}
+
+.question-passage-block{
+  white-space:normal;
+}
+.question-passage-block p,
+.question-passage-block div{
+  margin:0 0 8px;
+}
+.question-passage-block p:last-child,
+.question-passage-block div:last-child{
+  margin-bottom:0;
+}
+.question-passage-block ul,
+.question-passage-block ol{
+  padding-left:26px;
+}
+
+@media(max-width:700px){
+  .passage-editor-modal{padding:5px}
+  .passage-editor-shell{width:100%;height:96vh;border-radius:16px}
+  .passage-editor-head{padding:14px}
+  .passage-editor-title{font-size:19px}
+  .passage-editor-toolbar{padding:8px;gap:5px}
+  .passage-rich-editor{padding:20px 16px;font-size:17px;min-height:300px}
+  .passage-editor-foot{align-items:stretch}
+  .passage-editor-actions{width:100%}
+  .passage-editor-actions button{flex:1;min-width:0}
+}
+</style>
+
 </head>
 <body>
 
@@ -2518,31 +2687,137 @@ button:hover{
   </div>
 </div>
 
+
 <div class="passage-toolbar" style="
   display:flex;
-  gap:8px;
+  gap:10px;
   align-items:center;
   flex-wrap:wrap;
   margin:8px 0 10px;
 ">
-  <button onclick="addPassage()" style="background:#0ea5e9">
-    □ Add Reading Passage
+  <button
+    type="button"
+    onclick="openPassageEditor()"
+    style="background:#0ea5e9"
+  >
+    ✍️ Add / Edit Reading Passage
   </button>
 
-  <label style="font-weight:900;color:#164478;margin-left:4px;">Paragraph alignment:</label>
+  <span
+    id="passageSavedStatus"
+    style="
+      display:none;
+      padding:8px 12px;
+      border-radius:999px;
+      background:#ecfdf5;
+      color:#166534;
+      border:1px solid #86efac;
+      font-weight:900;
+    "
+  >
+    ✓ Passage saved
+  </span>
 
-  <select id="passageAlign" style="
-    width:auto;
-    min-width:150px;
-    padding:9px 12px;
-    border:1px solid #b9d8f5;
-    border-radius:10px;
-    font-weight:800;
-  ">
-    <option value="left">⬅ Left</option>
-    <option value="center">↔ Center</option>
-    <option value="right">Right ➡</option>
+  <!-- kept for backward compatibility with old saved questions -->
+  <select id="passageAlign" style="display:none">
+    <option value="left">Left</option>
+    <option value="center">Center</option>
+    <option value="right">Right</option>
   </select>
+</div>
+
+<!-- =========================================
+     LARGE WORD-LIKE PASSAGE EDITOR
+========================================= -->
+<div id="passageEditorModal" class="passage-editor-modal" aria-hidden="true">
+  <div class="passage-editor-shell">
+
+    <div class="passage-editor-head">
+      <div>
+        <div class="passage-editor-title">Reading Passage Editor</div>
+        <div class="passage-editor-subtitle">
+          Press Enter for a new line. Select text or a paragraph, then use the formatting tools.
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="passage-editor-close"
+        onclick="closePassageEditor(false)"
+        title="Close"
+      >✕</button>
+    </div>
+
+    <div class="passage-editor-toolbar" dir="ltr">
+
+      <button type="button" onclick="passageCommand('bold')" title="Bold"><b>B</b></button>
+      <button type="button" onclick="passageCommand('italic')" title="Italic"><i>I</i></button>
+      <button type="button" onclick="passageCommand('underline')" title="Underline"><u>U</u></button>
+
+      <span class="passage-toolbar-separator"></span>
+
+      <button type="button" onclick="passageCommand('justifyLeft')" title="Align left">☰←</button>
+      <button type="button" onclick="passageCommand('justifyCenter')" title="Center">☰</button>
+      <button type="button" onclick="passageCommand('justifyRight')" title="Align right">→☰</button>
+
+      <span class="passage-toolbar-separator"></span>
+
+      <button type="button" onclick="passageCommand('insertUnorderedList')" title="Bullets">• List</button>
+      <button type="button" onclick="passageCommand('insertOrderedList')" title="Numbered list">1. List</button>
+
+      <span class="passage-toolbar-separator"></span>
+
+      <select
+        id="passageFontSize"
+        onchange="passageFontSizeChange(this.value)"
+        title="Font size"
+      >
+        <option value="">Font Size</option>
+        <option value="2">Small</option>
+        <option value="3">Normal</option>
+        <option value="4">Medium</option>
+        <option value="5">Large</option>
+        <option value="6">Very Large</option>
+      </select>
+
+      <button type="button" onclick="passageCommand('undo')" title="Undo">↶</button>
+      <button type="button" onclick="passageCommand('redo')" title="Redo">↷</button>
+
+      <button type="button" onclick="passageCommand('removeFormat')" title="Clear formatting">
+        Clear format
+      </button>
+    </div>
+
+    <div
+      id="passageRichEditor"
+      class="passage-rich-editor"
+      contenteditable="true"
+      spellcheck="true"
+      dir="ltr"
+      data-placeholder="Write or paste the reading passage here..."
+    ></div>
+
+    <div class="passage-editor-foot">
+      <div class="passage-editor-tip">
+        Formatting is saved with the passage and used in student view and PDF.
+      </div>
+
+      <div class="passage-editor-actions">
+        <button
+          type="button"
+          class="passage-editor-cancel"
+          onclick="closePassageEditor(false)"
+        >Cancel</button>
+
+        <button
+          type="button"
+          class="passage-editor-save"
+          onclick="savePassageEditor()"
+        >✓ Save Passage</button>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <div id="optionsBox">
@@ -2880,6 +3155,7 @@ let CURRENT_COURSE_NAME = "";
 let CURRENT_TRAINER = "";
 let CURRENT_PERIOD = "";
 let CURRENT_PASSAGE = "";
+let CURRENT_PASSAGE_HTML = "";
     const passageAlignReset = document.getElementById("passageAlign");
     if(passageAlignReset) passageAlignReset.value = "left"; // □ الحل هنا
 
@@ -3507,6 +3783,7 @@ await db.collection("questions").add({
   question: q.question || "",
 
   passage: q.passage || "",
+  passageHtml: q.passageHtml || "",
   passageAlign: ["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left",
 
   /*
@@ -4298,20 +4575,342 @@ function selectPreviewExam(examId){
   // فتح الأسئلة
 openExamTab(examId);}
 
-function addPassage(){
+function passageEscapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
 
-  const text = prompt("اكتب شرح القطعة (Reading Passage)");
+function passagePlainToHtml(value){
+  return passageEscapeHtml(value)
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .split("\n")
+    .map(line=>`<div>${line || "<br>"}</div>`)
+    .join("");
+}
 
-  if(!text || !text.trim()){
-    alert("لم يتم إدخال النص");
+/*
+  نسمح فقط بتنسيقات آمنة ومناسبة للـ Reading Passage.
+  هذا يمنع script / iframe / event handlers من الحفظ.
+*/
+function sanitizePassageHtml(html){
+  const source = String(html || "");
+
+  if(!source.trim()) return "";
+
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(
+    `<div id="passageSanitizeRoot">${source}</div>`,
+    "text/html"
+  );
+
+  const root =
+    parsed.getElementById("passageSanitizeRoot");
+
+  if(!root) return "";
+
+  const allowedTags = new Set([
+    "DIV","P","BR","B","STRONG","I","EM","U",
+    "UL","OL","LI","SPAN","FONT"
+  ]);
+
+  const allowedTextAlign = new Set([
+    "left","center","right","justify"
+  ]);
+
+  function cleanNode(node){
+    [...node.childNodes].forEach(child=>{
+
+      if(child.nodeType === Node.COMMENT_NODE){
+        child.remove();
+        return;
+      }
+
+      if(child.nodeType !== Node.ELEMENT_NODE){
+        return;
+      }
+
+      if(!allowedTags.has(child.tagName)){
+        const fragment =
+          parsed.createDocumentFragment();
+
+        while(child.firstChild){
+          fragment.appendChild(child.firstChild);
+        }
+
+        child.replaceWith(fragment);
+        return;
+      }
+
+      const textAlign =
+        String(child.style?.textAlign || "")
+          .toLowerCase();
+
+      const fontWeight =
+        String(child.style?.fontWeight || "");
+
+      const fontStyle =
+        String(child.style?.fontStyle || "");
+
+      const textDecoration =
+        String(child.style?.textDecoration || "");
+
+      const fontSize =
+        String(child.style?.fontSize || "");
+
+      [...child.attributes].forEach(attr=>{
+        child.removeAttribute(attr.name);
+      });
+
+      if(allowedTextAlign.has(textAlign)){
+        child.style.textAlign = textAlign;
+      }
+
+      if(
+        fontWeight === "bold" ||
+        Number(fontWeight) >= 600
+      ){
+        child.style.fontWeight = "bold";
+      }
+
+      if(fontStyle === "italic"){
+        child.style.fontStyle = "italic";
+      }
+
+      if(textDecoration.includes("underline")){
+        child.style.textDecoration = "underline";
+      }
+
+      if(
+        /^\d+(\.\d+)?(px|pt|em|rem|%)$/.test(fontSize)
+      ){
+        child.style.fontSize = fontSize;
+      }
+
+      cleanNode(child);
+    });
+  }
+
+  cleanNode(root);
+
+  return root.innerHTML.trim();
+}
+
+function getPassageDisplayHtml(q){
+  const html =
+    sanitizePassageHtml(q?.passageHtml || "");
+
+  if(html){
+    return html;
+  }
+
+  return passagePlainToHtml(
+    String(q?.passage || "")
+  );
+}
+
+function openPassageEditor(){
+  const modal =
+    document.getElementById("passageEditorModal");
+
+  const editor =
+    document.getElementById("passageRichEditor");
+
+  if(!modal || !editor) return;
+
+  editor.innerHTML =
+    CURRENT_PASSAGE_HTML
+      ? sanitizePassageHtml(CURRENT_PASSAGE_HTML)
+      : passagePlainToHtml(CURRENT_PASSAGE);
+
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden","false");
+
+  setTimeout(()=>{
+    editor.focus();
+  },50);
+}
+
+function closePassageEditor(saveChanges=false){
+  const modal =
+    document.getElementById("passageEditorModal");
+
+  if(!modal) return;
+
+  if(saveChanges){
+    savePassageEditor();
     return;
   }
 
-  // □ نحفظها مؤقت داخل السؤال الحالي (بدون إنشاء سؤال جديد)
-  CURRENT_PASSAGE = text.trim();
-
-  alert("✅ تم حفظ القطعة لهذا السؤال");
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden","true");
 }
+
+function passageCommand(command,value=null){
+  const editor =
+    document.getElementById("passageRichEditor");
+
+  if(!editor) return;
+
+  editor.focus();
+
+  try{
+    document.execCommand(
+      command,
+      false,
+      value
+    );
+  }catch(error){
+    console.warn(
+      "Passage formatting command failed:",
+      command,
+      error
+    );
+  }
+}
+
+function passageFontSizeChange(value){
+  if(!value) return;
+
+  passageCommand(
+    "fontSize",
+    value
+  );
+
+  const field =
+    document.getElementById("passageFontSize");
+
+  if(field){
+    field.value = "";
+  }
+}
+
+function savePassageEditor(){
+  const editor =
+    document.getElementById("passageRichEditor");
+
+  const modal =
+    document.getElementById("passageEditorModal");
+
+  if(!editor || !modal) return;
+
+  const cleanHtml =
+    sanitizePassageHtml(editor.innerHTML);
+
+  const plainText =
+    String(editor.innerText || "")
+      .replace(/\u00a0/g," ")
+      .replace(/\n{3,}/g,"\n\n")
+      .trim();
+
+  if(!plainText){
+    CURRENT_PASSAGE = "";
+    CURRENT_PASSAGE_HTML = "";
+
+    const status =
+      document.getElementById(
+        "passageSavedStatus"
+      );
+
+    if(status){
+      status.style.display = "none";
+    }
+
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden","true");
+    return;
+  }
+
+  CURRENT_PASSAGE =
+    plainText;
+
+  CURRENT_PASSAGE_HTML =
+    cleanHtml;
+
+  /*
+    passageAlign يبقى للتوافق مع الأسئلة القديمة.
+    المحاذاة الجديدة يمكن أن تختلف من سطر إلى سطر
+    وتحفظ داخل passageHtml.
+  */
+  const alignField =
+    document.getElementById("passageAlign");
+
+  if(alignField){
+    const firstBlock =
+      editor.querySelector(
+        "div,p,li"
+      );
+
+    const firstAlign =
+      String(
+        firstBlock?.style?.textAlign ||
+        editor.style.textAlign ||
+        "left"
+      ).toLowerCase();
+
+    alignField.value =
+      ["left","center","right"].includes(firstAlign)
+        ? firstAlign
+        : "left";
+  }
+
+  const status =
+    document.getElementById(
+      "passageSavedStatus"
+    );
+
+  if(status){
+    status.style.display =
+      "inline-flex";
+
+    status.textContent =
+      "✓ Passage saved — " +
+      plainText.split("\n").length +
+      " line(s)";
+  }
+
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden","true");
+}
+
+/* backward compatibility */
+function addPassage(){
+  openPassageEditor();
+}
+
+// Close by clicking outside the editor window
+document.addEventListener("click",event=>{
+  const modal =
+    document.getElementById("passageEditorModal");
+
+  if(
+    modal &&
+    modal.classList.contains("show") &&
+    event.target === modal
+  ){
+    closePassageEditor(false);
+  }
+});
+
+// Escape closes the editor without saving.
+document.addEventListener("keydown",event=>{
+  if(event.key !== "Escape") return;
+
+  const modal =
+    document.getElementById("passageEditorModal");
+
+  if(
+    modal &&
+    modal.classList.contains("show")
+  ){
+    closePassageEditor(false);
+  }
+});
+
 /* ================= Fill in the Blanks ================= */
 function getFillRows(){
   return [...document.querySelectorAll("#fillItemsList .fill-admin-row")];
@@ -5377,6 +5976,10 @@ locked:
         CURRENT_PASSAGE ||
         oldData.passage ||
         "",
+      passageHtml:
+        CURRENT_PASSAGE_HTML ||
+        oldData.passageHtml ||
+        "",
       passageAlign:
         document.getElementById("passageAlign")?.value ||
         oldData.passageAlign ||
@@ -5562,6 +6165,7 @@ for(const resultDoc of resultsSnap.docs){
     await updateVisibleQuestions(examId);
 
     CURRENT_PASSAGE = "";
+    CURRENT_PASSAGE_HTML = "";
 
     alert("✅ update has done");
 
@@ -5580,6 +6184,7 @@ order: newOrder,
 
     // □ أهم إضافة
     passage: CURRENT_PASSAGE || "",
+    passageHtml: CURRENT_PASSAGE_HTML || "",
     passageAlign:
       document.getElementById("passageAlign")?.value ||
       "left",
@@ -5642,6 +6247,7 @@ locked:false,
 await updateVisibleQuestions(examId);
 
 CURRENT_PASSAGE = "";
+CURRENT_PASSAGE_HTML = "";
 
 alert("✅ save successfully");
 clearForm();
@@ -5715,6 +6321,25 @@ async function editQuestion(id){
     }
 
     CURRENT_PASSAGE = String(q.passage || "");
+    CURRENT_PASSAGE_HTML =
+      sanitizePassageHtml(
+        q.passageHtml ||
+        passagePlainToHtml(q.passage || "")
+      );
+
+    const passageStatus =
+      document.getElementById("passageSavedStatus");
+
+    if(passageStatus){
+      passageStatus.style.display =
+        CURRENT_PASSAGE ? "inline-flex" : "none";
+
+      if(CURRENT_PASSAGE){
+        passageStatus.textContent =
+          "✓ Passage loaded — click Add / Edit Reading Passage";
+      }
+    }
+
     const passageAlignField = document.getElementById("passageAlign");
     if(passageAlignField){
       passageAlignField.value = ["left","center","right"].includes(q.passageAlign)
@@ -5942,6 +6567,15 @@ if(old.locked === true){
 
   const newQuestion = document.getElementById("edit_q_" + id).value.trim();
   const newPassage  = document.getElementById("edit_passage_" + id).value.trim();
+
+  const oldPassageText =
+    String(old.passage || "").trim();
+
+  const newPassageHtml =
+    newPassage === oldPassageText
+      ? String(old.passageHtml || "")
+      : passagePlainToHtml(newPassage);
+
   const newDegree   = Number(document.getElementById("edit_degree_" + id).value || 0);
   const newCorrect  = document.getElementById("edit_correct_" + id).value.trim();
 const updatedOptions = [];
@@ -6062,6 +6696,7 @@ if(old.type === "order"){
     question: newQuestion,
     options: updatedOptions,
     passage: newPassage,
+    passageHtml: sanitizePassageHtml(newPassageHtml),
     degree: newDegree,
     gradingParts: gradingParts,
     partDegree: partDegree,
@@ -11668,6 +12303,7 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
     examId: targetExamId,
     question: q.question || "",
     passage: q.passage || "",
+    passageHtml: q.passageHtml || "",
     passageAlign: ["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left",
     options: Array.isArray(q.options) ? JSON.parse(JSON.stringify(q.options)) : [],
     correct: Array.isArray(q.correct) ? [...q.correct] : (q.correct ?? ""),
@@ -11897,7 +12533,7 @@ function renderCopyQuestionDetails(q){
   let html = "";
 
   if(q.passage){
-    html += `<div class="copy-bank-passage" style="text-align:${["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left"}"><strong>Reading Passage</strong><br>${esc(q.passage)}</div>`;
+    html += `<div class="copy-bank-passage" style="text-align:${["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left"}"><strong>Reading Passage</strong><br>${getPassageDisplayHtml(q)}</div>`;
   }
 
   if(q.showMedia !== false && q.mediaUrl){
@@ -12442,6 +13078,39 @@ init();
 #questionsModal .print-fill-grid.horizontal .print-fill-cell,#fillBuilderPreview .fill-preview-cell{min-width:0 !important;max-width:100% !important;box-sizing:border-box !important;}
 @media print{#questionsModal,#questionsModal .modal-box,#modalQuestions,#modalQuestionsWrap,.modal-q-card{overflow-x:hidden !important;max-width:100% !important}.modal-q-card .print-fill-grid.horizontal{width:100% !important;max-width:100% !important;overflow:hidden !important}}
 </style>
+
+<style id="prudle-passage-print-rich-style">
+@media print{
+  .modal-q-card .question-passage-block{
+    white-space:normal !important;
+  }
+
+  .modal-q-card .question-passage-block div,
+  .modal-q-card .question-passage-block p{
+    margin:0 0 2mm !important;
+    padding:0 !important;
+    color:#111 !important;
+    background:transparent !important;
+    line-height:1.35 !important;
+  }
+
+  .modal-q-card .question-passage-block div:last-child,
+  .modal-q-card .question-passage-block p:last-child{
+    margin-bottom:0 !important;
+  }
+
+  .modal-q-card .question-passage-block ul,
+  .modal-q-card .question-passage-block ol{
+    margin:1.5mm 0 2mm !important;
+    padding-left:7mm !important;
+  }
+
+  .modal-q-card .question-passage-block li{
+    margin-bottom:1mm !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -13117,7 +13786,7 @@ async function openFullQuestions(examId){
                 font-weight:800;
                 line-height:1.8;
               ">
-                ${esc(q.passage)}
+                ${getPassageDisplayHtml(q)}
               </div>
             `
             : ""
