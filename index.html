@@ -2518,9 +2518,32 @@ button:hover{
   </div>
 </div>
 
-<button onclick="addPassage()" style="background:#0ea5e9">
-  □ Add Reading Passage
-</button>
+<div class="passage-toolbar" style="
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin:8px 0 10px;
+">
+  <button onclick="addPassage()" style="background:#0ea5e9">
+    □ Add Reading Passage
+  </button>
+
+  <label style="font-weight:900;color:#164478;margin-left:4px;">Paragraph alignment:</label>
+
+  <select id="passageAlign" style="
+    width:auto;
+    min-width:150px;
+    padding:9px 12px;
+    border:1px solid #b9d8f5;
+    border-radius:10px;
+    font-weight:800;
+  ">
+    <option value="left">⬅ Left</option>
+    <option value="center">↔ Center</option>
+    <option value="right">Right ➡</option>
+  </select>
+</div>
 
 <div id="optionsBox">
   <input id="opt1" placeholder="Option 1">
@@ -2856,7 +2879,9 @@ let SIDEBAR_SHOW_FULL_EXAM = false;
 let CURRENT_COURSE_NAME = "";
 let CURRENT_TRAINER = "";
 let CURRENT_PERIOD = "";
-let CURRENT_PASSAGE = ""; // □ الحل هنا
+let CURRENT_PASSAGE = "";
+    const passageAlignReset = document.getElementById("passageAlign");
+    if(passageAlignReset) passageAlignReset.value = "left"; // □ الحل هنا
 
 const CURRENT_USER = (localStorage.getItem("username") || "")
 .replace(/\s/g,'')
@@ -3482,6 +3507,7 @@ await db.collection("questions").add({
   question: q.question || "",
 
   passage: q.passage || "",
+  passageAlign: ["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left",
 
   /*
     السؤال المنسوخ يعتبر نموذجًا جديدًا ومستقلًا:
@@ -5351,6 +5377,10 @@ locked:
         CURRENT_PASSAGE ||
         oldData.passage ||
         "",
+      passageAlign:
+        document.getElementById("passageAlign")?.value ||
+        oldData.passageAlign ||
+        "left",
 
       options:
         type === "match"
@@ -5550,6 +5580,9 @@ order: newOrder,
 
     // □ أهم إضافة
     passage: CURRENT_PASSAGE || "",
+    passageAlign:
+      document.getElementById("passageAlign")?.value ||
+      "left",
 
     options:
       type === "match"
@@ -5682,6 +5715,12 @@ async function editQuestion(id){
     }
 
     CURRENT_PASSAGE = String(q.passage || "");
+    const passageAlignField = document.getElementById("passageAlign");
+    if(passageAlignField){
+      passageAlignField.value = ["left","center","right"].includes(q.passageAlign)
+        ? q.passageAlign
+        : "left";
+    }
 
     mediaType.value = q.mediaType || (q.mediaUrl ? "image" : "none");
 
@@ -11629,6 +11668,7 @@ function cleanQuestionForCopy(source, targetExamId, orderValue){
     examId: targetExamId,
     question: q.question || "",
     passage: q.passage || "",
+    passageAlign: ["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left",
     options: Array.isArray(q.options) ? JSON.parse(JSON.stringify(q.options)) : [],
     correct: Array.isArray(q.correct) ? [...q.correct] : (q.correct ?? ""),
     degree: Number(q.degree || 1),
@@ -11857,7 +11897,7 @@ function renderCopyQuestionDetails(q){
   let html = "";
 
   if(q.passage){
-    html += `<div class="copy-bank-passage"><strong>Reading Passage</strong><br>${esc(q.passage)}</div>`;
+    html += `<div class="copy-bank-passage" style="text-align:${["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left"}"><strong>Reading Passage</strong><br>${esc(q.passage)}</div>`;
   }
 
   if(q.showMedia !== false && q.mediaUrl){
@@ -13067,7 +13107,7 @@ async function openFullQuestions(examId){
               <div class="question-passage-block" style="
                 direction:ltr !important;
                 unicode-bidi:isolate;
-                text-align:left;
+                text-align:${["left","center","right"].includes(q.passageAlign) ? q.passageAlign : "left"};
                 background:#fff7ed;
                 border:1px solid #fed7aa;
                 color:#9a3412;
