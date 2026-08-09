@@ -613,7 +613,7 @@ transform:scale(1);
 .fill-admin-delete{width:44px!important;height:44px!important;margin:0!important;padding:0!important;background:#ef4444!important}
 .fill-degree-note{margin-top:10px;padding:10px 12px;border-radius:12px;background:#ecfdf5;color:#047857;border:1px solid #bbf7d0;font-weight:900}
 .fill-preview-grid{display:grid;gap:8px;margin-top:12px;padding:12px;border:1px solid #dbeafe;border-radius:15px;background:#f8fbff;direction:ltr}
-.fill-preview-cell{min-height:54px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;font-weight:800;text-align:center}
+.fill-preview-cell{min-width:0;min-height:42px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;padding:4px 3px;font-size:14px;line-height:1.15;font-weight:800;text-align:center;overflow:hidden;overflow-wrap:anywhere}
 .fill-preview-cell.blank{border-style:dashed;color:#64748b}
 @media(max-width:800px){.fill-admin-row{grid-template-columns:45px 1fr}.fill-admin-row>*{min-width:0}.fill-admin-delete{grid-column:2}.fill-builder-toolbar{display:grid;grid-template-columns:1fr}}
 
@@ -663,18 +663,20 @@ transform:scale(1);
 
 #questionsModal .print-fill-cell{
   min-width:0;
-  min-height:80px;
-  padding:10px 8px;
+  min-height:48px;
+  padding:5px 4px;
   display:flex;
   align-items:center;
   justify-content:center;
   background:#fff;
   color:#111827;
   font-family:Arial,Helvetica,sans-serif;
-  font-size:25px;
+  font-size:16px;
   font-weight:500;
-  line-height:1.2;
+  line-height:1.15;
   box-sizing:border-box;
+  overflow:hidden;
+  overflow-wrap:anywhere;
 }
 
 /* Connected borders like the PDF table */
@@ -715,16 +717,19 @@ transform:scale(1);
 /* Keep the complete horizontal table on smaller screens */
 @media(max-width:900px){
   #questionsModal .print-fill-grid.horizontal{
-    overflow-x:auto;
+    overflow:hidden !important;
+    width:100% !important;
     grid-template-columns:repeat(
       var(--fill-columns,10),
-      minmax(82px,1fr)
+      minmax(0,1fr)
     ) !important;
   }
 
   #questionsModal .print-fill-cell{
-    min-height:70px;
-    font-size:21px;
+    min-width:0 !important;
+    min-height:42px;
+    padding:4px 2px;
+    font-size:13px;
   }
 }
 
@@ -1346,6 +1351,25 @@ button:hover{
     line-height:1.1 !important;
   }
 
+  /* Paragraph / Passage above the question in PDF */
+  .modal-q-card .question-passage-block{
+    display:block !important;
+    margin:0 0 2.5mm !important;
+    padding:2.5mm 3mm !important;
+    border:1px solid #d7d7d7 !important;
+    border-radius:1.5mm !important;
+    background:#fff !important;
+    color:#111 !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.5pt !important;
+    font-weight:600 !important;
+    line-height:1.35 !important;
+    text-align:left !important;
+    direction:ltr !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
   .modal-q-card .question-print-title{
     margin-bottom:2mm !important;
     font-family:Arial,Helvetica,sans-serif !important;
@@ -1407,16 +1431,23 @@ button:hover{
   .modal-q-card .print-fill-grid{
     display:grid !important;
     width:100% !important;
-    margin-top:3mm !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    margin-top:2mm !important;
     direction:ltr !important;
     border-top:1px solid #111 !important;
     border-left:1px solid #111 !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
     break-inside:auto !important;
     page-break-inside:auto !important;
   }
 
   .modal-q-card .print-fill-grid.horizontal{
+    width:100% !important;
+    max-width:100% !important;
     grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+    overflow:hidden !important;
   }
 
   .modal-q-card .print-fill-grid.vertical{
@@ -1426,8 +1457,9 @@ button:hover{
   }
 
   .modal-q-card .print-fill-cell{
-    min-height:18mm !important;
-    padding:2.5mm 2mm !important;
+    min-width:0 !important;
+    min-height:10mm !important;
+    padding:1.2mm .8mm !important;
     border-right:1px solid #111 !important;
     border-bottom:1px solid #111 !important;
     display:flex !important;
@@ -1435,11 +1467,15 @@ button:hover{
     justify-content:center !important;
     text-align:center !important;
     font-family:Arial,Helvetica,sans-serif !important;
-    font-size:18pt !important;
+    font-size:11pt !important;
+    line-height:1.05 !important;
     font-weight:500 !important;
     color:#111 !important;
     background:#fff !important;
+    overflow:hidden !important;
     overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    box-sizing:border-box !important;
   }
 
   .modal-q-card .print-fill-grid.vertical .print-fill-cell{
@@ -1450,7 +1486,8 @@ button:hover{
   }
 
   .modal-q-card .print-fill-cell.blank{
-    letter-spacing:1.2mm !important;
+    letter-spacing:.45mm !important;
+    font-size:10pt !important;
   }
 
   body.print-answers .modal-q-card .print-fill-cell.blank{
@@ -4335,7 +4372,7 @@ function renderFillBuilderPreview(){
   if(!preview) return;
   const layout=document.getElementById('fillLayout')?.value || 'horizontal';
   const columns=Math.max(1,Math.min(12,Number(document.getElementById('fillColumns')?.value || 10)));
-  preview.style.gridTemplateColumns=layout === 'vertical' ? '1fr' : `repeat(${columns},minmax(85px,1fr))`;
+  preview.style.gridTemplateColumns=layout === 'vertical' ? '1fr' : `repeat(${columns},minmax(0,1fr))`;
   preview.innerHTML=getFillRows().map(row=>{
     const display=String(row.querySelector('.fill-display')?.value || '').trim();
     const mode=row.querySelector('.fill-mode')?.value || 'blank';
@@ -8964,6 +9001,26 @@ questionsList.innerHTML += `
       Show to students
     </label>
 
+${
+      q.passage
+      ? `
+        <textarea
+          id="edit_passage_${q.id}"
+          class="pro-edit-input"
+          style="min-height:70px;background:#fff7ed;border-color:#fed7aa;color:#9a3412;font-weight:800;"
+          placeholder="Passage / Paragraph"
+        >${esc(q.passage || "")}</textarea>
+      `
+      : `
+        <textarea
+          id="edit_passage_${q.id}"
+          class="pro-edit-input"
+          style="min-height:55px;background:#fff7ed;border-color:#fed7aa;"
+          placeholder="Passage / Paragraph"
+        ></textarea>
+      `
+    }
+
 <textarea
   id="edit_q_${q.id}"
   class="pro-edit-input"
@@ -8975,26 +9032,6 @@ questionsList.innerHTML += `
   "
 >
     ${esc(q.question || "")}</textarea>
-
-    ${
-      q.passage
-      ? `
-        <textarea
-          id="edit_passage_${q.id}"
-          class="pro-edit-input"
-          style="min-height:70px"
-          placeholder="Passage"
-        >${esc(q.passage || "")}</textarea>
-      `
-      : `
-        <textarea
-          id="edit_passage_${q.id}"
-          class="pro-edit-input"
-          style="min-height:55px"
-          placeholder="Passage"
-        ></textarea>
-      `
-    }
 
     ${media}
 
@@ -12359,6 +12396,12 @@ init();
   color:#14532d !important;
 }
 </style>
+
+<style id="prudle-fill-grid-no-horizontal-scroll">
+#questionsModal .print-fill-grid.horizontal,#fillBuilderPreview{width:100% !important;max-width:100% !important;min-width:0 !important;overflow:hidden !important;box-sizing:border-box !important;}
+#questionsModal .print-fill-grid.horizontal .print-fill-cell,#fillBuilderPreview .fill-preview-cell{min-width:0 !important;max-width:100% !important;box-sizing:border-box !important;}
+@media print{#questionsModal,#questionsModal .modal-box,#modalQuestions,#modalQuestionsWrap,.modal-q-card{overflow-x:hidden !important;max-width:100% !important}.modal-q-card .print-fill-grid.horizontal{width:100% !important;max-width:100% !important;overflow:hidden !important}}
+</style>
 </body>
 </html>
 <script>
@@ -13018,6 +13061,28 @@ async function openFullQuestions(examId){
 
           </div>
 
+          ${
+            q.passage
+            ? `
+              <div class="question-passage-block" style="
+                direction:ltr !important;
+                unicode-bidi:isolate;
+                text-align:left;
+                background:#fff7ed;
+                border:1px solid #fed7aa;
+                color:#9a3412;
+                padding:12px;
+                border-radius:14px;
+                margin-bottom:12px;
+                font-weight:800;
+                line-height:1.8;
+              ">
+                ${esc(q.passage)}
+              </div>
+            `
+            : ""
+          }
+
           <div class="question-print-title" style="
             direction:ltr !important;
             unicode-bidi:isolate;
@@ -13075,27 +13140,6 @@ async function openFullQuestions(examId){
             : ""
           }
 
-          ${
-            q.passage
-            ? `
-              <div style="
-                direction:ltr !important;
-                unicode-bidi:isolate;
-                text-align:left;
-                background:#fff7ed;
-                border:1px solid #fed7aa;
-                color:#9a3412;
-                padding:12px;
-                border-radius:14px;
-                margin-bottom:12px;
-                font-weight:800;
-                line-height:1.8;
-              ">
-                ${esc(q.passage)}
-              </div>
-            `
-            : ""
-          }
 
           ${
             q.type === "match" && Array.isArray(q.correct)
