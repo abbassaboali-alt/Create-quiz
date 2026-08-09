@@ -2513,6 +2513,289 @@ button:hover{
 }
 </style>
 
+
+
+<!-- =========================================================
+     PRUDLE SCREEN PDF PREVIEW = PRINT PDF LOOK
+     يجعل نافذة View All تعرض الأسئلة بنفس مقاسات وتفاصيل PDF تقريباً
+========================================================= -->
+<style id="prudle-screen-pdf-preview-same-as-print-final">
+/* مساحة النافذة أكبر حتى تظهر ورقة A4 بوضوح */
+#questionsModal .modal-box{
+  width:min(1240px,97vw) !important;
+  height:94vh !important;
+  max-height:94vh !important;
+  padding:18px !important;
+  background:#fff !important;
+}
+
+/* شريط العنوان يبقى واضحاً ولا يدخل ضمن شكل الورقة */
+#questionsModal .modal-header{
+  margin-bottom:12px !important;
+}
+
+/* شريط البحث والتحكم يبقى فوق الورقة */
+#questionsModal #modalPrintToolbar{
+  position:sticky !important;
+  top:0 !important;
+  z-index:30 !important;
+  background:#fff !important;
+  padding:10px 0 12px !important;
+  margin-bottom:12px !important;
+}
+
+/* خلفية تشبه Print Preview */
+#questionsModal #modalQuestions{
+  background:#dfe3e7 !important;
+  padding:18px 12px 34px !important;
+  border-radius:14px !important;
+  direction:ltr !important;
+}
+
+/* الورقة نفسها: نفس عرض A4 القابل للطباعة تقريباً */
+#questionsModal #modalQuestionsWrap{
+  width:190mm !important;
+  max-width:calc(100vw - 90px) !important;
+  margin:0 auto !important;
+  padding:10mm 10mm 12mm !important;
+  background:#fff !important;
+  box-shadow:0 2px 10px rgba(0,0,0,.22) !important;
+  direction:ltr !important;
+  box-sizing:border-box !important;
+}
+
+/* السؤال في الشاشة يأخذ نفس شكل السؤال في PDF، بلا كروت زرقاء كبيرة */
+#questionsModal #modalQuestionsWrap .modal-q-card{
+  display:block !important;
+  width:100% !important;
+  margin:0 0 5mm !important;
+  padding:2.8mm 2mm 3.5mm !important;
+  border:0 !important;
+  border-bottom:0 !important;
+  border-radius:0 !important;
+  background:#fff !important;
+  box-shadow:none !important;
+  direction:ltr !important;
+  text-align:left !important;
+  box-sizing:border-box !important;
+}
+
+/* عند تحديد السؤال نظهر إطاراً خفيفاً فقط، بدون تغيير أبعاده */
+#questionsModal #modalQuestionsWrap .modal-q-card.pdf-layout-selected{
+  outline:2px solid rgba(14,165,233,.65) !important;
+  outline-offset:2px !important;
+  background:#fff !important;
+}
+
+/* Q / Marks / Type بنفس مقاس PDF */
+#questionsModal #modalQuestionsWrap .modal-q-card > div:first-child{
+  margin-bottom:2mm !important;
+  align-items:center !important;
+}
+#questionsModal #modalQuestionsWrap .modal-q-card > div:first-child > div{
+  padding:1.1mm 3mm !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:9pt !important;
+  line-height:1.1 !important;
+  font-weight:900 !important;
+}
+
+/* Passage */
+#questionsModal #modalQuestionsWrap .question-passage-block{
+  display:block !important;
+  margin:0 0 2.5mm !important;
+  padding:2.5mm 3mm !important;
+  border:1px solid #d7d7d7 !important;
+  border-radius:1.5mm !important;
+  background:#fff !important;
+  color:#111 !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:10.5pt !important;
+  font-weight:600 !important;
+  line-height:1.35 !important;
+  direction:ltr !important;
+}
+
+/* عنوان السؤال */
+#questionsModal #modalQuestionsWrap .question-print-title{
+  width:100% !important;
+  margin:0 0 2mm !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:11.5pt !important;
+  font-weight:700 !important;
+  line-height:1.3 !important;
+  color:#111 !important;
+  background:transparent !important;
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+/* الاختيارات */
+#questionsModal #modalQuestionsWrap .question-option{
+  padding:.75mm 1.5mm !important;
+  margin-top:.4mm !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#fff !important;
+  color:#111 !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:10.3pt !important;
+  font-weight:600 !important;
+  line-height:1.24 !important;
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+/* الصور بنفس حدود PDF */
+#questionsModal #modalQuestionsWrap .modal-q-card img:not(.print-match-image){
+  display:block !important;
+  max-width:140mm !important;
+  max-height:75mm !important;
+  width:auto !important;
+  height:auto !important;
+  object-fit:contain !important;
+  margin:3mm auto !important;
+  border-radius:1mm !important;
+}
+#questionsModal #modalQuestionsWrap .print-match-image{
+  display:block !important;
+  width:auto !important;
+  max-width:70mm !important;
+  height:auto !important;
+  max-height:48mm !important;
+  object-fit:contain !important;
+  margin:0 auto !important;
+}
+#questionsModal #modalQuestionsWrap .print-match-image-bank{
+  display:grid !important;
+  grid-template-columns:repeat(2,1fr) !important;
+  gap:5mm !important;
+}
+
+/* Fill in the blanks مطابق لمقاسات الطباعة */
+#questionsModal #modalQuestionsWrap .print-fill-grid{
+  display:grid !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  margin-top:2mm !important;
+  direction:ltr !important;
+  border-top:1px solid #111 !important;
+  border-left:1px solid #111 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-grid.horizontal{
+  grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-grid.vertical{
+  grid-template-columns:1fr !important;
+  width:75mm !important;
+  max-width:100% !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-cell{
+  min-width:0 !important;
+  min-height:10mm !important;
+  padding:1.2mm .8mm !important;
+  border-right:1px solid #111 !important;
+  border-bottom:1px solid #111 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  text-align:center !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:11pt !important;
+  line-height:1.05 !important;
+  font-weight:500 !important;
+  color:#111 !important;
+  background:#fff !important;
+  overflow:hidden !important;
+  overflow-wrap:anywhere !important;
+  word-break:break-word !important;
+  box-sizing:border-box !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-grid.vertical .print-fill-cell{
+  justify-content:flex-start !important;
+  text-align:left !important;
+  min-height:12mm !important;
+  font-size:14pt !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-cell.blank{
+  letter-spacing:.45mm !important;
+  font-size:10pt !important;
+}
+
+/* أسطر الإجابة النصية مثل PDF */
+#questionsModal #modalQuestionsWrap .text-answer-lines{
+  display:grid !important;
+  gap:2mm !important;
+  margin-top:3mm !important;
+}
+#questionsModal #modalQuestionsWrap .text-answer-line{
+  height:7mm !important;
+  border-bottom:1px solid #111827 !important;
+}
+
+/* القوائم */
+#questionsModal #modalQuestionsWrap .modal-q-card ul,
+#questionsModal #modalQuestionsWrap .modal-q-card ol{
+  margin-top:2mm !important;
+  margin-bottom:0 !important;
+  padding-left:7mm !important;
+}
+#questionsModal #modalQuestionsWrap .modal-q-card li{
+  margin-bottom:1.5mm !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:10.3pt !important;
+  line-height:1.3 !important;
+}
+
+/* لا نعرض مشغلات الصوت/الفيديو داخل محاكاة ورقة PDF */
+#questionsModal #modalQuestionsWrap .modal-q-card video,
+#questionsModal #modalQuestionsWrap .modal-q-card audio,
+#questionsModal #modalQuestionsWrap .modal-q-card input,
+#questionsModal #modalQuestionsWrap .modal-q-card select,
+#questionsModal #modalQuestionsWrap .modal-q-card textarea{
+  display:none !important;
+}
+
+/* الاستجابة للشاشات الصغيرة مع الحفاظ على نسبة الورقة */
+@media(max-width:900px){
+  #questionsModal .modal-box{
+    width:98vw !important;
+    padding:10px !important;
+  }
+  #questionsModal #modalQuestions{
+    padding:10px 4px 24px !important;
+  }
+  #questionsModal #modalQuestionsWrap{
+    width:190mm !important;
+    max-width:none !important;
+    transform:scale(.78);
+    transform-origin:top left;
+    margin-left:0 !important;
+    margin-right:0 !important;
+  }
+}
+
+/* مهم: أثناء الطباعة لا نغيّر أي شيء من CSS الأصلي الخاص بالـ PDF */
+@media print{
+  #questionsModal #modalQuestions{
+    background:#fff !important;
+    padding:7mm 10mm 10mm !important;
+    border-radius:0 !important;
+  }
+  #questionsModal #modalQuestionsWrap{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:2.5mm 0 0 !important;
+    box-shadow:none !important;
+    transform:none !important;
+  }
+}
+</style>
+
 </head>
 <body>
 
