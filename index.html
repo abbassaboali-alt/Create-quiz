@@ -8730,6 +8730,45 @@ function setActiveQuestion(questionId){
         "Click any question card to select it for Edit, Linked Courses, Reset, or Delete.";
     }
   }
+
+  updateSelectedQuestionDeleteButton();
+}
+
+function updateSelectedQuestionDeleteButton(){
+  const btn = document.getElementById("deleteSelectedQuestionBtn");
+  if(!btn) return;
+
+  const id = String(ACTIVE_QUESTION_ID || "").trim();
+
+  if(!id){
+    btn.disabled = true;
+    btn.style.background = "#94a3b8";
+    btn.style.cursor = "not-allowed";
+    btn.innerHTML = "🗑️ Delete Selected Question";
+    btn.title = "Select a question first";
+    return;
+  }
+
+  const card = document.querySelector(
+    `.pro-question-card[data-question-id="${id}"]`
+  );
+
+  const locked =
+    String(card?.dataset.questionLocked || "false") === "true";
+
+  if(locked){
+    btn.disabled = true;
+    btn.style.background = "#94a3b8";
+    btn.style.cursor = "not-allowed";
+    btn.innerHTML = "🔒 Locked — Cannot Delete";
+    btn.title = "This question is locked. Unlock it before deleting.";
+  }else{
+    btn.disabled = false;
+    btn.style.background = "#dc2626";
+    btn.style.cursor = "pointer";
+    btn.innerHTML = "🗑️ Delete Selected Question";
+    btn.title = "Delete only the selected question";
+  }
 }
 
 function getActiveQuestionId(){
@@ -9009,18 +9048,15 @@ async function loadQuestions(){
           👤 Reset Student
         </button>
 
-        ${
-          USER_ROLE === "admin"
-            ? `
-              <button
-                type="button"
-                onclick="deleteActiveQuestion()"
-                style="background:#dc2626">
-                🗑️ Delete Selected Question
-              </button>
-            `
-            : ""
-        }
+        <button
+          id="deleteSelectedQuestionBtn"
+          type="button"
+          onclick="deleteActiveQuestion()"
+          style="background:#94a3b8"
+          disabled
+          title="Select a question first">
+          🗑️ Delete Selected Question
+        </button>
 
       </div>
     `;
@@ -10237,6 +10273,7 @@ questionsList.innerHTML += `
   data-question-id="${q.id}"
   data-question-order="${Number(q.order || 0)}"
   data-question-number="${questionNumberMap.get(q.id) || ""}"
+  data-question-locked="${q.locked === true ? "true" : "false"}"
   onclick="setActiveQuestion('${q.id}')"
 >
 
@@ -13330,38 +13367,139 @@ async function copySelectedBankQuestions(){
 
 async function deleteQuestion(id){
 
+  id = String(id || "").trim();
+
   if(!id){
     alert("معرّف السؤال غير موجود");
-    return;
+    return false;
   }
 
-  const ok = confirm("⚠️ delete only this question");
-  if(!ok) return;
-
   try{
-    const qDoc = await db.collection("questions").doc(id).get();
-const examId = qDoc.exists ? qDoc.data().examId : "";
+    const ref =
+      db.collection("questions").doc(id);
 
-await db.collection("questions").doc(id).delete();
+    const qDoc =
+      await ref.get();
 
-if(examId){
-  await updateVisibleQuestions(examId);
-}
+    if(!qDoc.exists){
+      alert("Question not found");
+      return false;
+    }
 
-    alert("✅ the question has deleted successfully");
+    const q =
+      qDoc.data() || {};
 
-    // إذا كنت تعدّل نفس السؤال المحذوف
+    /*
+      🔒 قاعدة الحذف:
+      السؤال المقفل لا يمكن حذفه.
+      يجب فك القفل أولاً، ثم يصبح زر الحذف متاحاً.
+    */
+    if(q.locked === true){
+      alert(
+        "🔒 هذا السؤال مقفل ولا يمكن حذفه.\n" +
+        "قم بفك قفل السؤال أولاً ثم حاول مرة أخرى."
+      );
+
+      const card = document.querySelector(
+        `.pro-question-card[data-question-id="${id}"]`
+      );
+
+      if(card){
+        card.dataset.questionLocked = "true";
+      }
+
+      updateSelectedQuestionDeleteButton();
+      return false;
+    }
+
+    const questionNumber =
+      document.querySelector(
+        `.pro-question-card[data-question-id="${id}"]`
+      )?.dataset.questionNumber || "";
+
+    const ok = confirm(
+      questionNumber
+        ? `⚠️ Delete Question ${questionNumber} only?\n\nThis will not delete the whole exam.`
+        : "⚠️ Delete only this selected question?"
+    );
+
+    if(!ok){
+      return false;
+    }
+
+    const examId =
+      String(q.examId || "").trim();
+
+    await ref.delete();
+
+    /*
+      إعادة ترتيب order مباشرة بعد حذف السؤال
+      حتى تصبح الأرقام 1,2,3... بدون فجوات.
+    */
+    if(examId){
+      try{
+        if(
+          typeof getCurrentExamQuestionsOrdered === "function" &&
+          typeof saveQuestionOrderByIds === "function" &&
+          String(CURRENT_PREVIEW_EXAM || "") === examId
+        ){
+          const remaining =
+            await getCurrentExamQuestionsOrdered();
+
+          await saveQuestionOrderByIds(
+            remaining.map(item => item.id)
+          );
+        }
+      }catch(orderErr){
+        console.warn(
+          "Question deleted, but order normalization failed:",
+          orderErr
+        );
+      }
+
+      await updateVisibleQuestions(examId);
+    }
+
     if(EDIT_QUESTION_ID === id){
       clearForm();
     }
 
+    if(ACTIVE_QUESTION_ID === id){
+      ACTIVE_QUESTION_ID = "";
+    }
+
     await loadQuestions();
 
+    /*
+      اختيار أقرب سؤال متبقٍ بعد إعادة التحميل.
+    */
+    const firstRemaining =
+      document.querySelector(
+        ".pro-question-card[data-question-id]"
+      );
+
+    if(firstRemaining){
+      setActiveQuestion(
+        firstRemaining.dataset.questionId || ""
+      );
+    }else{
+      updateSelectedQuestionDeleteButton();
+    }
+
+    alert("✅ تم حذف السؤال المحدد فقط بنجاح");
+    return true;
+
   }catch(err){
-    console.error(err);
+    console.error(
+      "deleteQuestion error:",
+      err
+    );
+
     alert("❌ فشل حذف السؤال");
+    return false;
   }
 }
+
 async function toggleMediaVisibility(questionId, currentState){
   try{
     await db.collection("questions").doc(questionId).update({
@@ -19816,4 +19954,33 @@ function setupPdfA4DragManager(examId){
 
 })();
 </script>
+
+
+<style id="prudle-delete-selected-question-final">
+#deleteSelectedQuestionBtn{
+  transition:.18s ease !important;
+}
+#deleteSelectedQuestionBtn:not(:disabled){
+  background:#dc2626 !important;
+  color:#fff !important;
+}
+#deleteSelectedQuestionBtn:not(:disabled):hover{
+  background:#b91c1c !important;
+  transform:translateY(-1px);
+}
+#deleteSelectedQuestionBtn:disabled{
+  background:#94a3b8 !important;
+  color:#fff !important;
+  opacity:.72 !important;
+  cursor:not-allowed !important;
+  transform:none !important;
+  box-shadow:none !important;
+}
+.pro-question-card[data-question-locked="true"].active-question{
+  outline:3px solid rgba(220,38,38,.28) !important;
+}
+.pro-question-card[data-question-locked="false"].active-question{
+  outline:3px solid rgba(14,165,233,.28) !important;
+}
+</style>
 
