@@ -2797,74 +2797,313 @@ button:hover{
 </style>
 
 
-<style id="prudle-pdf-editor-light-fast-final">
-/* ==========================================================
-   FAST PDF SCREEN EDITOR
-   Visual A4 guides without expensive JS pagination/reflow
-========================================================== */
+<style id="prudle-screen-equals-pdf-final">
+/* ============================================================
+   VIEW ALL = PDF DETAIL PREVIEW
+   The same mm/pt measurements used in the PDF are used on screen.
+   This block is intentionally CSS-only for speed.
+============================================================ */
+
+/* Gray desk around the paper */
 #questionsModal #modalQuestions{
   background:#d9dde2 !important;
+  padding:18px 0 28px !important;
+  direction:ltr !important;
 }
 
+/* A4-width working paper */
 #questionsModal #modalQuestionsWrap{
-  /*
-    One visual A4 sheet = 297mm high.
-    10mm gray separator.
-    This is only a guide on screen and costs almost nothing.
-  */
+  width:210mm !important;
+  max-width:210mm !important;
+  min-height:297mm !important;
+  margin:0 auto !important;
+  padding:10mm 10mm 10mm !important;
+  box-sizing:border-box !important;
+  direction:ltr !important;
+  position:relative !important;
+  overflow:visible !important;
+
+  /* Every 297mm = one A4 page, then a visible 10mm separator */
   background:
     repeating-linear-gradient(
       to bottom,
-      #fff 0,
-      #fff 297mm,
-      #c9ced4 297mm,
-      #c9ced4 307mm
+      #ffffff 0,
+      #ffffff 297mm,
+      #c8cdd3 297mm,
+      #c8cdd3 307mm
     ) !important;
-  min-height:297mm !important;
+
+  border-left:1px solid #b9bec5 !important;
+  border-right:1px solid #b9bec5 !important;
+  box-shadow:0 3px 14px rgba(0,0,0,.20) !important;
 }
 
-/* Do not let old generated spacer nodes affect performance/layout. */
-#questionsModal .pdf-screen-page-spacer{
-  display:none !important;
-  height:0 !important;
-}
-
-/* Fast selection indicator. */
-#questionsModal .modal-q-card{
+/* Question card = same compact PDF geometry */
+#questionsModal #modalQuestionsWrap .modal-q-card{
+  display:block !important;
+  width:100% !important;
+  max-width:100% !important;
+  margin:0 0 3.5mm !important;
+  padding:2.8mm 2mm 3.5mm !important;
+  border:0 !important;
+  border-bottom:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  box-sizing:border-box !important;
+  direction:ltr !important;
+  text-align:left !important;
   cursor:pointer !important;
-  will-change:auto !important;
 }
 
-#questionsModal .modal-q-card.pdf-layout-selected{
-  outline:3px solid #0ea5e9 !important;
+/* Q / marks / type header */
+#questionsModal #modalQuestionsWrap .modal-q-card > div:first-child{
+  margin-bottom:2mm !important;
+  align-items:center !important;
+}
+#questionsModal #modalQuestionsWrap .modal-q-card > div:first-child > div{
+  padding:1.1mm 3mm !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:9pt !important;
+  line-height:1.1 !important;
+}
+
+/* Passage */
+#questionsModal #modalQuestionsWrap .question-passage-block{
+  display:block !important;
+  margin:0 0 2.5mm !important;
+  padding:2.5mm 3mm !important;
+  border:1px solid #d7d7d7 !important;
+  border-radius:1.5mm !important;
+  background:#fff !important;
+  color:#111 !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:10.5pt !important;
+  font-weight:600 !important;
+  line-height:1.35 !important;
+  direction:ltr !important;
+}
+
+/* Question title */
+#questionsModal #modalQuestionsWrap .question-print-title{
+  margin-bottom:2mm !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:11.5pt !important;
+  font-weight:700 !important;
+  line-height:1.3 !important;
+  text-align:left !important;
+  color:#111 !important;
+}
+
+/* MCQ/options */
+#questionsModal #modalQuestionsWrap .question-option{
+  padding:.75mm 1.5mm !important;
+  margin-top:.4mm !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#fff !important;
+  color:#111 !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:10.3pt !important;
+  font-weight:600 !important;
+  line-height:1.24 !important;
+}
+
+/* Images = same PDF limits */
+#questionsModal #modalQuestionsWrap .modal-q-card img{
+  display:block !important;
+  max-width:140mm !important;
+  max-height:75mm !important;
+  width:auto !important;
+  height:auto !important;
+  object-fit:contain !important;
+  margin:3mm auto !important;
+  border-radius:1mm !important;
+}
+
+/* Matching images */
+#questionsModal #modalQuestionsWrap .print-match-image{
+  display:block !important;
+  width:auto !important;
+  max-width:70mm !important;
+  height:auto !important;
+  max-height:48mm !important;
+  object-fit:contain !important;
+  margin:0 auto !important;
+}
+#questionsModal #modalQuestionsWrap .print-match-image-bank{
+  display:grid !important;
+  grid-template-columns:repeat(2,1fr) !important;
+  gap:5mm !important;
+}
+
+/* Fill in the blanks = same PDF table */
+#questionsModal #modalQuestionsWrap .print-fill-grid{
+  display:grid !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  margin-top:2mm !important;
+  direction:ltr !important;
+  border-top:1px solid #111 !important;
+  border-left:1px solid #111 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-grid.horizontal{
+  grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-grid.vertical{
+  grid-template-columns:1fr !important;
+  width:75mm !important;
+  max-width:100% !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-cell{
+  min-width:0 !important;
+  min-height:10mm !important;
+  padding:1.2mm .8mm !important;
+  border-right:1px solid #111 !important;
+  border-bottom:1px solid #111 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  text-align:center !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:11pt !important;
+  line-height:1.05 !important;
+  font-weight:500 !important;
+  color:#111 !important;
+  background:#fff !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-grid.vertical .print-fill-cell{
+  justify-content:flex-start !important;
+  text-align:left !important;
+  min-height:12mm !important;
+  font-size:14pt !important;
+}
+#questionsModal #modalQuestionsWrap .print-fill-cell.blank{
+  letter-spacing:.45mm !important;
+  font-size:10pt !important;
+}
+
+/* Text answer lines = same compact PDF feel */
+#questionsModal #modalQuestionsWrap .text-answer-lines{
+  display:grid !important;
+  gap:2mm !important;
+  margin-top:3mm !important;
+}
+#questionsModal #modalQuestionsWrap .text-answer-line{
+  height:8mm !important;
+  border-bottom:1px solid #111827 !important;
+}
+
+/* Lists */
+#questionsModal #modalQuestionsWrap .modal-q-card ul,
+#questionsModal #modalQuestionsWrap .modal-q-card ol{
+  margin-top:2mm !important;
+  margin-bottom:0 !important;
+  padding-left:7mm !important;
+}
+#questionsModal #modalQuestionsWrap .modal-q-card li{
+  margin-bottom:1.5mm !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:10.3pt !important;
+  line-height:1.3 !important;
+}
+
+/* Selected question: visible editor outline only on screen */
+#questionsModal #modalQuestionsWrap .modal-q-card.pdf-layout-selected{
+  outline:2.5px solid #0ea5e9 !important;
   outline-offset:2px !important;
   box-shadow:0 0 0 4px rgba(14,165,233,.10) !important;
 }
 
-/* Small drag handle, no animation/filter. */
+/* Drag handle stays lightweight */
 #questionsModal .pdf-drag-grip{
   min-width:64px !important;
-  height:24px !important;
+  height:23px !important;
+  padding:0 8px !important;
+  border-radius:999px !important;
   background:#0ea5e9 !important;
+  color:#fff !important;
+  font:900 10px Arial,sans-serif !important;
   box-shadow:none !important;
   touch-action:none !important;
   user-select:none !important;
 }
 
-/* Disable transition/animation while editing for immediate movement. */
-#questionsModal .modal-q-card[data-pdf-layout-ready="true"],
-#questionsModal .modal-q-card[data-pdf-layout-ready="true"] *{
+/* The saved X/Y/Scale layout is the SAME source for screen and print. */
+#questionsModal .modal-q-card[data-pdf-layout-ready="true"]{
+  position:relative !important;
+  left:var(--pdf-x,0mm) !important;
+  top:var(--pdf-y,0mm) !important;
+  zoom:var(--pdf-scale,1) !important;
+  transform-origin:top left !important;
   transition:none !important;
 }
 
-/* Keep movement direct and cheap. */
-#questionsModal .modal-q-card[data-pdf-layout-ready="true"]{
-  contain:layout style;
+/* Hide answer key on Questions-only screen mode exactly like PDF. */
+body.print-questions #questionsModal .correct-answer .correct-mark,
+body.print-questions #questionsModal .answer-key-box,
+body.print-questions #questionsModal .answer-only{
+  display:none !important;
+}
+body.print-questions #questionsModal .question-only{
+  display:block !important;
 }
 
-@media print{
+/* Answers mode mirrors the PDF answer colors. */
+body.print-answers #questionsModal .correct-answer{
+  background:#dcfce7 !important;
+  border-color:#16a34a !important;
+  color:#166534 !important;
+}
+body.print-answers #questionsModal .answer-only{
+  display:block !important;
+}
+body.print-answers #questionsModal .question-only{
+  display:none !important;
+}
+
+/* Responsive: scale the whole A4 sheet visually, but do not alter its layout. */
+@media(max-width:900px){
+  #questionsModal #modalQuestions{
+    overflow-x:auto !important;
+  }
   #questionsModal #modalQuestionsWrap{
+    width:210mm !important;
+    max-width:none !important;
+  }
+}
+
+/* PRINT:
+   Remove only editor visuals. The question geometry above remains identical. */
+@media print{
+  #questionsModal #modalQuestions{
     background:#fff !important;
+    padding:0 !important;
+  }
+
+  #questionsModal #modalQuestionsWrap{
+    width:100% !important;
+    max-width:100% !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:2.5mm 0 0 !important;
+    background:#fff !important;
+    border:0 !important;
+    box-shadow:none !important;
+  }
+
+  #questionsModal .pdf-drag-grip{
+    display:none !important;
+  }
+
+  #questionsModal .modal-q-card.pdf-layout-selected{
+    outline:0 !important;
+    box-shadow:none !important;
   }
 }
 </style>
@@ -14622,6 +14861,34 @@ window.addEventListener("DOMContentLoaded",()=>{
 }
 </style>
 
+
+<script id="prudle-screen-pdf-mode-sync-final">
+(function(){
+  function syncScreenMode(mode){
+    document.body.classList.remove("print-questions","print-answers","print-review");
+    if(mode === "answers"){
+      document.body.classList.add("print-answers");
+    }else if(mode === "review"){
+      document.body.classList.add("print-review");
+    }else{
+      document.body.classList.add("print-questions");
+    }
+  }
+
+  const oldApply = window.applyQuestionsPrintMode;
+  if(typeof oldApply === "function"){
+    window.applyQuestionsPrintMode = function(mode){
+      const result = oldApply.apply(this,arguments);
+      syncScreenMode(mode);
+      return result;
+    };
+  }
+
+  window.addEventListener("DOMContentLoaded",()=>{
+    syncScreenMode(window.ACTIVE_PRINT_MODE || "questions");
+  });
+})();
+</script>
 </body>
 </html>
 <script>
@@ -15218,7 +15485,7 @@ async function openFullQuestions(examId){
         </div>
 
         <div id="pdfLayoutEditor" class="pdf-layout-editor">
-          <span id="pdfSelectedQuestionLabel" class="pdf-editor-selected">Select a question</span>
+          <span id="pdfSelectedQuestionLabel" class="pdf-editor-selected">Click a question to edit</span>
           <button type="button" onclick="pdfNudgeSelected(0,-2)" title="Move up">⬆</button>
           <button type="button" onclick="pdfNudgeSelected(0,2)" title="Move down">⬇</button>
           <button type="button" onclick="pdfNudgeSelected(-2,0)" title="Move left">⬅</button>
@@ -17543,6 +17810,7 @@ function updateSelectedPdfLayout(mutator){
   map[id] = next;
   savePdfLayoutMap(map);
   applyPdfLayoutToCard(card, next);
+  requestAnimationFrame(paginatePdfScreenPreview);
 }
 
 function pdfNudgeSelected(dx,dy){
@@ -17575,6 +17843,7 @@ function pdfResetAllLayout(){
   localStorage.removeItem(getPdfLayoutStorageKey());
   localStorage.removeItem(getPdfOrderStorageKey());
   applySavedPdfLayouts();
+  requestAnimationFrame(paginatePdfScreenPreview);
 }
 
 function pdfMoveQuestionOrder(step){
@@ -17598,6 +17867,7 @@ function pdfMoveQuestionOrder(step){
   renumberPdfPreviewQuestions();
   savePdfQuestionOrder();
   selectPdfQuestion(PDF_SELECTED_QUESTION_ID);
+  requestAnimationFrame(paginatePdfScreenPreview);
 }
 
 function renumberPdfPreviewQuestions(){
@@ -17608,10 +17878,14 @@ function renumberPdfPreviewQuestions(){
     });
 }
 
-let PDF_PX_PER_MM = 96 / 25.4;
-
 function cssMmToPx(mm){
-  return Number(mm || 0) * PDF_PX_PER_MM;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:absolute;visibility:hidden;width:100mm;height:1px;left:-99999px;top:-99999px;";
+  document.body.appendChild(probe);
+  const pxPerMm = probe.getBoundingClientRect().width / 100;
+  probe.remove();
+  return Number(mm || 0) * (pxPerMm || (96 / 25.4));
 }
 
 function clearPdfScreenPageSpacers(){
@@ -17625,13 +17899,53 @@ function clearPdfScreenPageSpacers(){
   it is pushed to the next white A4 page.
 */
 function paginatePdfScreenPreview(){
-  /*
-    LIGHT MODE:
-    Page boundaries are visual guides only.
-    We intentionally do NOT insert spacer elements or measure every question.
-    This keeps View All fast even with many questions/images.
-  */
-  return;
+  if(window.matchMedia && window.matchMedia("print").matches) return;
+
+  const wrap = document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
+
+  clearPdfScreenPageSpacers();
+
+  const pageH = cssMmToPx(297);
+  const gapH = cssMmToPx(12);
+  const period = pageH + gapH;
+  const topSafe = cssMmToPx(10);
+  const bottomSafe = cssMmToPx(10);
+  const cards = [...wrap.querySelectorAll(":scope > .modal-q-card[data-question-id]")];
+
+  cards.forEach(card=>{
+    const cardH = card.getBoundingClientRect().height;
+    if(!cardH || cardH > (pageH - topSafe - bottomSafe)) return;
+
+    const y = card.offsetTop;
+    const inPeriod = ((y % period) + period) % period;
+    const pageEnd = pageH - bottomSafe;
+
+    if(inPeriod + cardH > pageEnd){
+      const spacer = document.createElement("div");
+      spacer.className = "pdf-screen-page-spacer";
+
+      /*
+        Jump to the next sheet + its top margin.
+        A tiny extra pixel prevents browser rounding from landing on the divider.
+      */
+      const spacerPx = Math.max(
+        0,
+        period - inPeriod + topSafe + 1
+      );
+
+      spacer.style.height = spacerPx + "px";
+      wrap.insertBefore(spacer, card);
+    }
+  });
+
+  const lastCard = cards[cards.length - 1];
+  if(lastCard){
+    const needed = lastCard.offsetTop + lastCard.getBoundingClientRect().height + bottomSafe;
+    const pages = Math.max(1, Math.ceil(needed / period));
+    const fullHeight = (pages - 1) * period + pageH;
+    wrap.style.minHeight = Math.max(pageH, fullHeight) + "px";
+  }
 }
 
 function ensurePdfDragGrip(card){
@@ -17651,11 +17965,14 @@ function bindPdfQuestionInteraction(card){
   card.dataset.pdfInteractionBound = "true";
   ensurePdfDragGrip(card);
 
-  /* Click anywhere on a question to select it. */
+  /*
+    Direct click binding on every question.
+    This avoids the previous problem where clicking a card did not select it.
+  */
   card.addEventListener("click",function(event){
     selectPdfQuestion(card.dataset.questionId || "");
     event.stopPropagation();
-  });
+  },true);
 
   const grip = card.querySelector(":scope > .pdf-drag-grip");
   if(!grip) return;
@@ -17664,9 +17981,9 @@ function bindPdfQuestionInteraction(card){
     event.preventDefault();
     event.stopPropagation();
 
-    const id = String(card.dataset.questionId || "");
-    selectPdfQuestion(id);
+    selectPdfQuestion(card.dataset.questionId || "");
 
+    const id = String(card.dataset.questionId || "");
     const map = getPdfLayoutMap();
     const current = normalizePdfLayout(map[id]);
 
@@ -17676,61 +17993,37 @@ function bindPdfQuestionInteraction(card){
       startX:event.clientX,
       startY:event.clientY,
       baseX:current.x,
-      baseY:current.y,
-      scale:current.scale,
-      lastX:current.x,
-      lastY:current.y
+      baseY:current.y
     };
 
-    grip.style.cursor = "grabbing";
-
-    try{
-      grip.setPointerCapture(event.pointerId);
-    }catch(e){}
+    try{ grip.setPointerCapture(event.pointerId); }catch(e){}
   });
 
   grip.addEventListener("pointermove",event=>{
-    const s = PDF_DRAG_STATE;
-    if(!s || s.card !== card) return;
+    if(!PDF_DRAG_STATE || PDF_DRAG_STATE.card !== card) return;
 
     event.preventDefault();
 
-    /*
-      FAST DRAG:
-      Only change CSS variables while the mouse moves.
-      No Firestore, no localStorage, no page measuring, no DOM insertion.
-    */
-    const dxMm = (event.clientX - s.startX) / PDF_PX_PER_MM;
-    const dyMm = (event.clientY - s.startY) / PDF_PX_PER_MM;
+    const dxMm = (event.clientX - PDF_DRAG_STATE.startX) / cssMmToPx(1);
+    const dyMm = (event.clientY - PDF_DRAG_STATE.startY) / cssMmToPx(1);
 
-    s.lastX = Math.max(-80, Math.min(80, s.baseX + dxMm));
-    s.lastY = Math.max(-120, Math.min(120, s.baseY + dyMm));
+    const map = getPdfLayoutMap();
+    const next = normalizePdfLayout({
+      x:PDF_DRAG_STATE.baseX + dxMm,
+      y:PDF_DRAG_STATE.baseY + dyMm,
+      scale:normalizePdfLayout(map[PDF_DRAG_STATE.id]).scale
+    });
 
-    card.style.setProperty("--pdf-x", s.lastX + "mm");
-    card.style.setProperty("--pdf-y", s.lastY + "mm");
-    card.style.left = s.lastX + "mm";
-    card.style.top = s.lastY + "mm";
+    map[PDF_DRAG_STATE.id] = next;
+    savePdfLayoutMap(map);
+    applyPdfLayoutToCard(card,next);
   });
 
   const finishDrag = event=>{
-    const s = PDF_DRAG_STATE;
-    if(!s || s.card !== card) return;
-
+    if(!PDF_DRAG_STATE || PDF_DRAG_STATE.card !== card) return;
     PDF_DRAG_STATE = null;
-    grip.style.cursor = "grab";
-
-    /* Save ONCE after releasing the mouse. */
-    const map = getPdfLayoutMap();
-    map[s.id] = normalizePdfLayout({
-      x:s.lastX,
-      y:s.lastY,
-      scale:s.scale
-    });
-    savePdfLayoutMap(map);
-
-    try{
-      grip.releasePointerCapture(event.pointerId);
-    }catch(e){}
+    try{ grip.releasePointerCapture(event.pointerId); }catch(e){}
+    setTimeout(paginatePdfScreenPreview,20);
   };
 
   grip.addEventListener("pointerup",finishDrag);
@@ -17768,8 +18061,17 @@ function initializePdfLayoutEditor(){
     },true);
   }
 
-  /* No heavy pagination calculation in LIGHT MODE. */
+  requestAnimationFrame(()=>{
+    paginatePdfScreenPreview();
+  });
 }
+
+window.addEventListener("resize",()=>{
+  clearTimeout(window.__prudlePdfResizeTimer);
+  window.__prudlePdfResizeTimer = setTimeout(()=>{
+    paginatePdfScreenPreview();
+  },120);
+});
 
 // Re-apply layout after View All rebuilds the modal.
 const PDF_LAYOUT_OBSERVER = new MutationObserver(()=>{
