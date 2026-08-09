@@ -13684,6 +13684,63 @@ window.addEventListener("DOMContentLoaded",()=>{
 });
 </script>
 
+
+<style id="prudle-rearrange-pdf-brackets">
+/* Rearrange / Order — clear bracketed numbering */
+#questionsModal .rearrange-print-item{
+  display:flex !important;
+  align-items:flex-start !important;
+  gap:9px !important;
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionsModal .rearrange-print-number{
+  flex:0 0 auto;
+  min-width:34px;
+  font-weight:900;
+  color:#111827;
+  direction:ltr;
+  text-align:left;
+}
+
+#questionsModal .rearrange-print-text{
+  flex:1;
+  min-width:0;
+  direction:ltr;
+  text-align:left;
+  overflow-wrap:anywhere;
+}
+
+@media print{
+  #questionsModal .rearrange-print-item{
+    display:flex !important;
+    align-items:flex-start !important;
+    gap:2.5mm !important;
+    padding:.8mm 1mm !important;
+    margin-top:.5mm !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  #questionsModal .rearrange-print-number{
+    min-width:9mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.5pt !important;
+    font-weight:700 !important;
+    color:#111 !important;
+  }
+
+  #questionsModal .rearrange-print-text{
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.5pt !important;
+    font-weight:600 !important;
+    line-height:1.3 !important;
+    color:#111 !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -14695,14 +14752,21 @@ async function openFullQuestions(examId){
 
             : q.type === "order" && Array.isArray(q.options)
             ? `
-              <div class="question-only">
+              <div class="question-only rearrange-print-list">
                 ${[...q.options].reverse().map((op,i)=>`
-                  <div class="question-option">${i+1}. ${esc(op)}</div>
+                  <div class="question-option rearrange-print-item">
+                    <span class="rearrange-print-number">(${i+1})</span>
+                    <span class="rearrange-print-text">${esc(op)}</span>
+                  </div>
                 `).join("")}
               </div>
-              <div class="answer-only answer-key-box">
+
+              <div class="answer-only answer-key-box rearrange-print-list">
                 ${q.options.map((op,i)=>`
-                  <div class="question-option correct-answer">${i+1}. ${esc(op)}</div>
+                  <div class="question-option correct-answer rearrange-print-item">
+                    <span class="rearrange-print-number">(${i+1})</span>
+                    <span class="rearrange-print-text">${esc(op)}</span>
+                  </div>
                 `).join("")}
               </div>
             `
