@@ -17203,8 +17203,139 @@ window.addEventListener("DOMContentLoaded",function(){
     transform-origin:top left;
   }
 
+  /* =========================================
+     SCREEN A4 PREVIEW
+     Each white area = one A4 sheet (297mm)
+     Gray strip = physical gap between sheets
+  ========================================= */
+  #questionsModal #modalQuestions{
+    background:#dfe3e8 !important;
+  }
+
+  #questionsModal #modalQuestionsWrap{
+    position:relative !important;
+    width:210mm !important;
+    max-width:calc(100vw - 80px) !important;
+    min-height:297mm !important;
+    margin:0 auto !important;
+    padding:10mm 10mm 10mm !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+    direction:ltr !important;
+
+    /* 297mm white A4 + 12mm gray separator */
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        #ffffff 0,
+        #ffffff 297mm,
+        #cfd4da 297mm,
+        #cfd4da 309mm
+      ) !important;
+
+    border-left:1px solid #c8cdd3 !important;
+    border-right:1px solid #c8cdd3 !important;
+    box-shadow:0 3px 12px rgba(0,0,0,.18) !important;
+  }
+
+  #questionsModal #modalQuestionsWrap::before{
+    content:"A4 Preview";
+    position:absolute;
+    top:3mm;
+    right:4mm;
+    z-index:20;
+    padding:2px 7px;
+    border-radius:999px;
+    background:rgba(22,68,120,.08);
+    color:#64748b;
+    font:700 9px Arial,sans-serif;
+    pointer-events:none;
+  }
+
+  #questionsModal .modal-q-card{
+    position:relative;
+    z-index:2;
+    cursor:pointer !important;
+    user-select:none;
+  }
+
+  #questionsModal .modal-q-card:hover{
+    outline:2px dashed rgba(14,165,233,.50) !important;
+    outline-offset:2px;
+  }
+
+  #questionsModal .modal-q-card.pdf-layout-selected{
+    outline:4px solid #0ea5e9 !important;
+    outline-offset:3px !important;
+    box-shadow:0 0 0 7px rgba(14,165,233,.12) !important;
+  }
+
+  #questionsModal .pdf-drag-grip{
+    position:absolute;
+    top:3px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:30;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    min-width:58px;
+    height:22px;
+    padding:0 9px;
+    border-radius:999px;
+    background:#0ea5e9;
+    color:#fff;
+    font:900 11px Arial,sans-serif;
+    cursor:grab;
+    box-shadow:0 3px 9px rgba(14,165,233,.28);
+  }
+
+  #questionsModal .modal-q-card.pdf-layout-selected .pdf-drag-grip{
+    display:flex;
+  }
+
+  #questionsModal .pdf-drag-grip:active{cursor:grabbing}
+
+  #questionsModal .pdf-screen-page-spacer{
+    display:block;
+    width:100%;
+    pointer-events:none;
+  }
+
+  @media(max-width:900px){
+    #questionsModal #modalQuestionsWrap{
+      max-width:100% !important;
+      width:100% !important;
+      padding-left:5mm !important;
+      padding-right:5mm !important;
+    }
+  }
+
   @media print{
-    #pdfLayoutEditor{display:none !important}
+    #pdfLayoutEditor,
+    .pdf-drag-grip,
+    .pdf-screen-page-spacer{display:none !important}
+
+    #questionsModal #modalQuestions{
+      background:#fff !important;
+    }
+
+    #questionsModal #modalQuestionsWrap{
+      width:100% !important;
+      max-width:100% !important;
+      min-height:0 !important;
+      margin:0 !important;
+      padding:2.5mm 0 0 !important;
+      background:#fff !important;
+      border:0 !important;
+      box-shadow:none !important;
+    }
+
+    #questionsModal #modalQuestionsWrap::before{
+      display:none !important;
+      content:none !important;
+    }
+
     #questionsModal .modal-q-card[data-pdf-layout-ready="true"]{
       position:relative !important;
       left:var(--pdf-x,0mm) !important;
@@ -17340,6 +17471,7 @@ function updateSelectedPdfLayout(mutator){
   map[id] = next;
   savePdfLayoutMap(map);
   applyPdfLayoutToCard(card, next);
+  requestAnimationFrame(paginatePdfScreenPreview);
 }
 
 function pdfNudgeSelected(dx,dy){
@@ -17372,6 +17504,7 @@ function pdfResetAllLayout(){
   localStorage.removeItem(getPdfLayoutStorageKey());
   localStorage.removeItem(getPdfOrderStorageKey());
   applySavedPdfLayouts();
+  requestAnimationFrame(paginatePdfScreenPreview);
 }
 
 function pdfMoveQuestionOrder(step){
@@ -17395,6 +17528,7 @@ function pdfMoveQuestionOrder(step){
   renumberPdfPreviewQuestions();
   savePdfQuestionOrder();
   selectPdfQuestion(PDF_SELECTED_QUESTION_ID);
+  requestAnimationFrame(paginatePdfScreenPreview);
 }
 
 function renumberPdfPreviewQuestions(){
@@ -17405,21 +17539,200 @@ function renumberPdfPreviewQuestions(){
     });
 }
 
+function cssMmToPx(mm){
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:absolute;visibility:hidden;width:100mm;height:1px;left:-99999px;top:-99999px;";
+  document.body.appendChild(probe);
+  const pxPerMm = probe.getBoundingClientRect().width / 100;
+  probe.remove();
+  return Number(mm || 0) * (pxPerMm || (96 / 25.4));
+}
+
+function clearPdfScreenPageSpacers(){
+  document.querySelectorAll("#modalQuestionsWrap .pdf-screen-page-spacer")
+    .forEach(el=>el.remove());
+}
+
+/*
+  Builds visible A4 page breaks on SCREEN only.
+  If a normal-sized question would cross the bottom of a sheet,
+  it is pushed to the next white A4 page.
+*/
+function paginatePdfScreenPreview(){
+  if(window.matchMedia && window.matchMedia("print").matches) return;
+
+  const wrap = document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
+
+  clearPdfScreenPageSpacers();
+
+  const pageH = cssMmToPx(297);
+  const gapH = cssMmToPx(12);
+  const period = pageH + gapH;
+  const topSafe = cssMmToPx(10);
+  const bottomSafe = cssMmToPx(10);
+  const cards = [...wrap.querySelectorAll(":scope > .modal-q-card[data-question-id]")];
+
+  cards.forEach(card=>{
+    const cardH = card.getBoundingClientRect().height;
+    if(!cardH || cardH > (pageH - topSafe - bottomSafe)) return;
+
+    const y = card.offsetTop;
+    const inPeriod = ((y % period) + period) % period;
+    const pageEnd = pageH - bottomSafe;
+
+    if(inPeriod + cardH > pageEnd){
+      const spacer = document.createElement("div");
+      spacer.className = "pdf-screen-page-spacer";
+
+      /*
+        Jump to the next sheet + its top margin.
+        A tiny extra pixel prevents browser rounding from landing on the divider.
+      */
+      const spacerPx = Math.max(
+        0,
+        period - inPeriod + topSafe + 1
+      );
+
+      spacer.style.height = spacerPx + "px";
+      wrap.insertBefore(spacer, card);
+    }
+  });
+
+  const lastCard = cards[cards.length - 1];
+  if(lastCard){
+    const needed = lastCard.offsetTop + lastCard.getBoundingClientRect().height + bottomSafe;
+    const pages = Math.max(1, Math.ceil(needed / period));
+    const fullHeight = (pages - 1) * period + pageH;
+    wrap.style.minHeight = Math.max(pageH, fullHeight) + "px";
+  }
+}
+
+function ensurePdfDragGrip(card){
+  if(!card || card.querySelector(":scope > .pdf-drag-grip")) return;
+  const grip = document.createElement("div");
+  grip.className = "pdf-drag-grip";
+  grip.textContent = "✥ DRAG";
+  grip.title = "Drag this selected question";
+  card.insertBefore(grip, card.firstChild);
+}
+
+let PDF_DRAG_STATE = null;
+
+function bindPdfQuestionInteraction(card){
+  if(!card || card.dataset.pdfInteractionBound === "true") return;
+
+  card.dataset.pdfInteractionBound = "true";
+  ensurePdfDragGrip(card);
+
+  /*
+    Direct click binding on every question.
+    This avoids the previous problem where clicking a card did not select it.
+  */
+  card.addEventListener("click",function(event){
+    selectPdfQuestion(card.dataset.questionId || "");
+    event.stopPropagation();
+  },true);
+
+  const grip = card.querySelector(":scope > .pdf-drag-grip");
+  if(!grip) return;
+
+  grip.addEventListener("pointerdown",event=>{
+    event.preventDefault();
+    event.stopPropagation();
+
+    selectPdfQuestion(card.dataset.questionId || "");
+
+    const id = String(card.dataset.questionId || "");
+    const map = getPdfLayoutMap();
+    const current = normalizePdfLayout(map[id]);
+
+    PDF_DRAG_STATE = {
+      card,
+      id,
+      startX:event.clientX,
+      startY:event.clientY,
+      baseX:current.x,
+      baseY:current.y
+    };
+
+    try{ grip.setPointerCapture(event.pointerId); }catch(e){}
+  });
+
+  grip.addEventListener("pointermove",event=>{
+    if(!PDF_DRAG_STATE || PDF_DRAG_STATE.card !== card) return;
+
+    event.preventDefault();
+
+    const dxMm = (event.clientX - PDF_DRAG_STATE.startX) / cssMmToPx(1);
+    const dyMm = (event.clientY - PDF_DRAG_STATE.startY) / cssMmToPx(1);
+
+    const map = getPdfLayoutMap();
+    const next = normalizePdfLayout({
+      x:PDF_DRAG_STATE.baseX + dxMm,
+      y:PDF_DRAG_STATE.baseY + dyMm,
+      scale:normalizePdfLayout(map[PDF_DRAG_STATE.id]).scale
+    });
+
+    map[PDF_DRAG_STATE.id] = next;
+    savePdfLayoutMap(map);
+    applyPdfLayoutToCard(card,next);
+  });
+
+  const finishDrag = event=>{
+    if(!PDF_DRAG_STATE || PDF_DRAG_STATE.card !== card) return;
+    PDF_DRAG_STATE = null;
+    try{ grip.releasePointerCapture(event.pointerId); }catch(e){}
+    setTimeout(paginatePdfScreenPreview,20);
+  };
+
+  grip.addEventListener("pointerup",finishDrag);
+  grip.addEventListener("pointercancel",finishDrag);
+}
+
 function initializePdfLayoutEditor(){
   const wrap = document.getElementById("modalQuestionsWrap");
   if(!wrap) return;
+
   applySavedPdfQuestionOrder();
   applySavedPdfLayouts();
 
+  const cards = [
+    ...wrap.querySelectorAll(":scope > .modal-q-card[data-question-id]")
+  ];
+
+  cards.forEach(card=>{
+    bindPdfQuestionInteraction(card);
+  });
+
+  /*
+    Capture fallback: clicking anywhere inside a question selects it,
+    even if another inner element stops bubbling.
+  */
   if(wrap.dataset.pdfEditorBound !== "true"){
     wrap.dataset.pdfEditorBound = "true";
-    wrap.addEventListener("click",event=>{
-      const card = event.target.closest(".modal-q-card[data-question-id]");
-      if(!card) return;
+
+    wrap.addEventListener("pointerdown",event=>{
+      const card = event.target.closest(
+        ".modal-q-card[data-question-id]"
+      );
+      if(!card || !wrap.contains(card)) return;
       selectPdfQuestion(card.dataset.questionId || "");
-    });
+    },true);
   }
+
+  requestAnimationFrame(()=>{
+    paginatePdfScreenPreview();
+  });
 }
+
+window.addEventListener("resize",()=>{
+  clearTimeout(window.__prudlePdfResizeTimer);
+  window.__prudlePdfResizeTimer = setTimeout(()=>{
+    paginatePdfScreenPreview();
+  },120);
+});
 
 // Re-apply layout after View All rebuilds the modal.
 const PDF_LAYOUT_OBSERVER = new MutationObserver(()=>{
