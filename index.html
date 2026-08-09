@@ -13741,6 +13741,45 @@ window.addEventListener("DOMContentLoaded",()=>{
 }
 </style>
 
+
+<style id="prudle-rearrange-empty-answer-bracket-final">
+#questionsModal .rearrange-answer-bracket{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  min-width:46px;
+  margin-right:4px;
+  font-weight:900;
+  color:#111827;
+  direction:ltr;
+  text-align:center;
+}
+
+@media print{
+  #questionsModal .rearrange-answer-bracket{
+    display:inline-flex !important;
+    min-width:13mm !important;
+    margin-right:1.5mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11pt !important;
+    font-weight:700 !important;
+    color:#111 !important;
+  }
+
+  #questionsModal .rearrange-print-item{
+    display:flex !important;
+    align-items:flex-start !important;
+    justify-content:flex-start !important;
+    gap:2mm !important;
+  }
+
+  #questionsModal .rearrange-print-number{
+    min-width:6mm !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -14755,7 +14794,8 @@ async function openFullQuestions(examId){
               <div class="question-only rearrange-print-list">
                 ${[...q.options].reverse().map((op,i)=>`
                   <div class="question-option rearrange-print-item">
-                    <span class="rearrange-print-number">(${i+1})</span>
+                    <span class="rearrange-answer-bracket">( &nbsp;&nbsp;&nbsp; )</span>
+                    <span class="rearrange-print-number">${i+1}.</span>
                     <span class="rearrange-print-text">${esc(op)}</span>
                   </div>
                 `).join("")}
