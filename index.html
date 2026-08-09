@@ -534,6 +534,113 @@ transform:scale(1);
 
 }
 
+
+/* =========================================
+   DYNAMIC REARRANGE BUILDER
+========================================= */
+#rearrangeSection.show{
+  display:block !important;
+}
+
+.rearrange-items-box{
+  display:grid;
+  gap:10px;
+}
+
+.rearrange-admin-row{
+  display:grid;
+  grid-template-columns:48px minmax(0,1fr) 48px;
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #dce6ef;
+  border-radius:14px;
+  background:#f8fbfd;
+}
+
+.rearrange-admin-index{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  border-radius:11px;
+  background:#164478;
+  color:#fff;
+  font-weight:900;
+  direction:ltr;
+}
+
+.rearrange-admin-input{
+  margin:0 !important;
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+.rearrange-remove-btn{
+  width:44px !important;
+  height:44px !important;
+  min-width:44px !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:#ef4444 !important;
+  color:#fff !important;
+  border-radius:11px !important;
+}
+
+.rearrange-remove-btn:hover{
+  background:#dc2626 !important;
+}
+
+.rearrange-remove-btn:disabled{
+  opacity:.35 !important;
+  cursor:not-allowed !important;
+}
+
+.rearrange-add-toolbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:12px;
+  padding:12px;
+  border:1px solid #cfe0ef;
+  border-radius:15px;
+  background:#f8fbff;
+}
+
+.rearrange-add-toolbar button{
+  width:auto !important;
+  min-width:210px;
+  margin:0 !important;
+  background:#17a673 !important;
+}
+
+.rearrange-item-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:#eef5ff;
+  color:#164478;
+  font-weight:900;
+}
+
+@media(max-width:600px){
+  .rearrange-admin-row{
+    grid-template-columns:42px minmax(0,1fr) 42px;
+    gap:7px;
+    padding:8px;
+  }
+
+  .rearrange-remove-btn{
+    width:40px !important;
+    min-width:40px !important;
+    height:40px !important;
+  }
+}
+
 /* =========================================
    MATCHING: WORD ↔ WORD / WORD ↔ IMAGE
 ========================================= */
@@ -2949,6 +3056,30 @@ button:hover{
   <input id="opt4" placeholder="Option 4">
 </div>
 
+<!-- =========================================
+     DYNAMIC REARRANGE BUILDER
+========================================= -->
+<div id="rearrangeSection" style="display:none;margin-top:12px;">
+
+  <div id="rearrangeItemsBox" class="rearrange-items-box"></div>
+
+  <div class="rearrange-add-toolbar">
+    <button
+      type="button"
+      id="addRearrangeItemBtn"
+      onclick="addRearrangeItem()"
+    >
+      <i class="fa-solid fa-plus"></i>
+      Add Rearrange Item
+    </button>
+
+    <span id="rearrangeItemCount" class="rearrange-item-count">
+      4 items
+    </span>
+  </div>
+
+</div>
+
 <div id="matchingSection" style="display:none;margin-top:12px;">
   <div id="matchingBox"></div>
 
@@ -3476,7 +3607,29 @@ function secondsToHMS(total){
 }
 
 function getOptions(){
-  return [opt1.value, opt2.value, opt3.value, opt4.value]
+
+  /*
+    Rearrange has its own dynamic rows.
+    MCQ keeps the original four fixed option fields.
+  */
+  if(
+    document.getElementById("qType")?.value === "order"
+  ){
+    return getRearrangeRows()
+      .map(row =>
+        String(
+          row.querySelector(".rearrange-admin-input")?.value || ""
+        ).trim()
+      )
+      .filter(Boolean);
+  }
+
+  return [
+    opt1.value,
+    opt2.value,
+    opt3.value,
+    opt4.value
+  ]
     .map(v => String(v || "").trim())
     .filter(v => v);
 }
@@ -3519,6 +3672,7 @@ function clearForm(){
   }
 
   clearMatchingRows();
+  resetRearrangeItems([]);
   resetFillItems();
 
   const textAnswerLinesField =
@@ -5331,6 +5485,9 @@ function toggleQuestionType(){
     document.getElementById("matchingSection");
   const fillBlanksBox = document.getElementById("fillBlanksBox");
   const textAnswerLinesBox = document.getElementById("textAnswerLinesBox");
+
+  const rearrangeSection =
+    document.getElementById("rearrangeSection");
   degree.readOnly = false;
 
   correctBox.classList.add("hidden");
@@ -5349,6 +5506,12 @@ function toggleQuestionType(){
   if(fillBlanksBox){
     fillBlanksBox.classList.remove("show");
   }
+
+  if(rearrangeSection){
+    rearrangeSection.classList.remove("show");
+    rearrangeSection.style.display = "none";
+  }
+
   if(textAnswerLinesBox){
     textAnswerLinesBox.classList.add("hidden");
   }
@@ -5367,7 +5530,21 @@ function toggleQuestionType(){
 
   if(type === "order"){
 
-    optionsBox.classList.remove("hidden");
+    /*
+      Rearrange no longer uses the fixed MCQ option inputs.
+      It has its own dynamic item builder.
+    */
+    optionsBox.classList.add("hidden");
+
+    if(rearrangeSection){
+      rearrangeSection.classList.add("show");
+      rearrangeSection.style.display = "block";
+    }
+
+    if(!getRearrangeRows().length){
+      resetRearrangeItems([]);
+    }
+
     orderNote.classList.remove("hidden");
     orderPreview.classList.remove("hidden");
   }
@@ -5434,7 +5611,217 @@ function toggleQuestionType(){
   }
 
   updateOrderPreview();
-}function updateOrderPreview(){
+}
+const MIN_REARRANGE_ITEMS = 4;
+const MAX_REARRANGE_ITEMS = 20;
+
+function getRearrangeRows(){
+  return [
+    ...document.querySelectorAll(
+      "#rearrangeItemsBox .rearrange-admin-row"
+    )
+  ];
+}
+
+function createRearrangeItemRow(value = "", index = null){
+
+  const box =
+    document.getElementById("rearrangeItemsBox");
+
+  if(!box) return null;
+
+  const currentRows =
+    getRearrangeRows();
+
+  const rowIndex =
+    index === null
+      ? currentRows.length
+      : Number(index);
+
+  const row =
+    document.createElement("div");
+
+  row.className =
+    "rearrange-admin-row";
+
+  row.dataset.rearrangeIndex =
+    String(rowIndex);
+
+  row.innerHTML = `
+    <div class="rearrange-admin-index">
+      ${rowIndex + 1}
+    </div>
+
+    <input
+      type="text"
+      class="rearrange-admin-input"
+      placeholder="Rearrange item ${rowIndex + 1}"
+      value="${esc(value)}"
+      oninput="updateOrderPreview()"
+    >
+
+    <button
+      type="button"
+      class="rearrange-remove-btn"
+      onclick="removeRearrangeItem(this)"
+      title="Remove this item"
+    >
+      <i class="fa-solid fa-trash"></i>
+    </button>
+  `;
+
+  box.appendChild(row);
+
+  renumberRearrangeRows();
+
+  return row;
+}
+
+function renumberRearrangeRows(){
+
+  const rows =
+    getRearrangeRows();
+
+  rows.forEach((row,index)=>{
+
+    row.dataset.rearrangeIndex =
+      String(index);
+
+    const number =
+      row.querySelector(
+        ".rearrange-admin-index"
+      );
+
+    if(number){
+      number.textContent =
+        String(index + 1);
+    }
+
+    const input =
+      row.querySelector(
+        ".rearrange-admin-input"
+      );
+
+    if(input){
+      input.placeholder =
+        `Rearrange item ${index + 1}`;
+    }
+
+    const removeBtn =
+      row.querySelector(
+        ".rearrange-remove-btn"
+      );
+
+    if(removeBtn){
+      removeBtn.disabled =
+        rows.length <= MIN_REARRANGE_ITEMS;
+    }
+  });
+
+  const count =
+    document.getElementById(
+      "rearrangeItemCount"
+    );
+
+  if(count){
+    count.textContent =
+      `${rows.length} item${rows.length === 1 ? "" : "s"}`;
+  }
+
+  const addBtn =
+    document.getElementById(
+      "addRearrangeItemBtn"
+    );
+
+  if(addBtn){
+    addBtn.disabled =
+      rows.length >= MAX_REARRANGE_ITEMS;
+  }
+
+  updateOrderPreview();
+}
+
+function addRearrangeItem(value = ""){
+
+  const rows =
+    getRearrangeRows();
+
+  if(rows.length >= MAX_REARRANGE_ITEMS){
+    alert(
+      `Maximum ${MAX_REARRANGE_ITEMS} Rearrange items.`
+    );
+    return;
+  }
+
+  const row =
+    createRearrangeItemRow(
+      value,
+      rows.length
+    );
+
+  if(row){
+    setTimeout(()=>{
+      row.querySelector(
+        ".rearrange-admin-input"
+      )?.focus();
+    },30);
+  }
+}
+
+function removeRearrangeItem(button){
+
+  const row =
+    button?.closest(
+      ".rearrange-admin-row"
+    );
+
+  if(!row) return;
+
+  const rows =
+    getRearrangeRows();
+
+  if(rows.length <= MIN_REARRANGE_ITEMS){
+    return;
+  }
+
+  row.remove();
+
+  renumberRearrangeRows();
+}
+
+function resetRearrangeItems(items = []){
+
+  const box =
+    document.getElementById(
+      "rearrangeItemsBox"
+    );
+
+  if(!box) return;
+
+  box.innerHTML = "";
+
+  const saved =
+    Array.isArray(items)
+      ? items
+      : [];
+
+  const total =
+    Math.max(
+      MIN_REARRANGE_ITEMS,
+      saved.length
+    );
+
+  for(let i = 0; i < total; i++){
+    createRearrangeItemRow(
+      saved[i] || "",
+      i
+    );
+  }
+
+  renumberRearrangeRows();
+}
+
+function updateOrderPreview(){
   if(qType.value !== "order"){
     orderPreview.innerHTML = "";
     return;
@@ -5453,10 +5840,6 @@ function toggleQuestionType(){
   });
 }
 
-opt1.addEventListener("input", updateOrderPreview);
-opt2.addEventListener("input", updateOrderPreview);
-opt3.addEventListener("input", updateOrderPreview);
-opt4.addEventListener("input", updateOrderPreview);
 
 /* ================= رفع الميديا ================= */
 
@@ -6673,7 +7056,7 @@ async function editQuestion(id){
           : "";
     }
 
-    /* Rearrange: الخيارات المحفوظة نفسها هي الترتيب الصحيح */
+    /* Rearrange: load every saved item dynamically */
     else if(qType.value === "order"){
 
       const orderedItems =
@@ -6681,10 +7064,9 @@ async function editQuestion(id){
           ? q.correct
           : savedOptions;
 
-      opt1.value = orderedItems[0] || "";
-      opt2.value = orderedItems[1] || "";
-      opt3.value = orderedItems[2] || "";
-      opt4.value = orderedItems[3] || "";
+      resetRearrangeItems(
+        orderedItems
+      );
 
       updateOrderPreview();
     }
@@ -13779,6 +14161,18 @@ window.addEventListener("DOMContentLoaded",()=>{
   }
 }
 </style>
+
+
+<script id="prudle-rearrange-dynamic-init">
+window.addEventListener("DOMContentLoaded",()=>{
+  if(
+    document.getElementById("rearrangeItemsBox") &&
+    !getRearrangeRows().length
+  ){
+    resetRearrangeItems([]);
+  }
+});
+</script>
 
 </body>
 </html>
