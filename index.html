@@ -18001,3 +18001,753 @@ function setupPdfA4DragManager(examId){
 })();
 </script>
 
+
+<!-- =========================================================
+     PRUDLE FINAL — TRUE SEPARATE A4 PAGES + EASY MULTI-SELECT DRAG
+     - Every screen page is a fixed A4 sheet with a visible gap.
+     - Questions never replace each other; they are inserted before/after.
+     - Select 1, 2, or more questions and drag them together.
+     - Auto renumber after every movement.
+========================================================= -->
+<style id="prudle-true-a4-multidrag-final">
+@media screen{
+  #questionsModal #a4PagesCanvas{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:34px !important;
+    width:100% !important;
+    padding:18px 0 40px !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal .a4-question-page{
+    position:relative !important;
+    flex:0 0 auto !important;
+    width:min(100%,210mm) !important;
+    height:297mm !important;
+    min-height:297mm !important;
+    max-height:297mm !important;
+    margin:0 auto !important;
+    padding:16mm 10mm 14mm !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    background:#fff !important;
+    border:2px solid #164478 !important;
+    border-radius:2.5mm !important;
+    box-shadow:0 13px 32px rgba(22,68,120,.14) !important;
+  }
+
+  #questionsModal .a4-page-dropzone{
+    position:relative !important;
+    width:100% !important;
+    height:267mm !important;
+    min-height:267mm !important;
+    max-height:267mm !important;
+    padding:0 0 8mm !important;
+    margin:0 !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  /* Real visible separation between two A4 sheets */
+  #questionsModal .a4-screen-separator{
+    flex:0 0 auto !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:min(100%,210mm) !important;
+    height:42px !important;
+    margin:-17px auto !important;
+    gap:10px !important;
+    color:#b91c1c !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:9pt !important;
+    font-weight:900 !important;
+    background:transparent !important;
+  }
+
+  #questionsModal .a4-screen-separator::before,
+  #questionsModal .a4-screen-separator::after{
+    content:"" !important;
+    flex:1 !important;
+    border-top:2px dashed #ef4444 !important;
+  }
+
+  #questionsModal .a4-screen-separator span{
+    flex:0 0 auto !important;
+    padding:5px 11px !important;
+    border:1px solid #fecaca !important;
+    border-radius:999px !important;
+    background:#fff !important;
+    color:#b91c1c !important;
+    white-space:nowrap !important;
+  }
+
+  /* Selection checkbox for multi question drag */
+  #questionsModal .a4-move-select{
+    position:absolute !important;
+    top:1.2mm !important;
+    left:1mm !important;
+    z-index:25 !important;
+    display:flex !important;
+    align-items:center !important;
+    gap:4px !important;
+    width:auto !important;
+    margin:0 !important;
+    padding:3px 6px !important;
+    border:1px solid #cbd5e1 !important;
+    border-radius:999px !important;
+    background:rgba(255,255,255,.96) !important;
+    color:#334155 !important;
+    font:700 8pt Arial,Helvetica,sans-serif !important;
+    cursor:pointer !important;
+  }
+
+  #questionsModal .a4-move-select input{
+    display:block !important;
+    width:14px !important;
+    height:14px !important;
+    min-width:14px !important;
+    margin:0 !important;
+    padding:0 !important;
+    accent-color:#164478 !important;
+  }
+
+  #questionsModal .modal-q-card.a4-multi-selected{
+    outline:2px solid #0ea5e9 !important;
+    outline-offset:-1px !important;
+    background:#f8fcff !important;
+  }
+
+  #questionsModal .a4-drop-slot{
+    height:18px !important;
+    min-height:18px !important;
+    margin:2px 0 !important;
+    border:2px dashed transparent !important;
+    border-radius:7px !important;
+    box-sizing:border-box !important;
+    transition:.12s !important;
+  }
+
+  #questionsModal .a4-drop-slot.a4-drop-slot-active{
+    height:28px !important;
+    border-color:#0ea5e9 !important;
+    background:#e0f2fe !important;
+  }
+
+  #questionsModal .a4-overflow-warning{
+    display:none !important;
+  }
+}
+
+@media print{
+  .a4-move-select,
+  .a4-drop-slot{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  #a4PagesCanvas .a4-question-page{
+    break-after:page !important;
+    page-break-after:always !important;
+  }
+
+  #a4PagesCanvas .a4-question-page:last-of-type{
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+}
+</style>
+
+<script id="prudle-true-a4-multidrag-final-script">
+(function(){
+
+  let A4_MULTI_DRAG_IDS = [];
+  let A4_MULTI_DRAG_SOURCE = null;
+
+  function a4CardsInVisualOrder(){
+    const canvas = document.getElementById("a4PagesCanvas");
+    if(!canvas) return [];
+
+    const cards = [];
+
+    canvas.querySelectorAll(".a4-question-page").forEach(page=>{
+      page.querySelectorAll(
+        ".a4-page-dropzone > .modal-q-card[data-question-id]"
+      ).forEach(card=>cards.push(card));
+    });
+
+    return cards;
+  }
+
+  function a4SelectedCards(){
+    return a4CardsInVisualOrder().filter(card=>{
+      const cb = card.querySelector(".a4-move-check");
+      return Boolean(cb?.checked);
+    });
+  }
+
+  function a4UpdateSelectedVisual(){
+    a4CardsInVisualOrder().forEach(card=>{
+      const cb = card.querySelector(".a4-move-check");
+      card.classList.toggle(
+        "a4-multi-selected",
+        Boolean(cb?.checked)
+      );
+    });
+  }
+
+  function a4InstallMultiSelect(card){
+    if(
+      !card ||
+      card.querySelector(".a4-move-select")
+    ){
+      return;
+    }
+
+    const label = document.createElement("label");
+    label.className = "a4-move-select";
+    label.title = "Select this question to move it together with other selected questions";
+    label.innerHTML = `
+      <input
+        type="checkbox"
+        class="a4-move-check"
+      >
+      <span>Move</span>
+    `;
+
+    card.appendChild(label);
+
+    const cb = label.querySelector(".a4-move-check");
+
+    cb.addEventListener("click",event=>{
+      event.stopPropagation();
+    });
+
+    cb.addEventListener("change",()=>{
+      a4UpdateSelectedVisual();
+    });
+  }
+
+  function a4ClearDropSlots(){
+    document.querySelectorAll(
+      "#a4PagesCanvas .a4-drop-slot"
+    ).forEach(el=>el.remove());
+  }
+
+  function a4CreateDropSlot(){
+    const slot = document.createElement("div");
+    slot.className = "a4-drop-slot";
+
+    slot.addEventListener("dragenter",event=>{
+      if(!A4_MULTI_DRAG_IDS.length) return;
+      event.preventDefault();
+      slot.classList.add("a4-drop-slot-active");
+    });
+
+    slot.addEventListener("dragover",event=>{
+      if(!A4_MULTI_DRAG_IDS.length) return;
+      event.preventDefault();
+      slot.classList.add("a4-drop-slot-active");
+      try{
+        event.dataTransfer.dropEffect = "move";
+      }catch(_){}
+    });
+
+    slot.addEventListener("dragleave",()=>{
+      slot.classList.remove("a4-drop-slot-active");
+    });
+
+    slot.addEventListener("drop",async event=>{
+      if(!A4_MULTI_DRAG_IDS.length) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const parent = slot.parentElement;
+      if(!parent) return;
+
+      const movingCards = A4_MULTI_DRAG_IDS
+        .map(id =>
+          document.querySelector(
+            `#a4PagesCanvas .modal-q-card[data-question-id="${CSS.escape(id)}"]`
+          )
+        )
+        .filter(Boolean);
+
+      /*
+        Insert before the slot. Nothing is replaced.
+        All selected questions keep their relative order.
+      */
+      movingCards.forEach(card=>{
+        parent.insertBefore(card,slot);
+      });
+
+      a4FinishMultiMove();
+      await a4SaveManualLayout(false);
+    });
+
+    return slot;
+  }
+
+  function a4BuildAllDropSlots(){
+    a4ClearDropSlots();
+
+    document.querySelectorAll(
+      "#a4PagesCanvas .a4-page-dropzone"
+    ).forEach(zone=>{
+
+      const cards = [
+        ...zone.querySelectorAll(
+          ":scope > .modal-q-card[data-question-id]"
+        )
+      ];
+
+      if(!cards.length){
+        zone.appendChild(a4CreateDropSlot());
+        return;
+      }
+
+      cards.forEach(card=>{
+        zone.insertBefore(
+          a4CreateDropSlot(),
+          card
+        );
+      });
+
+      zone.appendChild(
+        a4CreateDropSlot()
+      );
+    });
+  }
+
+  function a4EnsureEnoughPagesForOverflow(){
+    const canvas = document.getElementById("a4PagesCanvas");
+    if(!canvas) return;
+
+    let pages = [
+      ...canvas.querySelectorAll(
+        ":scope > .a4-question-page"
+      )
+    ];
+
+    if(!pages.length && typeof a4CreatePage === "function"){
+      canvas.appendChild(a4CreatePage(2));
+      pages = [
+        ...canvas.querySelectorAll(
+          ":scope > .a4-question-page"
+        )
+      ];
+    }
+
+    /*
+      We do NOT automatically redistribute the user's chosen questions.
+      We only make sure there is always another empty A4 sheet available,
+      making it easy to place one, two or several questions there.
+    */
+    const lastPage = pages[pages.length - 1];
+    const lastCount =
+      lastPage?.querySelectorAll(
+        ".a4-page-dropzone > .modal-q-card"
+      ).length || 0;
+
+    if(lastCount > 0 && typeof a4CreatePage === "function"){
+      const nextPageNo = pages.length + 2;
+      canvas.appendChild(
+        a4CreatePage(nextPageNo)
+      );
+    }
+  }
+
+  function a4RemoveTrailingEmptyPages(){
+    const pages = [
+      ...document.querySelectorAll(
+        "#a4PagesCanvas .a4-question-page"
+      )
+    ];
+
+    /*
+      Keep one empty destination page after the last page with questions.
+    */
+    let seenLastNonEmpty = false;
+
+    for(let i=pages.length-1;i>=0;i--){
+      const page = pages[i];
+      const count =
+        page.querySelectorAll(
+          ".a4-page-dropzone > .modal-q-card"
+        ).length;
+
+      if(count > 0){
+        seenLastNonEmpty = true;
+        break;
+      }
+
+      if(i < pages.length - 1){
+        page.remove();
+      }
+    }
+
+    if(!seenLastNonEmpty && pages.length > 1){
+      pages.slice(1).forEach(p=>p.remove());
+    }
+  }
+
+  function a4RenumberAllFinal(){
+    const cards = a4CardsInVisualOrder();
+
+    cards.forEach((card,index)=>{
+      const number = index + 1;
+      card.dataset.questionNumber = String(number);
+
+      const handle =
+        card.querySelector(".a4-question-drag-handle");
+
+      const header =
+        [...card.children].find(el =>
+          el !== handle &&
+          !el.classList.contains("a4-move-select") &&
+          el.tagName === "DIV"
+        );
+
+      if(header){
+        const candidates = [...header.children].filter(
+          el => el.tagName === "DIV"
+        );
+
+        if(candidates[0]){
+          candidates[0].textContent = `Q${number}`;
+        }
+      }
+    });
+  }
+
+  function a4NormalizeAllPageNumbersFinal(){
+    const pages = [
+      ...document.querySelectorAll(
+        "#a4PagesCanvas .a4-question-page"
+      )
+    ];
+
+    pages.forEach((page,index)=>{
+      const pageNo = index + 2;
+      page.dataset.pdfPage = String(pageNo);
+
+      const label = page.querySelector(".a4-page-label");
+      if(label){
+        label.innerHTML = `
+          <i class="fa-solid fa-file-pdf"></i>
+          PDF Page ${pageNo}
+          <small>${pageNo===2 ? "first questions page" : "A4"}</small>
+        `;
+      }
+
+      const bottom =
+        page.querySelector(".a4-page-bottom-line span");
+
+      if(bottom){
+        bottom.textContent =
+          `END OF PDF PAGE ${pageNo}`;
+      }
+
+      page.querySelectorAll(
+        ".modal-q-card[data-question-id]"
+      ).forEach(card=>{
+        card.dataset.pdfPage = String(pageNo);
+
+        const badge =
+          card.querySelector(".a4-current-page");
+
+        if(badge){
+          badge.textContent = `PDF Page ${pageNo}`;
+        }
+      });
+    });
+  }
+
+  function a4RebuildSeparatorsFinal(){
+    const canvas = document.getElementById("a4PagesCanvas");
+    if(!canvas) return;
+
+    canvas.querySelectorAll(
+      ":scope > .a4-screen-separator, :scope > .a4-add-page-zone"
+    ).forEach(el=>el.remove());
+
+    const pages = [
+      ...canvas.querySelectorAll(
+        ":scope > .a4-question-page"
+      )
+    ];
+
+    pages.forEach((page,index)=>{
+      const next = pages[index+1];
+      if(!next) return;
+
+      const separator = document.createElement("div");
+      separator.className = "a4-screen-separator";
+      separator.innerHTML = `
+        <span>
+          END PDF PAGE ${index+2} &nbsp; | &nbsp;
+          START PDF PAGE ${index+3}
+        </span>
+      `;
+
+      canvas.insertBefore(separator,next);
+    });
+
+    if(typeof a4CreateAddPageZone === "function"){
+      canvas.appendChild(
+        a4CreateAddPageZone()
+      );
+    }
+  }
+
+  function a4RefreshFinalLayout(){
+    a4RemoveTrailingEmptyPages();
+    a4EnsureEnoughPagesForOverflow();
+    a4NormalizeAllPageNumbersFinal();
+    a4RenumberAllFinal();
+    a4RebuildSeparatorsFinal();
+
+    a4CardsInVisualOrder().forEach(card=>{
+      a4InstallMultiSelect(card);
+    });
+
+    a4UpdateSelectedVisual();
+
+    if(A4_MULTI_DRAG_IDS.length){
+      a4BuildAllDropSlots();
+    }
+  }
+
+  function a4StartMultiDrag(card,event){
+    const id = String(
+      card.dataset.questionId || ""
+    ).trim();
+
+    if(!id) return;
+
+    const checkedCards = a4SelectedCards();
+
+    /*
+      If the dragged card is selected, move ALL selected questions.
+      If it is not selected, move only this one question.
+    */
+    let movingCards = [];
+
+    if(
+      card.querySelector(".a4-move-check")?.checked &&
+      checkedCards.length
+    ){
+      movingCards = checkedCards;
+    }else{
+      movingCards = [card];
+    }
+
+    A4_MULTI_DRAG_IDS = movingCards
+      .map(c => String(c.dataset.questionId || "").trim())
+      .filter(Boolean);
+
+    A4_MULTI_DRAG_SOURCE = card;
+
+    movingCards.forEach(c=>{
+      c.classList.add("a4-dragging");
+    });
+
+    a4BuildAllDropSlots();
+
+    try{
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(
+        "text/plain",
+        A4_MULTI_DRAG_IDS.join(",")
+      );
+    }catch(_){}
+  }
+
+  function a4FinishMultiMove(){
+    a4CardsInVisualOrder().forEach(card=>{
+      card.classList.remove("a4-dragging");
+
+      const cb = card.querySelector(".a4-move-check");
+      if(cb){
+        cb.checked = false;
+      }
+    });
+
+    A4_MULTI_DRAG_IDS = [];
+    A4_MULTI_DRAG_SOURCE = null;
+
+    a4ClearDropSlots();
+    a4RefreshFinalLayout();
+  }
+
+  function a4PatchCardDragEvents(){
+    a4CardsInVisualOrder().forEach(card=>{
+      a4InstallMultiSelect(card);
+
+      if(card.dataset.multiDragPatched === "1"){
+        return;
+      }
+
+      card.dataset.multiDragPatched = "1";
+      card.draggable = true;
+
+      /*
+        Capture phase overrides the older one-card drag logic.
+      */
+      card.addEventListener(
+        "dragstart",
+        event=>{
+          event.stopImmediatePropagation();
+          a4StartMultiDrag(card,event);
+        },
+        true
+      );
+
+      card.addEventListener(
+        "dragend",
+        event=>{
+          event.stopImmediatePropagation();
+
+          /*
+            If the question was not actually dropped into a slot,
+            simply clean the drag state and leave the layout untouched.
+          */
+          if(A4_MULTI_DRAG_IDS.length){
+            a4CardsInVisualOrder().forEach(c=>
+              c.classList.remove("a4-dragging")
+            );
+            A4_MULTI_DRAG_IDS = [];
+            A4_MULTI_DRAG_SOURCE = null;
+            a4ClearDropSlots();
+            a4RefreshFinalLayout();
+          }
+        },
+        true
+      );
+    });
+  }
+
+  function a4InitFinalMultiDrag(){
+    const canvas = document.getElementById("a4PagesCanvas");
+    if(!canvas) return;
+
+    a4RefreshFinalLayout();
+    a4PatchCardDragEvents();
+
+    /*
+      Keep patching after modal rerenders or questions are moved.
+    */
+    const observer = new MutationObserver(()=>{
+      a4PatchCardDragEvents();
+    });
+
+    observer.observe(canvas,{
+      childList:true,
+      subtree:true
+    });
+  }
+
+  /*
+    Extend the existing setup function without replacing the rest of the code.
+  */
+  const originalSetup =
+    window.setupPdfA4DragManager;
+
+  window.setupPdfA4DragManager = function(examId){
+    if(typeof originalSetup === "function"){
+      originalSetup(examId);
+    }
+
+    setTimeout(()=>{
+      a4InitFinalMultiDrag();
+    },0);
+  };
+
+  /*
+    Override save so it always stores visual page/order exactly.
+    This keeps numbering and PDF order synchronized.
+  */
+  const originalSave =
+    window.a4SaveManualLayout;
+
+  window.a4SaveManualLayout = async function(showMessage=false){
+    a4NormalizeAllPageNumbersFinal();
+    a4RenumberAllFinal();
+
+    const examId =
+      String(window.A4_DRAG_EXAM_ID || "").trim();
+
+    const cards = a4CardsInVisualOrder();
+
+    if(!cards.length){
+      return;
+    }
+
+    /*
+      Fallback to original save if exam id is not visible in window scope.
+    */
+    if(!examId){
+      if(typeof originalSave === "function"){
+        return originalSave(showMessage);
+      }
+      return;
+    }
+
+    const batch = db.batch();
+    let order = 1;
+
+    document.querySelectorAll(
+      "#a4PagesCanvas .a4-question-page"
+    ).forEach(page=>{
+
+      const pdfPage =
+        Math.max(
+          2,
+          Number(page.dataset.pdfPage || 2)
+        );
+
+      page.querySelectorAll(
+        ".a4-page-dropzone > .modal-q-card[data-question-id]"
+      ).forEach(card=>{
+
+        const id =
+          String(card.dataset.questionId || "").trim();
+
+        if(!id) return;
+
+        batch.update(
+          db.collection("questions").doc(id),
+          {
+            pdfPage,
+            order:order++,
+            pdfLayoutUpdatedAt:
+              firebase.firestore.FieldValue.serverTimestamp()
+          }
+        );
+      });
+    });
+
+    try{
+      await batch.commit();
+
+      if(showMessage){
+        alert("✅ A4 question layout saved");
+      }
+    }catch(err){
+      console.error(
+        "Final A4 layout save error:",
+        err
+      );
+
+      alert(
+        "❌ Could not save A4 layout\n" +
+        String(err.message || err)
+      );
+    }
+  };
+
+})();
+</script>
+
