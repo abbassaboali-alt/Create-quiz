@@ -19147,3 +19147,673 @@ function setupPdfA4DragManager(examId){
 })();
 </script>
 
+
+<!-- =========================================================
+     PRUDLE — PDF COMPACT CONTROLS
+     Text size + vertical spacing controls shared by screen A4
+     preview and the printed PDF.
+========================================================= -->
+<style id="prudle-pdf-compact-controls-final">
+
+#questionsModal{
+  --pdf-q-title-size:11.5pt;
+  --pdf-option-size:10.3pt;
+  --pdf-passage-size:10.5pt;
+  --pdf-meta-size:9pt;
+  --pdf-fill-size:11pt;
+  --pdf-fill-blank-size:10pt;
+
+  --pdf-card-gap:3.5mm;
+  --pdf-card-pad-top:2.8mm;
+  --pdf-card-pad-bottom:3.5mm;
+  --pdf-title-gap:2mm;
+  --pdf-passage-gap:2.5mm;
+  --pdf-option-gap:.4mm;
+  --pdf-fill-gap:2mm;
+  --pdf-line-gap:2mm;
+}
+
+.pdf-compact-toolbar{
+  direction:ltr;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  width:100%;
+  padding:10px 12px;
+  margin-top:8px;
+  border:1px solid #cfe0ef;
+  border-radius:14px;
+  background:#fff;
+}
+
+.pdf-compact-group{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:5px;
+  border:1px solid #dbeafe;
+  border-radius:12px;
+  background:#f8fbff;
+}
+
+.pdf-compact-group strong{
+  color:#164478;
+  font-size:12px;
+  white-space:nowrap;
+  margin:0 4px;
+}
+
+.pdf-compact-toolbar button{
+  width:auto !important;
+  min-width:38px !important;
+  height:34px !important;
+  margin:0 !important;
+  padding:5px 10px !important;
+  border-radius:9px !important;
+  font-size:12px !important;
+}
+
+.pdf-compact-value{
+  min-width:52px;
+  text-align:center;
+  color:#164478;
+  font-size:12px;
+  font-weight:900;
+}
+
+.pdf-compact-note{
+  flex:1;
+  min-width:190px;
+  color:#64748b;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.35;
+}
+
+/* =========================================================
+   SCREEN PREVIEW — USE THE SAME VARIABLES
+========================================================= */
+@media screen{
+
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    margin-bottom:var(--pdf-card-gap) !important;
+    padding-top:var(--pdf-card-pad-top) !important;
+    padding-bottom:var(--pdf-card-pad-bottom) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-print-title{
+    margin-bottom:var(--pdf-title-gap) !important;
+    font-size:var(--pdf-q-title-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-passage-block{
+    margin-bottom:var(--pdf-passage-gap) !important;
+    font-size:var(--pdf-passage-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-option{
+    margin-top:var(--pdf-option-gap) !important;
+    font-size:var(--pdf-option-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .modal-q-card > div:not(.a4-question-drag-handle):not(.a4-move-select):first-of-type > div{
+    font-size:var(--pdf-meta-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid{
+    margin-top:var(--pdf-fill-gap) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-cell{
+    font-size:var(--pdf-fill-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-only .print-fill-cell.blank{
+    font-size:var(--pdf-fill-blank-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .text-answer-lines{
+    gap:var(--pdf-line-gap) !important;
+  }
+}
+
+/* =========================================================
+   PRINT PDF — EXACT SAME VARIABLES
+========================================================= */
+@media print{
+
+  .pdf-compact-toolbar{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  #questionsModal .modal-q-card{
+    margin-bottom:var(--pdf-card-gap) !important;
+    padding-top:var(--pdf-card-pad-top) !important;
+    padding-bottom:var(--pdf-card-pad-bottom) !important;
+  }
+
+  #questionsModal .question-print-title{
+    margin-bottom:var(--pdf-title-gap) !important;
+    font-size:var(--pdf-q-title-size) !important;
+  }
+
+  #questionsModal .question-passage-block{
+    margin-bottom:var(--pdf-passage-gap) !important;
+    font-size:var(--pdf-passage-size) !important;
+  }
+
+  #questionsModal .question-option{
+    margin-top:var(--pdf-option-gap) !important;
+    font-size:var(--pdf-option-size) !important;
+  }
+
+  #questionsModal .modal-q-card > div:first-child > div{
+    font-size:var(--pdf-meta-size) !important;
+  }
+
+  #questionsModal .print-fill-grid{
+    margin-top:var(--pdf-fill-gap) !important;
+  }
+
+  #questionsModal .print-fill-cell{
+    font-size:var(--pdf-fill-size) !important;
+  }
+
+  body:not(.print-answers) #questionsModal .print-fill-cell.blank{
+    font-size:var(--pdf-fill-blank-size) !important;
+  }
+
+  #questionsModal .text-answer-lines{
+    gap:var(--pdf-line-gap) !important;
+  }
+}
+</style>
+
+<script id="prudle-pdf-compact-controls-script">
+(function(){
+
+  const DEFAULT_PDF_COMPACT = {
+    fontScale:1,
+    spaceScale:1
+  };
+
+  let PDF_COMPACT_EXAM_ID = "";
+  let PDF_COMPACT_STATE = {
+    ...DEFAULT_PDF_COMPACT
+  };
+
+  function pdfClamp(value,min,max){
+    return Math.min(
+      max,
+      Math.max(min,Number(value))
+    );
+  }
+
+  function pdfRound(value,decimals=2){
+    const p = Math.pow(10,decimals);
+    return Math.round(value*p)/p;
+  }
+
+  function pdfCompactStorageKey(){
+    return "prudle_pdf_compact_" +
+      String(PDF_COMPACT_EXAM_ID || "default");
+  }
+
+  function pdfLoadCompactState(){
+    try{
+      const raw =
+        localStorage.getItem(
+          pdfCompactStorageKey()
+        );
+
+      if(!raw){
+        PDF_COMPACT_STATE = {
+          ...DEFAULT_PDF_COMPACT
+        };
+        return;
+      }
+
+      const saved = JSON.parse(raw);
+
+      PDF_COMPACT_STATE = {
+        fontScale:pdfClamp(
+          saved.fontScale ?? 1,
+          .72,
+          1.3
+        ),
+        spaceScale:pdfClamp(
+          saved.spaceScale ?? 1,
+          .05,
+          1.5
+        )
+      };
+
+    }catch(_){
+      PDF_COMPACT_STATE = {
+        ...DEFAULT_PDF_COMPACT
+      };
+    }
+  }
+
+  function pdfSaveCompactState(){
+    try{
+      localStorage.setItem(
+        pdfCompactStorageKey(),
+        JSON.stringify(
+          PDF_COMPACT_STATE
+        )
+      );
+    }catch(_){}
+  }
+
+  function pdfSetCssMm(root,name,base,scale,min=0){
+    root.style.setProperty(
+      name,
+      Math.max(
+        min,
+        base*scale
+      ).toFixed(2) + "mm"
+    );
+  }
+
+  function pdfSetCssPt(root,name,base,scale,min=5){
+    root.style.setProperty(
+      name,
+      Math.max(
+        min,
+        base*scale
+      ).toFixed(2) + "pt"
+    );
+  }
+
+  function pdfApplyCompactState(){
+    const modal =
+      document.getElementById(
+        "questionsModal"
+      );
+
+    if(!modal){
+      return;
+    }
+
+    const f =
+      PDF_COMPACT_STATE.fontScale;
+
+    const s =
+      PDF_COMPACT_STATE.spaceScale;
+
+    /* Text */
+    pdfSetCssPt(
+      modal,
+      "--pdf-q-title-size",
+      11.5,
+      f,
+      7
+    );
+
+    pdfSetCssPt(
+      modal,
+      "--pdf-option-size",
+      10.3,
+      f,
+      6.5
+    );
+
+    pdfSetCssPt(
+      modal,
+      "--pdf-passage-size",
+      10.5,
+      f,
+      6.5
+    );
+
+    pdfSetCssPt(
+      modal,
+      "--pdf-meta-size",
+      9,
+      f,
+      6
+    );
+
+    pdfSetCssPt(
+      modal,
+      "--pdf-fill-size",
+      11,
+      f,
+      7
+    );
+
+    pdfSetCssPt(
+      modal,
+      "--pdf-fill-blank-size",
+      10,
+      f,
+      6.5
+    );
+
+    /* Vertical spaces */
+    pdfSetCssMm(
+      modal,
+      "--pdf-card-gap",
+      3.5,
+      s,
+      0
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-card-pad-top",
+      2.8,
+      s,
+      .2
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-card-pad-bottom",
+      3.5,
+      s,
+      .2
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-title-gap",
+      2,
+      s,
+      0
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-passage-gap",
+      2.5,
+      s,
+      0
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-option-gap",
+      .4,
+      s,
+      0
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-fill-gap",
+      2,
+      s,
+      0
+    );
+
+    pdfSetCssMm(
+      modal,
+      "--pdf-line-gap",
+      2,
+      s,
+      0
+    );
+
+    pdfUpdateCompactLabels();
+
+    /*
+      Recalculate A4 overflow after changing font/spacing.
+      Questions that no longer fit are moved forward; reducing
+      spacing does NOT automatically pull questions backward,
+      so the user's manual arrangement remains under their control.
+    */
+    setTimeout(()=>{
+      if(
+        typeof finalA4PushOverflowForward ===
+        "function"
+      ){
+        finalA4PushOverflowForward(false);
+      }
+    },60);
+  }
+
+  function pdfUpdateCompactLabels(){
+    const fontEl =
+      document.getElementById(
+        "pdfFontScaleValue"
+      );
+
+    const spaceEl =
+      document.getElementById(
+        "pdfSpaceScaleValue"
+      );
+
+    if(fontEl){
+      fontEl.textContent =
+        Math.round(
+          PDF_COMPACT_STATE.fontScale*100
+        ) + "%";
+    }
+
+    if(spaceEl){
+      spaceEl.textContent =
+        Math.round(
+          PDF_COMPACT_STATE.spaceScale*100
+        ) + "%";
+    }
+  }
+
+  window.pdfAdjustFont = function(delta){
+    PDF_COMPACT_STATE.fontScale =
+      pdfRound(
+        pdfClamp(
+          PDF_COMPACT_STATE.fontScale +
+          Number(delta || 0),
+          .72,
+          1.3
+        ),
+        2
+      );
+
+    pdfSaveCompactState();
+    pdfApplyCompactState();
+  };
+
+  window.pdfAdjustSpacing = function(delta){
+    PDF_COMPACT_STATE.spaceScale =
+      pdfRound(
+        pdfClamp(
+          PDF_COMPACT_STATE.spaceScale +
+          Number(delta || 0),
+          .05,
+          1.5
+        ),
+        2
+      );
+
+    pdfSaveCompactState();
+    pdfApplyCompactState();
+  };
+
+  window.pdfSetNoGaps = function(){
+    /*
+      Keep tiny padding so borders/text do not visually collide,
+      but remove almost all before/after spacing.
+    */
+    PDF_COMPACT_STATE.spaceScale = .08;
+
+    pdfSaveCompactState();
+    pdfApplyCompactState();
+  };
+
+  window.pdfResetCompact = function(){
+    PDF_COMPACT_STATE = {
+      ...DEFAULT_PDF_COMPACT
+    };
+
+    pdfSaveCompactState();
+    pdfApplyCompactState();
+  };
+
+  function pdfBuildCompactToolbar(){
+    const main =
+      document.getElementById(
+        "a4DragToolbar"
+      );
+
+    if(!main){
+      return;
+    }
+
+    let bar =
+      document.getElementById(
+        "pdfCompactToolbar"
+      );
+
+    if(!bar){
+      bar =
+        document.createElement("div");
+
+      bar.id =
+        "pdfCompactToolbar";
+
+      bar.className =
+        "pdf-compact-toolbar";
+
+      main.insertAdjacentElement(
+        "afterend",
+        bar
+      );
+    }
+
+    bar.innerHTML = `
+      <div class="pdf-compact-group">
+        <strong>Text size</strong>
+
+        <button
+          type="button"
+          onclick="pdfAdjustFont(-0.05)"
+          title="Smaller text"
+          style="background:#64748b"
+        >
+          A−
+        </button>
+
+        <span
+          id="pdfFontScaleValue"
+          class="pdf-compact-value"
+        >
+          100%
+        </span>
+
+        <button
+          type="button"
+          onclick="pdfAdjustFont(0.05)"
+          title="Larger text"
+          style="background:#164478"
+        >
+          A+
+        </button>
+      </div>
+
+      <div class="pdf-compact-group">
+        <strong>Before / After space</strong>
+
+        <button
+          type="button"
+          onclick="pdfAdjustSpacing(-0.10)"
+          title="Reduce spacing"
+          style="background:#64748b"
+        >
+          −
+        </button>
+
+        <span
+          id="pdfSpaceScaleValue"
+          class="pdf-compact-value"
+        >
+          100%
+        </span>
+
+        <button
+          type="button"
+          onclick="pdfAdjustSpacing(0.10)"
+          title="Increase spacing"
+          style="background:#164478"
+        >
+          +
+        </button>
+
+        <button
+          type="button"
+          onclick="pdfSetNoGaps()"
+          title="Remove almost all vertical spacing"
+          style="background:#f59e0b"
+        >
+          No Gaps
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onclick="pdfResetCompact()"
+        style="background:#8b5cf6"
+      >
+        Reset
+      </button>
+
+      <div class="pdf-compact-note">
+        These controls change both the A4 preview and the printed PDF.
+        Reduce Text size and Before / After space to fit more questions
+        on the same A4 sheet.
+      </div>
+    `;
+
+    pdfUpdateCompactLabels();
+  }
+
+  function pdfInitCompactControls(examId){
+    PDF_COMPACT_EXAM_ID =
+      String(examId || "").trim();
+
+    pdfLoadCompactState();
+    pdfBuildCompactToolbar();
+    pdfApplyCompactState();
+  }
+
+  /*
+    Hook into the existing A4 preview initialization.
+  */
+  const previousSetup =
+    window.setupPdfA4DragManager;
+
+  window.setupPdfA4DragManager =
+    function(examId){
+
+      if(
+        typeof previousSetup ===
+        "function"
+      ){
+        previousSetup(examId);
+      }
+
+      setTimeout(()=>{
+        pdfInitCompactControls(
+          examId
+        );
+      },0);
+    };
+
+  /*
+    Before printing, reapply the exact same sizes to ensure that
+    preview and PDF are synchronized.
+  */
+  window.addEventListener(
+    "beforeprint",
+    ()=>{
+      pdfApplyCompactState();
+    }
+  );
+
+})();
+</script>
+
