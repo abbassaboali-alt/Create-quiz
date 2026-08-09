@@ -15312,7 +15312,7 @@ async function openFullQuestions(examId){
     body.innerHTML = html;
 
     // PDF page manager: select/move questions while keeping preview and print aligned.
-    setupPdfPageQuestionManager(examId);
+    setupPdfA4DragManager(examId);
 
   }catch(err){
 
@@ -16829,477 +16829,654 @@ window.addEventListener("DOMContentLoaded",function(){
 
 
 <!-- =========================================================
-     PRUDLE — MANUAL PDF QUESTION PAGE MANAGER
-     Select questions in the same preview and move them to a
-     specific physical PDF page. Cover = PDF page 1.
+     PRUDLE — A4 MANUAL DRAG & DROP PAGE BUILDER
+     Cover = PDF page 1. Questions start at PDF page 2.
 ========================================================= -->
-<style id="prudle-pdf-question-page-manager">
-.pdf-page-manager{
+<style id="prudle-a4-manual-drag-manager">
+#a4DragToolbar{
   direction:ltr;
-  width:100%;
   display:flex;
   align-items:center;
   gap:10px;
   flex-wrap:wrap;
-  padding:12px;
+  width:100%;
   margin-top:10px;
+  padding:12px;
   border:1px solid #bfdbfe;
   border-radius:16px;
-  background:linear-gradient(135deg,#eff6ff,#f8fbff);
-}
-.pdf-page-manager strong{color:#164478}
-.pdf-page-manager select{
-  width:auto !important;
-  min-width:155px;
-  margin:0 !important;
-  padding:10px 12px !important;
-}
-.pdf-page-manager button{
-  width:auto !important;
-  margin:0 !important;
-  padding:10px 15px !important;
-}
-.pdf-page-manager .pdf-selected-count{
-  margin-left:auto;
-  padding:8px 12px;
-  border-radius:999px;
-  background:#164478;
-  color:#fff;
-  font-weight:900;
-  white-space:nowrap;
-}
-.pdf-q-select-box{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  padding:7px 10px;
-  border:1px solid #bfdbfe;
-  border-radius:12px;
   background:#eff6ff;
+}
+#a4DragToolbar .a4-help{
+  flex:1;
+  min-width:260px;
   color:#164478;
-  font-size:13px;
-  font-weight:900;
-  margin-bottom:10px;
-  cursor:pointer;
-  user-select:none;
+  font-weight:800;
+  line-height:1.5;
 }
-.pdf-q-select-box input{
-  width:18px !important;
-  height:18px !important;
-  margin:0 !important;
-  accent-color:#164478;
+#a4DragToolbar button{
+  width:auto!important;
+  margin:0!important;
+  padding:10px 14px!important;
 }
-.pdf-page-group{
+#a4PagesCanvas{
   direction:ltr;
-  position:relative;
-  margin:0 0 22px;
-  padding:48px 14px 14px;
-  border:2px dashed #93c5fd;
-  border-radius:18px;
-  background:#f8fbff;
+  width:100%;
+  display:grid;
+  gap:34px;
+  padding:14px 0 30px;
 }
-.pdf-page-group-label{
+.a4-question-page{
+  position:relative;
+  width:min(100%,210mm);
+  min-height:297mm;
+  margin:0 auto;
+  padding:18mm 12mm 17mm;
+  box-sizing:border-box;
+  background:#fff;
+  border:2px solid #164478;
+  border-radius:8px;
+  box-shadow:0 12px 35px rgba(22,68,120,.13);
+}
+.a4-page-label{
   position:absolute;
-  top:10px;
-  left:12px;
+  top:6mm;
+  left:10mm;
   display:flex;
   align-items:center;
   gap:8px;
-  padding:7px 12px;
+  padding:6px 11px;
   border-radius:999px;
   background:#164478;
   color:#fff;
   font-weight:900;
   font-size:13px;
+  z-index:4;
 }
-.pdf-page-group-label small{
-  opacity:.82;
+.a4-page-label small{opacity:.8}
+.a4-page-dropzone{
+  min-height:248mm;
+  padding-bottom:10mm;
+}
+.a4-page-bottom-line{
+  position:absolute;
+  left:10mm;
+  right:10mm;
+  bottom:7mm;
+  border-top:2px dashed #ef4444;
+  text-align:center;
+  color:#b91c1c;
   font-size:11px;
+  font-weight:900;
+  pointer-events:none;
 }
-.pdf-page-group .modal-q-card:last-child{
-  margin-bottom:0 !important;
+.a4-page-bottom-line span{
+  position:relative;
+  top:-9px;
+  display:inline-block;
+  padding:0 8px;
+  background:#fff;
 }
-.modal-q-card.pdf-selected-question{
-  outline:4px solid rgba(14,165,233,.32);
-  outline-offset:3px;
-}
-.pdf-page-warning{
-  width:100%;
-  padding:8px 11px;
-  border-radius:11px;
-  background:#fff7ed;
-  border:1px solid #fed7aa;
-  color:#9a3412;
+.a4-screen-separator{
+  width:min(100%,210mm);
+  margin:-18px auto;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#b91c1c;
   font-size:12px;
+  font-weight:900;
+}
+.a4-screen-separator::before,
+.a4-screen-separator::after{
+  content:"";
+  flex:1;
+  border-top:2px dashed #ef4444;
+}
+.a4-screen-separator span{white-space:nowrap}
+#a4PagesCanvas .modal-q-card{
+  cursor:grab;
+  user-select:none;
+  margin-bottom:12px!important;
+  transition:.15s;
+}
+#a4PagesCanvas .modal-q-card.a4-dragging{
+  opacity:.35;
+  transform:scale(.985);
+}
+.a4-question-drag-handle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:-6px -6px 10px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:#eaf3fb;
+  color:#164478;
+  font-size:12px;
+  font-weight:900;
+  cursor:grab;
+}
+.a4-question-drag-handle .a4-current-page{
+  padding:5px 9px;
+  border-radius:999px;
+  background:#164478;
+  color:#fff;
+}
+.a4-question-page.a4-page-dragover{
+  border-color:#0ea5e9;
+  box-shadow:0 0 0 5px rgba(14,165,233,.12);
+}
+.a4-drop-indicator{
+  height:8px;
+  margin:8px 0;
+  border-radius:999px;
+  background:#0ea5e9;
+  box-shadow:0 0 0 4px rgba(14,165,233,.12);
+}
+.a4-page-empty{
+  min-height:170px;
+  display:grid;
+  place-items:center;
+  border:2px dashed #bfdbfe;
+  border-radius:16px;
+  color:#64748b;
   font-weight:800;
+}
+.a4-add-page-zone{
+  width:min(100%,210mm);
+  margin:0 auto;
+  padding:18px;
+  border:2px dashed #94a3b8;
+  border-radius:16px;
+  text-align:center;
+  color:#475569;
+  background:#f8fafc;
+  font-weight:900;
+}
+.a4-add-page-zone button{
+  width:auto!important;
+  margin:8px 0 0!important;
+}
+.a4-overflow-warning{
+  display:none;
+  position:absolute;
+  top:6mm;
+  right:10mm;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#fee2e2;
+  color:#991b1b;
+  font-size:11px;
+  font-weight:900;
+  z-index:4;
+}
+.a4-question-page.a4-overflow{
+  border-color:#dc2626;
+}
+.a4-question-page.a4-overflow .a4-overflow-warning{
+  display:block;
+}
+
+@media(max-width:760px){
+  .a4-question-page{
+    width:100%;
+    min-height:900px;
+    padding:70px 14px 55px;
+  }
+  .a4-page-dropzone{min-height:780px}
+  .a4-page-bottom-line{
+    left:14px;
+    right:14px;
+    bottom:28px;
+  }
 }
 
 @media print{
-  .pdf-page-manager,
-  .pdf-q-select-box,
-  .pdf-page-group-label,
-  .pdf-page-warning{
-    display:none !important;
-    visibility:hidden !important;
+  #a4DragToolbar,
+  .a4-question-drag-handle,
+  .a4-page-label,
+  .a4-page-bottom-line,
+  .a4-screen-separator,
+  .a4-add-page-zone,
+  .a4-overflow-warning,
+  .a4-page-empty{
+    display:none!important;
+    visibility:hidden!important;
   }
 
-  #modalQuestionsWrap .pdf-page-group{
-    display:block !important;
-    width:100% !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:0 !important;
-    border-radius:0 !important;
-    background:#fff !important;
-    box-shadow:none !important;
-    overflow:visible !important;
+  #a4PagesCanvas{
+    display:block!important;
+    width:100%!important;
+    margin:0!important;
+    padding:0!important;
   }
 
-  /*
-    Cover is PDF page 1, so the first question group naturally starts on
-    PDF page 2. Every following assigned group starts a new physical page.
-  */
-  body:not(.print-review) #modalQuestionsWrap .pdf-page-group + .pdf-page-group{
-    break-before:page !important;
-    page-break-before:always !important;
+  #a4PagesCanvas .a4-question-page{
+    display:block!important;
+    width:100%!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:#fff!important;
+    overflow:visible!important;
   }
 
-  /*
-    Review hides the cover. It still respects the same manual groups;
-    the first group becomes Review page 1.
-  */
-  body.print-review #modalQuestionsWrap .pdf-page-group + .pdf-page-group{
-    break-before:page !important;
-    page-break-before:always !important;
+  #a4PagesCanvas .a4-page-dropzone{
+    min-height:0!important;
+    padding:0!important;
   }
-}
 
-@media(max-width:700px){
-  .pdf-page-manager{
-    align-items:stretch;
+  #a4PagesCanvas .a4-question-page + .a4-question-page{
+    break-before:page!important;
+    page-break-before:always!important;
   }
-  .pdf-page-manager select,
-  .pdf-page-manager button{
-    width:100% !important;
-  }
-  .pdf-page-manager .pdf-selected-count{
-    margin-left:0;
-    text-align:center;
+
+  #a4PagesCanvas .modal-q-card{
+    cursor:auto!important;
+    user-select:auto!important;
   }
 }
 </style>
 
-<script id="prudle-pdf-question-page-manager-script">
-let PDF_PAGE_MANAGER_EXAM_ID = "";
+<script id="prudle-a4-manual-drag-manager-script">
+let A4_DRAG_EXAM_ID = "";
+let A4_DRAGGED_CARD = null;
+let A4_DROP_INDICATOR = null;
 
-function getPdfPageManagerCards(){
-  return [
-    ...document.querySelectorAll(
-      "#modalQuestionsWrap .modal-q-card[data-question-id]"
-    )
-  ];
+function a4GetCanvas(){
+  return document.getElementById("a4PagesCanvas");
+}
+function a4GetPages(){
+  return [...document.querySelectorAll("#a4PagesCanvas .a4-question-page")];
+}
+function a4GetCards(){
+  return [...document.querySelectorAll("#a4PagesCanvas .modal-q-card[data-question-id]")];
 }
 
-function updatePdfSelectedCount(){
-  const count = document.querySelectorAll(
-    "#modalQuestionsWrap .pdf-page-question-check:checked"
-  ).length;
-
-  const badge = document.getElementById("pdfSelectedQuestionCount");
-  if(badge){
-    badge.textContent = `${count} selected`;
-  }
+function a4CreatePage(pageNumber){
+  const page=document.createElement("section");
+  page.className="a4-question-page";
+  page.dataset.pdfPage=String(pageNumber);
+  page.innerHTML=`
+    <div class="a4-page-label">
+      <i class="fa-solid fa-file-pdf"></i>
+      PDF Page ${pageNumber}
+      <small>${pageNumber===2?"first questions page":"A4"}</small>
+    </div>
+    <div class="a4-overflow-warning">⚠ Content exceeds one A4 page</div>
+    <div class="a4-page-dropzone"></div>
+    <div class="a4-page-bottom-line">
+      <span>END OF PDF PAGE ${pageNumber}</span>
+    </div>
+  `;
+  a4BindPageDropEvents(page);
+  return page;
 }
 
-function togglePdfQuestionSelection(input){
-  const card = input?.closest(".modal-q-card");
-  if(card){
-    card.classList.toggle(
-      "pdf-selected-question",
-      Boolean(input.checked)
-    );
-  }
-  updatePdfSelectedCount();
+function a4CreateSeparator(fromPage,toPage){
+  const el=document.createElement("div");
+  el.className="a4-screen-separator";
+  el.innerHTML=`<span>A4 PAGE BREAK — Page ${fromPage} → Page ${toPage}</span>`;
+  return el;
 }
 
-function selectAllPdfQuestions(state){
-  document.querySelectorAll(
-    "#modalQuestionsWrap .pdf-page-question-check"
-  ).forEach(input=>{
-    input.checked = Boolean(state);
-    togglePdfQuestionSelection(input);
-  });
-  updatePdfSelectedCount();
+function a4CreateAddPageZone(){
+  const el=document.createElement("div");
+  el.className="a4-add-page-zone";
+  el.innerHTML=`
+    <div>Add another physical A4 page</div>
+    <button type="button" class="a4-add-page-btn" style="background:#64748b">
+      <i class="fa-solid fa-plus"></i> Add A4 Page
+    </button>
+  `;
+  el.querySelector(".a4-add-page-btn")?.addEventListener("click",a4AddNewPage);
+  return el;
 }
 
-function buildPdfPageOptions(maxPage, selectedPage = 2){
-  let html = "";
-  for(let page = 2; page <= maxPage; page++){
-    html += `
-      <option value="${page}" ${page === selectedPage ? "selected" : ""}>
-        PDF Page ${page}
-      </option>
-    `;
-  }
-  return html;
-}
+function a4DecorateCard(card){
+  if(!card || card.querySelector(".a4-question-drag-handle")) return;
 
-function rebuildPdfQuestionPageGroups(){
-  const wrap = document.getElementById("modalQuestionsWrap");
-  if(!wrap) return;
+  card.draggable=true;
 
-  // If called again, unwrap existing page groups first.
-  const existingGroups = [...wrap.querySelectorAll(":scope > .pdf-page-group")];
-  if(existingGroups.length){
-    const fragment = document.createDocumentFragment();
-    existingGroups.forEach(group=>{
-      [...group.querySelectorAll(":scope > .modal-q-card")].forEach(card=>{
-        fragment.appendChild(card);
-      });
-    });
-    wrap.innerHTML = "";
-    wrap.appendChild(fragment);
-  }
+  const handle=document.createElement("div");
+  handle.className="a4-question-drag-handle";
+  handle.innerHTML=`
+    <span><i class="fa-solid fa-grip-lines"></i> Drag question manually</span>
+    <span class="a4-current-page"></span>
+  `;
+  card.insertBefore(handle,card.firstChild);
 
-  const cards = getPdfPageManagerCards();
-  if(!cards.length) return;
-
-  cards.sort((a,b)=>{
-    const ap = Math.max(2, Number(a.dataset.pdfPage || 2));
-    const bp = Math.max(2, Number(b.dataset.pdfPage || 2));
-    if(ap !== bp) return ap - bp;
-
-    const aq = Number(
-      a.querySelector("[data-question-order]")?.dataset?.questionOrder || 0
-    );
-    const bq = Number(
-      b.querySelector("[data-question-order]")?.dataset?.questionOrder || 0
-    );
-    return aq - bq;
+  card.addEventListener("dragstart",event=>{
+    A4_DRAGGED_CARD=card;
+    card.classList.add("a4-dragging");
+    try{
+      event.dataTransfer.effectAllowed="move";
+      event.dataTransfer.setData("text/plain",String(card.dataset.questionId||""));
+    }catch(_){}
   });
 
-  const groups = new Map();
+  card.addEventListener("dragend",()=>{
+    card.classList.remove("a4-dragging");
+    A4_DRAGGED_CARD=null;
+    a4RemoveDropIndicator();
+    a4GetPages().forEach(p=>p.classList.remove("a4-page-dragover"));
+    a4RefreshPageBadges();
+    a4CheckAllPageOverflow();
+  });
+}
+
+function a4RemoveDropIndicator(){
+  if(A4_DROP_INDICATOR?.parentNode) A4_DROP_INDICATOR.remove();
+  A4_DROP_INDICATOR=null;
+}
+function a4EnsureDropIndicator(){
+  if(!A4_DROP_INDICATOR){
+    A4_DROP_INDICATOR=document.createElement("div");
+    A4_DROP_INDICATOR.className="a4-drop-indicator";
+  }
+  return A4_DROP_INDICATOR;
+}
+
+function a4GetInsertBefore(dropzone,mouseY){
+  const cards=[...dropzone.querySelectorAll(":scope > .modal-q-card:not(.a4-dragging)")];
+  let closest={offset:Number.NEGATIVE_INFINITY,element:null};
 
   cards.forEach(card=>{
-    const page = Math.max(2, Number(card.dataset.pdfPage || 2));
+    const box=card.getBoundingClientRect();
+    const offset=mouseY-box.top-box.height/2;
+    if(offset<0 && offset>closest.offset){
+      closest={offset,element:card};
+    }
+  });
+  return closest.element;
+}
 
-    if(!groups.has(page)){
-      const group = document.createElement("section");
-      group.className = "pdf-page-group";
-      group.dataset.pdfPage = String(page);
+function a4BindPageDropEvents(page){
+  const dropzone=page.querySelector(".a4-page-dropzone");
+  if(!dropzone) return;
 
-      const label = document.createElement("div");
-      label.className = "pdf-page-group-label";
-      label.innerHTML = `
+  page.addEventListener("dragenter",event=>{
+    if(!A4_DRAGGED_CARD) return;
+    event.preventDefault();
+    page.classList.add("a4-page-dragover");
+  });
+
+  page.addEventListener("dragover",event=>{
+    if(!A4_DRAGGED_CARD) return;
+    event.preventDefault();
+    try{event.dataTransfer.dropEffect="move"}catch(_){}
+
+    const before=a4GetInsertBefore(dropzone,event.clientY);
+    const indicator=a4EnsureDropIndicator();
+
+    if(before) dropzone.insertBefore(indicator,before);
+    else dropzone.appendChild(indicator);
+  });
+
+  page.addEventListener("dragleave",event=>{
+    if(!page.contains(event.relatedTarget)){
+      page.classList.remove("a4-page-dragover");
+    }
+  });
+
+  page.addEventListener("drop",async event=>{
+    if(!A4_DRAGGED_CARD) return;
+    event.preventDefault();
+    page.classList.remove("a4-page-dragover");
+
+    const before=a4GetInsertBefore(dropzone,event.clientY);
+
+    if(before) dropzone.insertBefore(A4_DRAGGED_CARD,before);
+    else dropzone.appendChild(A4_DRAGGED_CARD);
+
+    a4RemoveDropIndicator();
+    a4RefreshPageBadges();
+    a4CheckAllPageOverflow();
+
+    await a4SaveManualLayout(false);
+  });
+}
+
+function a4RefreshPageBadges(){
+  a4GetPages().forEach(page=>{
+    const pageNo=Math.max(2,Number(page.dataset.pdfPage||2));
+
+    const label=page.querySelector(".a4-page-label");
+    if(label){
+      label.innerHTML=`
         <i class="fa-solid fa-file-pdf"></i>
-        PDF Page ${page}
-        <small>${page === 2 ? "first questions page" : "manual page"}</small>
+        PDF Page ${pageNo}
+        <small>${pageNo===2?"first questions page":"A4"}</small>
       `;
-      group.appendChild(label);
-
-      groups.set(page, group);
     }
 
-    groups.get(page).appendChild(card);
-  });
+    const bottom=page.querySelector(".a4-page-bottom-line span");
+    if(bottom) bottom.textContent=`END OF PDF PAGE ${pageNo}`;
 
-  wrap.innerHTML = "";
-  [...groups.entries()]
-    .sort((a,b)=>a[0]-b[0])
-    .forEach(([,group])=>wrap.appendChild(group));
-}
+    page.querySelectorAll(".modal-q-card[data-question-id]").forEach(card=>{
+      card.dataset.pdfPage=String(pageNo);
+      const badge=card.querySelector(".a4-current-page");
+      if(badge) badge.textContent=`PDF Page ${pageNo}`;
+    });
 
-function decoratePdfQuestionCards(){
-  const cards = getPdfPageManagerCards();
+    const dropzone=page.querySelector(".a4-page-dropzone");
+    const count=dropzone?.querySelectorAll(":scope > .modal-q-card").length||0;
+    let empty=dropzone?.querySelector(".a4-page-empty");
 
-  cards.forEach(card=>{
-    if(card.querySelector(".pdf-q-select-box")) return;
-
-    const questionId = String(card.dataset.questionId || "").trim();
-    if(!questionId) return;
-
-    const page = Math.max(2, Number(card.dataset.pdfPage || 2));
-
-    const selector = document.createElement("label");
-    selector.className = "pdf-q-select-box";
-    selector.innerHTML = `
-      <input
-        type="checkbox"
-        class="pdf-page-question-check"
-        value="${questionId}"
-        onchange="togglePdfQuestionSelection(this)"
-      >
-      <span>
-        Select to move —
-        currently assigned to <strong>PDF Page ${page}</strong>
-      </span>
-    `;
-
-    card.insertBefore(selector, card.firstChild);
+    if(count===0 && dropzone && !empty){
+      empty=document.createElement("div");
+      empty.className="a4-page-empty";
+      empty.textContent="Drop a question here";
+      dropzone.appendChild(empty);
+    }else if(count>0 && empty){
+      empty.remove();
+    }
   });
 }
 
-function setupPdfPageQuestionManager(examId){
-  PDF_PAGE_MANAGER_EXAM_ID = String(examId || "").trim();
+function a4CheckPageOverflow(page){
+  const dropzone=page.querySelector(".a4-page-dropzone");
+  if(!dropzone) return;
 
-  const toolbar = document.getElementById("modalPrintToolbar");
-  const wrap = document.getElementById("modalQuestionsWrap");
+  const overflow=
+    window.innerWidth>760 &&
+    dropzone.scrollHeight>dropzone.clientHeight+12;
 
-  if(!toolbar || !wrap) return;
+  page.classList.toggle("a4-overflow",overflow);
+}
+function a4CheckAllPageOverflow(){
+  requestAnimationFrame(()=>a4GetPages().forEach(a4CheckPageOverflow));
+}
 
-  const cards = getPdfPageManagerCards();
-  if(!cards.length) return;
+function a4RenderPageSeparators(){
+  const canvas=a4GetCanvas();
+  if(!canvas) return;
 
-  // Ensure page values are valid.
-  cards.forEach(card=>{
-    card.dataset.pdfPage = String(
-      Math.max(2, Number(card.dataset.pdfPage || 2))
-    );
+  canvas.querySelectorAll(":scope > .a4-screen-separator,:scope > .a4-add-page-zone")
+    .forEach(el=>el.remove());
+
+  const pages=a4GetPages();
+
+  pages.forEach((page,index)=>{
+    const next=pages[index+1];
+    if(next){
+      canvas.insertBefore(
+        a4CreateSeparator(
+          Number(page.dataset.pdfPage||2),
+          Number(next.dataset.pdfPage||3)
+        ),
+        next
+      );
+    }
   });
 
-  decoratePdfQuestionCards();
-  rebuildPdfQuestionPageGroups();
+  canvas.appendChild(a4CreateAddPageZone());
+}
 
-  // Re-query after grouping.
-  const pageValues = getPdfPageManagerCards().map(card =>
-    Math.max(2, Number(card.dataset.pdfPage || 2))
-  );
+function a4NormalizePageNumbers(){
+  a4GetPages().forEach((page,index)=>{
+    page.dataset.pdfPage=String(index+2);
+  });
+  a4RefreshPageBadges();
+  a4RenderPageSeparators();
+}
 
-  const highestExistingPage = Math.max(2, ...pageValues);
-  const maxSelectablePage = Math.max(
-    highestExistingPage + 3,
-    getPdfPageManagerCards().length + 1
-  );
+async function a4AddNewPage(){
+  const canvas=a4GetCanvas();
+  if(!canvas) return;
 
-  let manager = document.getElementById("pdfPageManager");
+  canvas.querySelector(":scope > .a4-add-page-zone")?.remove();
+
+  const pageNo=a4GetPages().length+2;
+  const page=a4CreatePage(pageNo);
+  canvas.appendChild(page);
+
+  a4RenderPageSeparators();
+  a4RefreshPageBadges();
+  a4CheckAllPageOverflow();
+
+  page.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function a4BuildToolbar(){
+  const toolbar=document.getElementById("modalPrintToolbar");
+  if(!toolbar) return;
+
+  let manager=document.getElementById("a4DragToolbar");
   if(!manager){
-    manager = document.createElement("div");
-    manager.id = "pdfPageManager";
-    manager.className = "pdf-page-manager";
+    manager=document.createElement("div");
+    manager.id="a4DragToolbar";
     toolbar.appendChild(manager);
   }
 
-  manager.innerHTML = `
-    <strong>
-      <i class="fa-solid fa-arrows-up-down-left-right"></i>
-      Move selected questions to:
-    </strong>
-
-    <select id="pdfTargetPage">
-      ${buildPdfPageOptions(maxSelectablePage, 2)}
-    </select>
-
-    <button
-      type="button"
-      onclick="moveSelectedQuestionsToPdfPage()"
-      style="background:#0ea5e9"
-    >
-      <i class="fa-solid fa-file-arrow-down"></i>
-      Move to PDF Page
-    </button>
-
-    <button
-      type="button"
-      onclick="selectAllPdfQuestions(true)"
-      style="background:#64748b"
-    >
-      Select All
-    </button>
-
-    <button
-      type="button"
-      onclick="selectAllPdfQuestions(false)"
-      style="background:#94a3b8"
-    >
-      Clear
-    </button>
-
-    <span
-      id="pdfSelectedQuestionCount"
-      class="pdf-selected-count"
-    >
-      0 selected
-    </span>
-
-    <div class="pdf-page-warning">
-      PDF Page 1 is the cover/instructions page. Questions start on PDF Page 2.
-      Keep each page's questions short enough to fit one A4 sheet; otherwise the
-      browser may continue an oversized page onto the following sheet.
+  manager.innerHTML=`
+    <div class="a4-help">
+      <i class="fa-solid fa-hand-pointer"></i>
+      Drag any question up/down or between A4 sheets. The red dashed line shows the exact page separator.
+      PDF Page 1 is the cover; questions begin on PDF Page 2.
     </div>
+    <button type="button" id="a4SaveLayoutBtn" style="background:#16a34a">
+      <i class="fa-solid fa-floppy-disk"></i> Save Layout
+    </button>
+    <button type="button" id="a4CompactPagesBtn" style="background:#7c3aed">
+      <i class="fa-solid fa-layer-group"></i> Remove Empty Pages
+    </button>
   `;
 
-  updatePdfSelectedCount();
+  manager.querySelector("#a4SaveLayoutBtn")?.addEventListener("click",()=>a4SaveManualLayout(true));
+
+  manager.querySelector("#a4CompactPagesBtn")?.addEventListener("click",async()=>{
+    a4GetPages().forEach(page=>{
+      if(!page.querySelector(".modal-q-card")) page.remove();
+    });
+
+    if(!a4GetPages().length){
+      a4GetCanvas()?.appendChild(a4CreatePage(2));
+    }
+
+    a4NormalizePageNumbers();
+    await a4SaveManualLayout(true);
+    a4CheckAllPageOverflow();
+  });
 }
 
-async function moveSelectedQuestionsToPdfPage(){
-  const examId = String(PDF_PAGE_MANAGER_EXAM_ID || "").trim();
-  const target = Math.max(
-    2,
-    Number(document.getElementById("pdfTargetPage")?.value || 2)
-  );
+function a4BuildCanvasFromCurrentCards(){
+  const wrap=document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
 
-  const selected = [
-    ...document.querySelectorAll(
-      "#modalQuestionsWrap .pdf-page-question-check:checked"
-    )
-  ];
+  const cards=[...wrap.querySelectorAll(".modal-q-card[data-question-id]")];
+  if(!cards.length) return;
 
-  if(!examId){
-    alert("Exam not found");
-    return;
+  const canvas=document.createElement("div");
+  canvas.id="a4PagesCanvas";
+
+  wrap.innerHTML="";
+  wrap.appendChild(canvas);
+
+  const pageMap=new Map();
+
+  cards.forEach(card=>{
+    a4DecorateCard(card);
+
+    const pageNo=Math.max(2,Number(card.dataset.pdfPage||2));
+
+    if(!pageMap.has(pageNo)){
+      pageMap.set(pageNo,a4CreatePage(pageNo));
+    }
+
+    pageMap.get(pageNo)
+      .querySelector(".a4-page-dropzone")
+      .appendChild(card);
+  });
+
+  const pageNumbers=[...pageMap.keys()];
+  const maxPage=Math.max(2,...pageNumbers);
+
+  for(let pageNo=2;pageNo<=maxPage;pageNo++){
+    canvas.appendChild(
+      pageMap.get(pageNo)||a4CreatePage(pageNo)
+    );
   }
 
-  if(!selected.length){
-    alert("Select at least one question first");
-    return;
-  }
+  a4RenderPageSeparators();
+  a4RefreshPageBadges();
+}
 
-  const ids = selected
-    .map(input => String(input.value || "").trim())
-    .filter(Boolean);
+async function a4SaveManualLayout(showMessage=false){
+  const examId=String(A4_DRAG_EXAM_ID||"").trim();
+  if(!examId) return;
 
-  const moveButton = document.querySelector(
-    '#pdfPageManager button[onclick="moveSelectedQuestionsToPdfPage()"]'
-  );
+  const pages=a4GetPages();
+  const cards=a4GetCards();
+  if(!cards.length) return;
 
-  if(moveButton){
-    moveButton.disabled = true;
-    moveButton.innerHTML =
-      '<i class="fa-solid fa-spinner fa-spin"></i> Moving...';
-  }
+  const batch=db.batch();
+  let order=1;
 
-  try{
-    const batch = db.batch();
+  pages.forEach(page=>{
+    const pdfPage=Math.max(2,Number(page.dataset.pdfPage||2));
 
-    ids.forEach(id=>{
+    page.querySelectorAll(".modal-q-card[data-question-id]").forEach(card=>{
+      const id=String(card.dataset.questionId||"").trim();
+      if(!id) return;
+
       batch.update(
         db.collection("questions").doc(id),
         {
-          pdfPage: target,
-          pdfPageUpdatedAt:
+          pdfPage,
+          order:order++,
+          pdfLayoutUpdatedAt:
             firebase.firestore.FieldValue.serverTimestamp()
         }
       );
     });
+  });
 
+  try{
     await batch.commit();
-
-    // Refresh from Firestore so screen preview and PDF print use one source.
-    await openFullQuestions(examId);
-
+    if(showMessage) alert("✅ A4 question layout saved");
   }catch(err){
-    console.error("moveSelectedQuestionsToPdfPage error:", err);
-    alert(
-      "Could not move question(s) to the PDF page.\n" +
-      String(err.message || err)
-    );
-  }finally{
-    if(moveButton){
-      moveButton.disabled = false;
-      moveButton.innerHTML =
-        '<i class="fa-solid fa-file-arrow-down"></i> Move to PDF Page';
-    }
+    console.error("a4SaveManualLayout error:",err);
+    alert("❌ Could not save A4 layout\n"+String(err.message||err));
   }
+}
+
+function setupPdfA4DragManager(examId){
+  A4_DRAG_EXAM_ID=String(examId||"").trim();
+  a4BuildToolbar();
+  a4BuildCanvasFromCurrentCards();
+  a4CheckAllPageOverflow();
+
+  window.addEventListener(
+    "resize",
+    a4CheckAllPageOverflow,
+    {passive:true}
+  );
 }
 </script>
 
