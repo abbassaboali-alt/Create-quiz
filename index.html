@@ -14843,7 +14843,10 @@ async function openFullQuestions(examId){
       const correct = q.correct;
 
       html += `
-        <div class="modal-q-card" data-search="${esc(
+        <div class="modal-q-card"
+          data-question-id="${esc(q.id || "")}"
+          data-pdf-page="${Math.max(2, Number(q.pdfPage || 2))}"
+          data-search="${esc(
           (q.question || "") + " " + (q.options || []).join(" ")
         ).toLowerCase()}" style="
           direction:ltr;
@@ -15307,6 +15310,9 @@ async function openFullQuestions(examId){
     `;
 
     body.innerHTML = html;
+
+    // PDF page manager: select/move questions while keeping preview and print aligned.
+    setupPdfPageQuestionManager(examId);
 
   }catch(err){
 
@@ -16820,3 +16826,480 @@ window.addEventListener("DOMContentLoaded",function(){
   });
 });
 </script>
+
+
+<!-- =========================================================
+     PRUDLE — MANUAL PDF QUESTION PAGE MANAGER
+     Select questions in the same preview and move them to a
+     specific physical PDF page. Cover = PDF page 1.
+========================================================= -->
+<style id="prudle-pdf-question-page-manager">
+.pdf-page-manager{
+  direction:ltr;
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:12px;
+  margin-top:10px;
+  border:1px solid #bfdbfe;
+  border-radius:16px;
+  background:linear-gradient(135deg,#eff6ff,#f8fbff);
+}
+.pdf-page-manager strong{color:#164478}
+.pdf-page-manager select{
+  width:auto !important;
+  min-width:155px;
+  margin:0 !important;
+  padding:10px 12px !important;
+}
+.pdf-page-manager button{
+  width:auto !important;
+  margin:0 !important;
+  padding:10px 15px !important;
+}
+.pdf-page-manager .pdf-selected-count{
+  margin-left:auto;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#164478;
+  color:#fff;
+  font-weight:900;
+  white-space:nowrap;
+}
+.pdf-q-select-box{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border:1px solid #bfdbfe;
+  border-radius:12px;
+  background:#eff6ff;
+  color:#164478;
+  font-size:13px;
+  font-weight:900;
+  margin-bottom:10px;
+  cursor:pointer;
+  user-select:none;
+}
+.pdf-q-select-box input{
+  width:18px !important;
+  height:18px !important;
+  margin:0 !important;
+  accent-color:#164478;
+}
+.pdf-page-group{
+  direction:ltr;
+  position:relative;
+  margin:0 0 22px;
+  padding:48px 14px 14px;
+  border:2px dashed #93c5fd;
+  border-radius:18px;
+  background:#f8fbff;
+}
+.pdf-page-group-label{
+  position:absolute;
+  top:10px;
+  left:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 12px;
+  border-radius:999px;
+  background:#164478;
+  color:#fff;
+  font-weight:900;
+  font-size:13px;
+}
+.pdf-page-group-label small{
+  opacity:.82;
+  font-size:11px;
+}
+.pdf-page-group .modal-q-card:last-child{
+  margin-bottom:0 !important;
+}
+.modal-q-card.pdf-selected-question{
+  outline:4px solid rgba(14,165,233,.32);
+  outline-offset:3px;
+}
+.pdf-page-warning{
+  width:100%;
+  padding:8px 11px;
+  border-radius:11px;
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#9a3412;
+  font-size:12px;
+  font-weight:800;
+}
+
+@media print{
+  .pdf-page-manager,
+  .pdf-q-select-box,
+  .pdf-page-group-label,
+  .pdf-page-warning{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  #modalQuestionsWrap .pdf-page-group{
+    display:block !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:#fff !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+  }
+
+  /*
+    Cover is PDF page 1, so the first question group naturally starts on
+    PDF page 2. Every following assigned group starts a new physical page.
+  */
+  body:not(.print-review) #modalQuestionsWrap .pdf-page-group + .pdf-page-group{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+
+  /*
+    Review hides the cover. It still respects the same manual groups;
+    the first group becomes Review page 1.
+  */
+  body.print-review #modalQuestionsWrap .pdf-page-group + .pdf-page-group{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+}
+
+@media(max-width:700px){
+  .pdf-page-manager{
+    align-items:stretch;
+  }
+  .pdf-page-manager select,
+  .pdf-page-manager button{
+    width:100% !important;
+  }
+  .pdf-page-manager .pdf-selected-count{
+    margin-left:0;
+    text-align:center;
+  }
+}
+</style>
+
+<script id="prudle-pdf-question-page-manager-script">
+let PDF_PAGE_MANAGER_EXAM_ID = "";
+
+function getPdfPageManagerCards(){
+  return [
+    ...document.querySelectorAll(
+      "#modalQuestionsWrap .modal-q-card[data-question-id]"
+    )
+  ];
+}
+
+function updatePdfSelectedCount(){
+  const count = document.querySelectorAll(
+    "#modalQuestionsWrap .pdf-page-question-check:checked"
+  ).length;
+
+  const badge = document.getElementById("pdfSelectedQuestionCount");
+  if(badge){
+    badge.textContent = `${count} selected`;
+  }
+}
+
+function togglePdfQuestionSelection(input){
+  const card = input?.closest(".modal-q-card");
+  if(card){
+    card.classList.toggle(
+      "pdf-selected-question",
+      Boolean(input.checked)
+    );
+  }
+  updatePdfSelectedCount();
+}
+
+function selectAllPdfQuestions(state){
+  document.querySelectorAll(
+    "#modalQuestionsWrap .pdf-page-question-check"
+  ).forEach(input=>{
+    input.checked = Boolean(state);
+    togglePdfQuestionSelection(input);
+  });
+  updatePdfSelectedCount();
+}
+
+function buildPdfPageOptions(maxPage, selectedPage = 2){
+  let html = "";
+  for(let page = 2; page <= maxPage; page++){
+    html += `
+      <option value="${page}" ${page === selectedPage ? "selected" : ""}>
+        PDF Page ${page}
+      </option>
+    `;
+  }
+  return html;
+}
+
+function rebuildPdfQuestionPageGroups(){
+  const wrap = document.getElementById("modalQuestionsWrap");
+  if(!wrap) return;
+
+  // If called again, unwrap existing page groups first.
+  const existingGroups = [...wrap.querySelectorAll(":scope > .pdf-page-group")];
+  if(existingGroups.length){
+    const fragment = document.createDocumentFragment();
+    existingGroups.forEach(group=>{
+      [...group.querySelectorAll(":scope > .modal-q-card")].forEach(card=>{
+        fragment.appendChild(card);
+      });
+    });
+    wrap.innerHTML = "";
+    wrap.appendChild(fragment);
+  }
+
+  const cards = getPdfPageManagerCards();
+  if(!cards.length) return;
+
+  cards.sort((a,b)=>{
+    const ap = Math.max(2, Number(a.dataset.pdfPage || 2));
+    const bp = Math.max(2, Number(b.dataset.pdfPage || 2));
+    if(ap !== bp) return ap - bp;
+
+    const aq = Number(
+      a.querySelector("[data-question-order]")?.dataset?.questionOrder || 0
+    );
+    const bq = Number(
+      b.querySelector("[data-question-order]")?.dataset?.questionOrder || 0
+    );
+    return aq - bq;
+  });
+
+  const groups = new Map();
+
+  cards.forEach(card=>{
+    const page = Math.max(2, Number(card.dataset.pdfPage || 2));
+
+    if(!groups.has(page)){
+      const group = document.createElement("section");
+      group.className = "pdf-page-group";
+      group.dataset.pdfPage = String(page);
+
+      const label = document.createElement("div");
+      label.className = "pdf-page-group-label";
+      label.innerHTML = `
+        <i class="fa-solid fa-file-pdf"></i>
+        PDF Page ${page}
+        <small>${page === 2 ? "first questions page" : "manual page"}</small>
+      `;
+      group.appendChild(label);
+
+      groups.set(page, group);
+    }
+
+    groups.get(page).appendChild(card);
+  });
+
+  wrap.innerHTML = "";
+  [...groups.entries()]
+    .sort((a,b)=>a[0]-b[0])
+    .forEach(([,group])=>wrap.appendChild(group));
+}
+
+function decoratePdfQuestionCards(){
+  const cards = getPdfPageManagerCards();
+
+  cards.forEach(card=>{
+    if(card.querySelector(".pdf-q-select-box")) return;
+
+    const questionId = String(card.dataset.questionId || "").trim();
+    if(!questionId) return;
+
+    const page = Math.max(2, Number(card.dataset.pdfPage || 2));
+
+    const selector = document.createElement("label");
+    selector.className = "pdf-q-select-box";
+    selector.innerHTML = `
+      <input
+        type="checkbox"
+        class="pdf-page-question-check"
+        value="${questionId}"
+        onchange="togglePdfQuestionSelection(this)"
+      >
+      <span>
+        Select to move —
+        currently assigned to <strong>PDF Page ${page}</strong>
+      </span>
+    `;
+
+    card.insertBefore(selector, card.firstChild);
+  });
+}
+
+function setupPdfPageQuestionManager(examId){
+  PDF_PAGE_MANAGER_EXAM_ID = String(examId || "").trim();
+
+  const toolbar = document.getElementById("modalPrintToolbar");
+  const wrap = document.getElementById("modalQuestionsWrap");
+
+  if(!toolbar || !wrap) return;
+
+  const cards = getPdfPageManagerCards();
+  if(!cards.length) return;
+
+  // Ensure page values are valid.
+  cards.forEach(card=>{
+    card.dataset.pdfPage = String(
+      Math.max(2, Number(card.dataset.pdfPage || 2))
+    );
+  });
+
+  decoratePdfQuestionCards();
+  rebuildPdfQuestionPageGroups();
+
+  // Re-query after grouping.
+  const pageValues = getPdfPageManagerCards().map(card =>
+    Math.max(2, Number(card.dataset.pdfPage || 2))
+  );
+
+  const highestExistingPage = Math.max(2, ...pageValues);
+  const maxSelectablePage = Math.max(
+    highestExistingPage + 3,
+    getPdfPageManagerCards().length + 1
+  );
+
+  let manager = document.getElementById("pdfPageManager");
+  if(!manager){
+    manager = document.createElement("div");
+    manager.id = "pdfPageManager";
+    manager.className = "pdf-page-manager";
+    toolbar.appendChild(manager);
+  }
+
+  manager.innerHTML = `
+    <strong>
+      <i class="fa-solid fa-arrows-up-down-left-right"></i>
+      Move selected questions to:
+    </strong>
+
+    <select id="pdfTargetPage">
+      ${buildPdfPageOptions(maxSelectablePage, 2)}
+    </select>
+
+    <button
+      type="button"
+      onclick="moveSelectedQuestionsToPdfPage()"
+      style="background:#0ea5e9"
+    >
+      <i class="fa-solid fa-file-arrow-down"></i>
+      Move to PDF Page
+    </button>
+
+    <button
+      type="button"
+      onclick="selectAllPdfQuestions(true)"
+      style="background:#64748b"
+    >
+      Select All
+    </button>
+
+    <button
+      type="button"
+      onclick="selectAllPdfQuestions(false)"
+      style="background:#94a3b8"
+    >
+      Clear
+    </button>
+
+    <span
+      id="pdfSelectedQuestionCount"
+      class="pdf-selected-count"
+    >
+      0 selected
+    </span>
+
+    <div class="pdf-page-warning">
+      PDF Page 1 is the cover/instructions page. Questions start on PDF Page 2.
+      Keep each page's questions short enough to fit one A4 sheet; otherwise the
+      browser may continue an oversized page onto the following sheet.
+    </div>
+  `;
+
+  updatePdfSelectedCount();
+}
+
+async function moveSelectedQuestionsToPdfPage(){
+  const examId = String(PDF_PAGE_MANAGER_EXAM_ID || "").trim();
+  const target = Math.max(
+    2,
+    Number(document.getElementById("pdfTargetPage")?.value || 2)
+  );
+
+  const selected = [
+    ...document.querySelectorAll(
+      "#modalQuestionsWrap .pdf-page-question-check:checked"
+    )
+  ];
+
+  if(!examId){
+    alert("Exam not found");
+    return;
+  }
+
+  if(!selected.length){
+    alert("Select at least one question first");
+    return;
+  }
+
+  const ids = selected
+    .map(input => String(input.value || "").trim())
+    .filter(Boolean);
+
+  const moveButton = document.querySelector(
+    '#pdfPageManager button[onclick="moveSelectedQuestionsToPdfPage()"]'
+  );
+
+  if(moveButton){
+    moveButton.disabled = true;
+    moveButton.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin"></i> Moving...';
+  }
+
+  try{
+    const batch = db.batch();
+
+    ids.forEach(id=>{
+      batch.update(
+        db.collection("questions").doc(id),
+        {
+          pdfPage: target,
+          pdfPageUpdatedAt:
+            firebase.firestore.FieldValue.serverTimestamp()
+        }
+      );
+    });
+
+    await batch.commit();
+
+    // Refresh from Firestore so screen preview and PDF print use one source.
+    await openFullQuestions(examId);
+
+  }catch(err){
+    console.error("moveSelectedQuestionsToPdfPage error:", err);
+    alert(
+      "Could not move question(s) to the PDF page.\n" +
+      String(err.message || err)
+    );
+  }finally{
+    if(moveButton){
+      moveButton.disabled = false;
+      moveButton.innerHTML =
+        '<i class="fa-solid fa-file-arrow-down"></i> Move to PDF Page';
+    }
+  }
+}
+</script>
+
