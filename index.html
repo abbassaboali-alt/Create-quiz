@@ -14174,6 +14174,70 @@ window.addEventListener("DOMContentLoaded",()=>{
 });
 </script>
 
+
+<style id="prudle-question-never-orphan-final">
+@media print{
+
+  /*
+    A question is one unit.
+    Q number + marks + type + title + passage + all answer fields
+    move together to the next page when the remaining space is insufficient.
+  */
+  #modalQuestionsWrap .modal-q-card,
+  #modalQuestionsWrap .modal-q-card.print-keep-together{
+    display:block !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    Remove the previous fallback that explicitly allowed cards to split.
+    The browser itself may override avoid only when one question is truly
+    taller than a complete printable page.
+  */
+  #modalQuestionsWrap .modal-q-card.print-can-split{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    Keep the question header attached to the question body.
+  */
+  #modalQuestionsWrap .modal-q-card > div:first-child,
+  #modalQuestionsWrap .question-print-title,
+  #modalQuestionsWrap .question-passage-block{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+    break-after:avoid-page !important;
+    page-break-after:avoid !important;
+  }
+
+  /*
+    Vertical Fill-in-the-Blanks / long ordered blocks are part
+    of the same question and should not start on a separate page
+    while the Q-number/title remains on the previous page.
+  */
+  #modalQuestionsWrap .print-fill-grid,
+  #modalQuestionsWrap .question-only,
+  #modalQuestionsWrap .answer-only,
+  #modalQuestionsWrap .rearrange-print-list{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    Keep each individual row/cell intact as additional protection.
+  */
+  #modalQuestionsWrap .print-fill-cell,
+  #modalQuestionsWrap .question-option,
+  #modalQuestionsWrap .rearrange-print-item,
+  #modalQuestionsWrap .text-answer-line{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -15373,53 +15437,27 @@ function prepareSmartQuestionPageBreaks(){
     )
   ];
 
-  if(!cards.length) return;
-
   /*
-    Approximate usable A4 height in CSS pixels.
-    We keep some safety space for browser print rounding.
+    Important:
+    Do NOT decide from the on-screen pixel height.
+    The print CSS makes cells, fonts and spacing smaller, so a question
+    that looks tall on screen may still fit completely on one A4 page.
+
+    Mark every question as a complete printable unit.
+    If there is not enough space at the bottom of the current page,
+    the browser moves the WHOLE question to the next page.
+
+    If a single question is physically taller than an entire printable
+    A4 page, the browser may still split it as a last resort.
   */
-  const mmToPx = 96 / 25.4;
-  const printableHeightPx =
-    (297 - 10 - 6 - 18) * mmToPx;
-
   cards.forEach(card=>{
-
     card.classList.remove(
-      "print-keep-together",
       "print-can-split"
     );
 
-    const rect =
-      card.getBoundingClientRect();
-
-    const height =
-      Math.ceil(rect.height || 0);
-
-    /*
-      Normal-size question:
-      keep the WHOLE question together.
-      If there is not enough room at the bottom of the page,
-      Chrome moves the entire card to the next page.
-    */
-    if(
-      height > 0 &&
-      height <= printableHeightPx
-    ){
-      card.classList.add(
-        "print-keep-together"
-      );
-    }
-
-    /*
-      Extra-tall question:
-      allow split, because it cannot physically fit on one page.
-    */
-    else{
-      card.classList.add(
-        "print-can-split"
-      );
-    }
+    card.classList.add(
+      "print-keep-together"
+    );
   });
 }
 
