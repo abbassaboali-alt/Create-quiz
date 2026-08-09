@@ -1,5 +1,5 @@
 <!-- □ زر Logout جاهز — كود واحد فقط -->
-<!-- أيقونات FontAwesome --> 
+<!-- أيقونات FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
@@ -1329,7 +1329,7 @@ button:hover{
     margin:0 0 3.5mm !important;
     padding:2.8mm 2mm 3.5mm !important;
     border:0 !important;
-    border-bottom:1px solid #a9a9a9 !important;
+    border-bottom:0 !important;
     border-radius:0 !important;
     background:#fff !important;
     box-shadow:none !important;
@@ -2301,6 +2301,32 @@ button:hover{
   formatted separately in the rich passage editor.
 */
 #questionsModal .modal-q-card,
+#questionsModal .question-print-title,
+#questionsModal .question-option,
+#questionsModal .question-only,
+#questionsModal .answer-only{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionsModal .question-print-title{
+  width:100% !important;
+  display:block !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+}
+</style>
+
+
+<style id="prudle-question-screen-consistency-final">
+#questionsModal .modal-q-card{
+  direction:ltr !important;
+  text-align:left !important;
+  border-bottom:0 !important;
+  margin-bottom:20px !important;
+  padding:18px !important;
+}
+
 #questionsModal .question-print-title,
 #questionsModal .question-option,
 #questionsModal .question-only,
@@ -13390,6 +13416,75 @@ init();
 }
 </style>
 
+
+<style id="prudle-smart-question-pagination-final">
+@media print{
+
+  /* remove gray separator completely */
+  #modalQuestionsWrap .modal-q-card{
+    border-bottom:0 !important;
+  }
+
+  /*
+    Standard question that fits on one sheet:
+    never split between two pages.
+  */
+  #modalQuestionsWrap .modal-q-card.print-keep-together{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    Question larger than one full sheet:
+    only this type may split.
+  */
+  #modalQuestionsWrap .modal-q-card.print-can-split{
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  /*
+    Never orphan the question title from the start of its content.
+  */
+  #modalQuestionsWrap .question-print-title{
+    break-after:avoid-page !important;
+    page-break-after:avoid !important;
+  }
+
+  /*
+    Small answer/option elements should not split internally.
+  */
+  #modalQuestionsWrap .question-option,
+  #modalQuestionsWrap .print-fill-cell,
+  #modalQuestionsWrap .text-answer-line{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    English question content stays left aligned.
+    Passage inner formatting is left untouched so its custom
+    paragraph alignment remains exactly as saved.
+  */
+  #modalQuestionsWrap .modal-q-card,
+  #modalQuestionsWrap .question-print-title,
+  #modalQuestionsWrap .question-option,
+  #modalQuestionsWrap .question-only,
+  #modalQuestionsWrap .answer-only{
+    direction:ltr !important;
+    text-align:left !important;
+  }
+
+  /*
+    Give clean spacing between questions instead of separator line.
+  */
+  #modalQuestionsWrap .modal-q-card{
+    margin-bottom:5mm !important;
+    padding-bottom:3mm !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -14572,6 +14667,65 @@ window.addEventListener("beforeprint", ()=>{
   applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
 });
 
+
+function prepareSmartQuestionPageBreaks(){
+
+  const cards = [
+    ...document.querySelectorAll(
+      "#modalQuestionsWrap .modal-q-card"
+    )
+  ];
+
+  if(!cards.length) return;
+
+  /*
+    Approximate usable A4 height in CSS pixels.
+    We keep some safety space for browser print rounding.
+  */
+  const mmToPx = 96 / 25.4;
+  const printableHeightPx =
+    (297 - 10 - 6 - 18) * mmToPx;
+
+  cards.forEach(card=>{
+
+    card.classList.remove(
+      "print-keep-together",
+      "print-can-split"
+    );
+
+    const rect =
+      card.getBoundingClientRect();
+
+    const height =
+      Math.ceil(rect.height || 0);
+
+    /*
+      Normal-size question:
+      keep the WHOLE question together.
+      If there is not enough room at the bottom of the page,
+      Chrome moves the entire card to the next page.
+    */
+    if(
+      height > 0 &&
+      height <= printableHeightPx
+    ){
+      card.classList.add(
+        "print-keep-together"
+      );
+    }
+
+    /*
+      Extra-tall question:
+      allow split, because it cannot physically fit on one page.
+    */
+    else{
+      card.classList.add(
+        "print-can-split"
+      );
+    }
+  });
+}
+
 async function printQuestionsPDF(mode = "questions"){
 
   const modal = document.getElementById("questionsModal");
@@ -14647,6 +14801,13 @@ async function printQuestionsPDF(mode = "questions"){
   /* إعادة تثبيت الوضع بعد تحميل الصور وقبل فتح الطباعة */
   applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
 
+  /*
+    قياس كل سؤال بعد تحميل الصور، ثم تحديد:
+    - إذا كان السؤال يناسب صفحة واحدة: لا ينقسم أبدًا.
+    - إذا كان أطول من صفحة كاملة: يسمح له فقط بالانقسام.
+  */
+  prepareSmartQuestionPageBreaks();
+
   setTimeout(()=>{
     applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
 
@@ -14661,6 +14822,8 @@ async function printQuestionsPDF(mode = "questions"){
     if(printWrap){
       void printWrap.offsetHeight;
     }
+
+    prepareSmartQuestionPageBreaks();
 
     window.print();
   },500);
