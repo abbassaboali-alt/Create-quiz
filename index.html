@@ -2284,6 +2284,39 @@ button:hover{
 }
 </style>
 
+
+<style id="prudle-review-and-left-align-screen">
+/* Orange Review button */
+.print-review-btn{
+  background:#f59e0b !important;
+  color:#fff !important;
+}
+.print-review-btn:hover{
+  background:#d97706 !important;
+}
+
+/*
+  English questions are ALWAYS left aligned in the on-screen preview.
+  Passage alignment is intentionally not overridden because it can be
+  formatted separately in the rich passage editor.
+*/
+#questionsModal .modal-q-card,
+#questionsModal .question-print-title,
+#questionsModal .question-option,
+#questionsModal .question-only,
+#questionsModal .answer-only{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionsModal .question-print-title{
+  width:100% !important;
+  display:block !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+}
+</style>
+
 </head>
 <body>
 
@@ -3001,6 +3034,16 @@ button:hover{
             >
               <i class="fa-solid fa-circle-check"></i>
               Questions & Answers PDF
+            </button>
+
+            <button
+              type="button"
+              class="print-questions-btn print-review-btn"
+              onclick="printQuestionsPDF('review')"
+              title="Review questions without the cover and instructions page"
+            >
+              <i class="fa-solid fa-eye"></i>
+              Review
             </button>
 
             <button
@@ -13220,6 +13263,133 @@ init();
 }
 </style>
 
+
+<style id="prudle-print-blank-pages-review-final">
+@media print{
+
+  /*
+    CRITICAL BLANK-PAGE FIX:
+    visibility:hidden keeps the original admin page dimensions,
+    so Chrome can print many empty pages after the exam.
+    Remove all non-print UI from the PRINT LAYOUT itself.
+  */
+  body > *:not(#questionsModal){
+    display:none !important;
+  }
+
+  body{
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal{
+    position:static !important;
+    inset:auto !important;
+    display:block !important;
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal .modal-box{
+    position:static !important;
+    display:block !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    overflow:visible !important;
+  }
+
+  #modalQuestions{
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+
+  #modalQuestionsWrap{
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+
+  /*
+    English question content is left aligned in PDF too.
+  */
+  #modalQuestionsWrap .modal-q-card,
+  #modalQuestionsWrap .question-print-title,
+  #modalQuestionsWrap .question-option,
+  #modalQuestionsWrap .question-only,
+  #modalQuestionsWrap .answer-only{
+    direction:ltr !important;
+    text-align:left !important;
+  }
+
+  /*
+    REVIEW:
+    No cover, logo, student information, or instruction page.
+    Q1 starts immediately on page 1.
+  */
+  body.print-review .print-first-page{
+    display:none !important;
+    visibility:hidden !important;
+    height:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  body.print-review #modalQuestions{
+    padding-top:4mm !important;
+  }
+
+  body.print-review #modalQuestionsWrap{
+    padding-top:0 !important;
+  }
+
+  /*
+    In normal Questions PDF / Answers PDF, keep exactly one
+    cover/instructions page before Q1.
+  */
+  body:not(.print-review) .print-first-page{
+    display:block !important;
+    break-after:page !important;
+    page-break-after:always !important;
+  }
+
+  /*
+    Do not force a whole large question onto the next sheet;
+    that behavior can create large gaps/blank pages.
+  */
+  #modalQuestionsWrap .modal-q-card{
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  /*
+    Keep only smaller logical elements together.
+  */
+  #modalQuestionsWrap .question-print-title,
+  #modalQuestionsWrap .question-option{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    Passage retains the paragraph alignment chosen in the editor.
+    We only enforce English direction.
+  */
+  #modalQuestionsWrap .question-passage-block{
+    direction:ltr !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -14362,20 +14532,35 @@ let PRINT_OLD_TITLE = "";
 
 function applyQuestionsPrintMode(mode = ACTIVE_PRINT_MODE){
 
-  ACTIVE_PRINT_MODE = mode === "answers"
-    ? "answers"
-    : "questions";
+  ACTIVE_PRINT_MODE =
+    mode === "answers"
+      ? "answers"
+      : mode === "review"
+        ? "review"
+        : "questions";
 
   document.body.classList.remove(
     "print-questions",
-    "print-answers"
+    "print-answers",
+    "print-review"
   );
 
-  document.body.classList.add(
-    ACTIVE_PRINT_MODE === "answers"
-      ? "print-answers"
-      : "print-questions"
-  );
+  if(ACTIVE_PRINT_MODE === "answers"){
+    document.body.classList.add("print-answers");
+  }
+  else if(ACTIVE_PRINT_MODE === "review"){
+    /*
+      Review = questions only, but without the first
+      cover/instructions page.
+    */
+    document.body.classList.add(
+      "print-questions",
+      "print-review"
+    );
+  }
+  else{
+    document.body.classList.add("print-questions");
+  }
 }
 
 /*
@@ -14399,15 +14584,23 @@ async function printQuestionsPDF(mode = "questions"){
   }
 
   const printAnswers = mode === "answers";
+  const reviewMode = mode === "review";
 
   applyQuestionsPrintMode(
-    printAnswers ? "answers" : "questions"
+    printAnswers
+      ? "answers"
+      : reviewMode
+        ? "review"
+        : "questions"
   );
 
   if(modeLabel){
-    modeLabel.textContent = printAnswers
-      ? "Questions and Answer Key"
-      : "Details";
+    modeLabel.textContent =
+      printAnswers
+        ? "Questions and Answer Key"
+        : reviewMode
+          ? "Review"
+          : "Details";
   }
 
   document.querySelectorAll(".modal-q-card").forEach(card=>{
@@ -14420,9 +14613,12 @@ async function printQuestionsPDF(mode = "questions"){
     CURRENT_PRINT_EXAM_DATA?.title ||
     "Prudle Questions";
 
-  const suffix = printAnswers
-    ? " - Questions and Answers"
-    : " - Questions Only";
+  const suffix =
+    printAnswers
+      ? " - Questions and Answers"
+      : reviewMode
+        ? " - Review"
+        : " - Questions Only";
 
   document.title =
     String(examTitle + suffix)
@@ -14477,7 +14673,8 @@ function closeQuestionsModal(){
 
   document.body.classList.remove(
     "print-questions",
-    "print-answers"
+    "print-answers",
+    "print-review"
   );
 
   if(PRINT_OLD_TITLE){
