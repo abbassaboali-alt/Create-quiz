@@ -538,14 +538,77 @@ transform:scale(1);
    MATCHING: WORD ↔ WORD / WORD ↔ IMAGE
 ========================================= */
 #matchingBox{
-  display:none;
-  margin-top:12px;
-}
-#matchingBox.show{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:14px;
+  margin-top:0;
 }
+#matchingBox.show{
+  display:grid;
+}
+#matchingSection.show{
+  display:block !important;
+}
+.match-admin-row{
+  position:relative;
+}
+.match-row-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:4px;
+}
+.match-row-head h4{
+  margin:0 !important;
+}
+.match-remove-btn{
+  width:auto !important;
+  min-width:38px !important;
+  height:38px;
+  margin:0 !important;
+  padding:0 10px !important;
+  background:#ef4444 !important;
+  color:#fff !important;
+  border-radius:10px !important;
+  font-size:13px !important;
+}
+.match-remove-btn:hover{
+  background:#dc2626 !important;
+}
+.match-remove-btn:disabled{
+  opacity:.35 !important;
+  cursor:not-allowed !important;
+}
+.matching-add-toolbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:14px;
+  padding:12px;
+  border:1px solid #cfe0ef;
+  border-radius:15px;
+  background:#f8fbff;
+}
+.matching-add-toolbar button{
+  width:auto !important;
+  min-width:210px;
+  margin:0 !important;
+  background:#17a673 !important;
+}
+.matching-pair-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:#eef5ff;
+  color:#164478;
+  font-weight:900;
+}
+
 .match-admin-row{
   border:1px solid #dce6ef;
   border-radius:16px;
@@ -2886,81 +2949,22 @@ button:hover{
   <input id="opt4" placeholder="Option 4">
 </div>
 
-<div id="matchingBox">
-  <div class="match-admin-row" data-match-index="0">
-    <h4>Matching Pair 1</h4>
-    <label>Word / Left Item</label>
-    <input class="match-left" placeholder="Example: cat">
+<div id="matchingSection" style="display:none;margin-top:12px;">
+  <div id="matchingBox"></div>
 
-    <label>Matching Word / Text</label>
-    <input class="match-right" placeholder="Example: قطة — leave blank when using an image">
+  <div class="matching-add-toolbar">
+    <button
+      type="button"
+      id="addMatchingPairBtn"
+      onclick="addMatchingPair()"
+    >
+      <i class="fa-solid fa-plus"></i>
+      Add Matching Pair
+    </button>
 
-    <label>URL</label>
-    <input class="match-image-url" placeholder="Paste image URL"
-      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
-
-    <label>Upload Image</label>
-    <input type="file" class="match-image-file" accept="image/*"
-      onchange="prepareMatchImageFile(this)">
-    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
-    <div class="match-media-preview"></div>
-  </div>
-
-  <div class="match-admin-row" data-match-index="1">
-    <h4>Matching Pair 2</h4>
-    <label>Word / Left Item</label>
-    <input class="match-left" placeholder="Example: dog">
-
-    <label>Matching Word / Text</label>
-    <input class="match-right" placeholder="Example: كلب — leave blank when using an image">
-
-    <label>URL</label>
-    <input class="match-image-url" placeholder="Paste image URL"
-      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
-
-    <label>Upload Image</label>
-    <input type="file" class="match-image-file" accept="image/*"
-      onchange="prepareMatchImageFile(this)">
-    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
-    <div class="match-media-preview"></div>
-  </div>
-
-  <div class="match-admin-row" data-match-index="2">
-    <h4>Matching Pair 3</h4>
-    <label>Word / Left Item</label>
-    <input class="match-left" placeholder="Enter the left item">
-
-    <label>Matching Word / Text</label>
-    <input class="match-right" placeholder="Enter matching text or leave blank for an image">
-
-    <label>URL</label>
-    <input class="match-image-url" placeholder="Paste image URL"
-      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
-
-    <label>Upload Image</label>
-    <input type="file" class="match-image-file" accept="image/*"
-      onchange="prepareMatchImageFile(this)">
-    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
-    <div class="match-media-preview"></div>
-  </div>
-
-  <div class="match-admin-row" data-match-index="3">
-    <h4>Matching Pair 4</h4>
-    <label>Word / Left Item</label>
-    <input class="match-left" placeholder="Enter the left item">
-
-    <label>Matching Word / Text</label>
-    <input class="match-right" placeholder="Enter matching text or leave blank for an image">
-
-    <label>URL</label>
-    <input class="match-image-url" placeholder="Paste image URL"
-      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))">
-
-    <label>Upload Image</label>
-    <input type="file" class="match-image-file" accept="image/*"
-      onchange="prepareMatchImageFile(this)">
-    <div class="match-upload-status">Use text, an image URL, or upload an image.</div>
-    <div class="match-media-preview"></div>
+    <span id="matchingPairCount" class="matching-pair-count">
+      4 pairs
+    </span>
   </div>
 </div>
 
@@ -5322,6 +5326,9 @@ function toggleQuestionType(){
 
   const matchingBox =
     document.getElementById("matchingBox");
+
+  const matchingSection =
+    document.getElementById("matchingSection");
   const fillBlanksBox = document.getElementById("fillBlanksBox");
   const textAnswerLinesBox = document.getElementById("textAnswerLinesBox");
   degree.readOnly = false;
@@ -5333,6 +5340,11 @@ function toggleQuestionType(){
 
   if(matchingBox){
     matchingBox.classList.remove("show");
+  }
+
+  if(matchingSection){
+    matchingSection.classList.remove("show");
+    matchingSection.style.display = "none";
   }
   if(fillBlanksBox){
     fillBlanksBox.classList.remove("show");
@@ -5382,6 +5394,15 @@ function toggleQuestionType(){
 
     if(matchingBox){
       matchingBox.classList.add("show");
+    }
+
+    if(matchingSection){
+      matchingSection.classList.add("show");
+      matchingSection.style.display = "block";
+    }
+
+    if(!getMatchingRows().length){
+      resetMatchingRows([]);
     }
 
     orderNote.classList.remove("hidden");
@@ -5439,8 +5460,10 @@ opt4.addEventListener("input", updateOrderPreview);
 
 /* ================= رفع الميديا ================= */
 
-function getMatchingRows(){
+const MIN_MATCHING_PAIRS = 4;
+const MAX_MATCHING_PAIRS = 20;
 
+function getMatchingRows(){
   return [
     ...document.querySelectorAll(
       "#matchingBox .match-admin-row"
@@ -5448,42 +5471,241 @@ function getMatchingRows(){
   ];
 }
 
-function clearMatchingRows(){
+function createMatchingPairRow(pair = {}, index = null){
 
-  getMatchingRows().forEach(row=>{
+  const box =
+    document.getElementById("matchingBox");
 
-    const left =
-      row.querySelector(".match-left");
+  if(!box) return null;
 
-    const right =
-      row.querySelector(".match-right");
+  const currentRows =
+    getMatchingRows();
 
-    const imageUrl =
-      row.querySelector(".match-image-url");
+  const rowIndex =
+    index === null
+      ? currentRows.length
+      : Number(index);
 
-    const fileInput =
-      row.querySelector(".match-image-file");
+  const imageUrl =
+    String(
+      pair?.mediaUrl ||
+      pair?.imageUrl ||
+      pair?.image ||
+      ""
+    ).trim();
 
-    const status =
-      row.querySelector(".match-upload-status");
+  const row =
+    document.createElement("div");
 
-    const preview =
-      row.querySelector(".match-media-preview");
+  row.className =
+    "match-admin-row";
 
-    if(left) left.value = "";
-    if(right) right.value = "";
-    if(imageUrl) imageUrl.value = "";
-    if(fileInput) fileInput.value = "";
+  row.dataset.matchIndex =
+    String(rowIndex);
 
-    if(status){
-      status.textContent =
-        "Use text, an image URL, or upload an image.";
+  row.dataset.uploadedUrl =
+    imageUrl;
+
+  row.innerHTML = `
+    <div class="match-row-head">
+      <h4>Matching Pair ${rowIndex + 1}</h4>
+
+      <button
+        type="button"
+        class="match-remove-btn"
+        onclick="removeMatchingPair(this)"
+        title="Remove this matching pair"
+      >
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+
+    <label>Word / Left Item</label>
+    <input
+      class="match-left"
+      placeholder="${rowIndex === 0 ? "Example: cat" : rowIndex === 1 ? "Example: dog" : "Enter the left item"}"
+      value="${esc(pair?.left || "")}"
+    >
+
+    <label>Matching Word / Text</label>
+    <input
+      class="match-right"
+      placeholder="${rowIndex === 0 ? "Example: قطة — leave blank when using an image" : rowIndex === 1 ? "Example: كلب — leave blank when using an image" : "Enter matching text or leave blank for an image"}"
+      value="${esc(pair?.right || "")}"
+    >
+
+    <label>URL</label>
+    <input
+      class="match-image-url"
+      placeholder="Paste image URL"
+      value="${esc(imageUrl)}"
+      oninput="updateMatchAdminPreview(this.closest('.match-admin-row'))"
+    >
+
+    <label>Upload Image</label>
+    <input
+      type="file"
+      class="match-image-file"
+      accept="image/*"
+      onchange="prepareMatchImageFile(this)"
+    >
+
+    <div class="match-upload-status">
+      ${
+        imageUrl
+          ? "Saved image loaded. You may keep it or replace it."
+          : "Use text, an image URL, or upload an image."
+      }
+    </div>
+
+    <div class="match-media-preview"></div>
+  `;
+
+  box.appendChild(row);
+
+  updateMatchAdminPreview(row);
+  renumberMatchingRows();
+
+  return row;
+}
+
+function renumberMatchingRows(){
+
+  const rows =
+    getMatchingRows();
+
+  rows.forEach((row,index)=>{
+
+    row.dataset.matchIndex =
+      String(index);
+
+    const title =
+      row.querySelector("h4");
+
+    if(title){
+      title.textContent =
+        `Matching Pair ${index + 1}`;
     }
 
-    if(preview){
-      preview.innerHTML = "";
+    const removeBtn =
+      row.querySelector(
+        ".match-remove-btn"
+      );
+
+    if(removeBtn){
+      /*
+        Keep at least 4 rows visible by default.
+        Extra rows can be removed freely.
+      */
+      removeBtn.disabled =
+        rows.length <= MIN_MATCHING_PAIRS;
     }
   });
+
+  const count =
+    document.getElementById(
+      "matchingPairCount"
+    );
+
+  if(count){
+    count.textContent =
+      `${rows.length} pair${rows.length === 1 ? "" : "s"}`;
+  }
+
+  const addBtn =
+    document.getElementById(
+      "addMatchingPairBtn"
+    );
+
+  if(addBtn){
+    addBtn.disabled =
+      rows.length >= MAX_MATCHING_PAIRS;
+  }
+
+  collectMatchingPairsForDegree();
+}
+
+function addMatchingPair(pair = {}){
+
+  const rows =
+    getMatchingRows();
+
+  if(rows.length >= MAX_MATCHING_PAIRS){
+    alert(
+      `Maximum ${MAX_MATCHING_PAIRS} matching pairs.`
+    );
+    return;
+  }
+
+  const row =
+    createMatchingPairRow(
+      pair,
+      rows.length
+    );
+
+  if(row){
+    setTimeout(()=>{
+      row.querySelector(
+        ".match-left"
+      )?.focus();
+    },30);
+  }
+}
+
+function removeMatchingPair(button){
+
+  const row =
+    button?.closest(
+      ".match-admin-row"
+    );
+
+  if(!row) return;
+
+  const rows =
+    getMatchingRows();
+
+  if(rows.length <= MIN_MATCHING_PAIRS){
+    return;
+  }
+
+  row.remove();
+  renumberMatchingRows();
+}
+
+function resetMatchingRows(pairs = []){
+
+  const box =
+    document.getElementById(
+      "matchingBox"
+    );
+
+  if(!box) return;
+
+  box.innerHTML = "";
+
+  const sourcePairs =
+    Array.isArray(pairs)
+      ? pairs
+      : [];
+
+  const total =
+    Math.max(
+      MIN_MATCHING_PAIRS,
+      sourcePairs.length
+    );
+
+  for(let i = 0; i < total; i++){
+    createMatchingPairRow(
+      sourcePairs[i] || {},
+      i
+    );
+  }
+
+  renumberMatchingRows();
+}
+
+function clearMatchingRows(){
+  resetMatchingRows([]);
 }
 
 function prepareMatchImageFile(fileInput){
@@ -6519,47 +6741,12 @@ async function editQuestion(id){
         });
       }
 
-      const rows = getMatchingRows();
-
-      rows.forEach((row,index)=>{
-
-        const pair = pairs[index] || {};
-
-        const leftField = row.querySelector(".match-left");
-        const rightField = row.querySelector(".match-right");
-        const imageUrlInput = row.querySelector(".match-image-url");
-        const status = row.querySelector(".match-upload-status");
-
-        const imageUrl = String(
-          pair.mediaUrl ||
-          pair.imageUrl ||
-          pair.image ||
-          ""
-        ).trim();
-
-        if(leftField){
-          leftField.value = pair.left || "";
-        }
-
-        if(rightField){
-          rightField.value = pair.right || "";
-        }
-
-        if(imageUrlInput){
-          imageUrlInput.value = imageUrl;
-        }
-
-        /* الاحتفاظ بالرابط عند الحفظ حتى لو لم يتم اختيار ملف جديد */
-        row.dataset.uploadedUrl = imageUrl;
-
-        if(status){
-          status.textContent = imageUrl
-            ? "Saved image loaded. You may keep it or replace it."
-            : "Use text, an image URL, or upload an image.";
-        }
-
-        updateMatchAdminPreview(row);
-      });
+      /*
+        Create enough rows for every saved pair.
+        Old questions with 2–4 pairs still show at least 4 rows,
+        while questions with 5+ pairs load all of them.
+      */
+      resetMatchingRows(pairs);
 
       collectMatchingPairsForDegree();
     }
@@ -13484,6 +13671,18 @@ init();
   }
 }
 </style>
+
+
+<script id="prudle-matching-dynamic-init">
+window.addEventListener("DOMContentLoaded",()=>{
+  if(
+    document.getElementById("matchingBox") &&
+    !getMatchingRows().length
+  ){
+    resetMatchingRows([]);
+  }
+});
+</script>
 
 </body>
 </html>
