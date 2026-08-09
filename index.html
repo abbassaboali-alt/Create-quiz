@@ -17235,6 +17235,9 @@ function a4BindPageDropEvents(page){
     else dropzone.appendChild(A4_DRAGGED_CARD);
 
     a4RemoveDropIndicator();
+
+    // Renumber instantly after manual movement.
+    a4RenumberQuestions();
     a4RefreshPageBadges();
     a4CheckAllPageOverflow();
 
@@ -17242,8 +17245,58 @@ function a4BindPageDropEvents(page){
   });
 }
 
+
+function a4RenumberQuestions(){
+  const cards = a4GetCards();
+
+  cards.forEach((card,index)=>{
+    const number = index + 1;
+
+    card.dataset.questionNumber = String(number);
+
+    /*
+      Card structure after drag manager:
+      1) .a4-question-drag-handle
+      2) original question header containing:
+         - Q badge
+         - Marks badge
+         - Type badge
+    */
+    const header =
+      [...card.children].find(el =>
+        el !== card.querySelector(".a4-question-drag-handle") &&
+        el.querySelector &&
+        el.querySelector("div")
+      );
+
+    if(header){
+      const directDivs =
+        [...header.children].filter(el =>
+          el.tagName === "DIV"
+        );
+
+      const qBadge = directDivs[0];
+
+      if(qBadge){
+        qBadge.textContent = `Q${number}`;
+      }
+    }
+
+    /*
+      Also update any explicit question-number marker if one is added later.
+    */
+    card.querySelectorAll(
+      "[data-question-number-label], .question-number-label"
+    ).forEach(el=>{
+      el.textContent = `Q${number}`;
+    });
+  });
+}
+
 function a4RefreshPageBadges(){
-  a4GetPages().forEach(page=>{
+  
+  a4RenumberQuestions();
+a4GetPages().forEach(page=>{
     const pageNo=Math.max(2,Number(page.dataset.pdfPage||2));
 
     const label=page.querySelector(".a4-page-label");
@@ -17428,6 +17481,9 @@ function a4BuildCanvasFromCurrentCards(){
 }
 
 async function a4SaveManualLayout(showMessage=false){
+  // Keep visible numbering synchronized with the order written to Firestore.
+  a4RenumberQuestions();
+
   const examId=String(A4_DRAG_EXAM_ID||"").trim();
   if(!examId) return;
 
