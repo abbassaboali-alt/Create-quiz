@@ -1160,8 +1160,8 @@ button:hover{
     box-shadow:inset 0 0 0 .45px #b9b9b9 !important;
     background:#fff !important;
     box-sizing:border-box !important;
-    break-after:auto !important;
-    page-break-after:auto !important;
+    break-after:page !important;
+    page-break-after:always !important;
     overflow:hidden !important;
   }
 
@@ -1289,8 +1289,8 @@ button:hover{
     direction:ltr !important;
     text-align:left !important;
     font-family:Arial,Helvetica,sans-serif !important;
-    break-after:page !important;
-    page-break-after:always !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
   }
 
   .print-instructions-title{
@@ -1333,8 +1333,8 @@ button:hover{
     border-radius:0 !important;
     background:#fff !important;
     box-shadow:none !important;
-    break-inside:avoid-page !important;
-    page-break-inside:avoid !important;
+    break-inside:auto !important;
+    page-break-inside:auto !important;
   }
 
   .modal-q-card:last-child{border-bottom:0 !important}
@@ -13111,6 +13111,115 @@ init();
 }
 </style>
 
+
+<style id="prudle-pdf-pagination-left-align-final">
+@media print{
+
+  /*
+    COVER PAGE:
+    Only .print-first-page creates the forced page break.
+    A second forced break inside .print-instructions used to create
+    an empty page before the questions.
+  */
+  .print-first-page{
+    break-after:page !important;
+    page-break-after:always !important;
+  }
+
+  .print-first-page .print-instructions{
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  /*
+    QUESTIONS:
+    Do not force an entire large question card to fit one sheet.
+    Chrome may otherwise move the card repeatedly and leave a blank page.
+  */
+  #modalQuestionsWrap .modal-q-card{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    direction:ltr !important;
+    text-align:left !important;
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+    orphans:2;
+    widows:2;
+  }
+
+  /*
+    English question/title/options always start from the left.
+  */
+  #modalQuestionsWrap .modal-q-card .question-print-title,
+  #modalQuestionsWrap .modal-q-card .question-option,
+  #modalQuestionsWrap .modal-q-card .question-only,
+  #modalQuestionsWrap .modal-q-card .answer-only,
+  #modalQuestionsWrap .modal-q-card ul,
+  #modalQuestionsWrap .modal-q-card ol,
+  #modalQuestionsWrap .modal-q-card li{
+    direction:ltr !important;
+    text-align:left !important;
+  }
+
+  #modalQuestionsWrap .modal-q-card .question-print-title{
+    width:100% !important;
+    margin-left:0 !important;
+    margin-right:0 !important;
+  }
+
+  /*
+    Passage keeps the formatting selected in the editor.
+    Do NOT globally force its inner paragraphs left because a passage may
+    intentionally contain centered/right-aligned lines.
+  */
+  #modalQuestionsWrap .modal-q-card .question-passage-block{
+    direction:ltr !important;
+  }
+
+  /*
+    Keep only small logical chunks together.
+    This gives a clean document without sacrificing pagination.
+  */
+  #modalQuestionsWrap .modal-q-card .question-print-title{
+    break-after:avoid-page !important;
+    page-break-after:avoid !important;
+  }
+
+  #modalQuestionsWrap .modal-q-card .question-option{
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    Fill grid must stay within the printable width.
+  */
+  #modalQuestionsWrap .print-fill-grid.horizontal{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    overflow:hidden !important;
+    grid-template-columns:repeat(
+      var(--fill-columns,10),
+      minmax(0,1fr)
+    ) !important;
+  }
+
+  /*
+    Prevent hidden/toolbar elements from reserving printable space.
+  */
+  #modalPrintToolbar,
+  #modalQuestionSearch,
+  .modal-search-toolbar{
+    display:none !important;
+    height:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+}
+</style>
+
 </body>
 </html>
 <script>
@@ -13795,7 +13904,7 @@ async function openFullQuestions(examId){
           <div class="question-print-title" style="
             direction:ltr !important;
             unicode-bidi:isolate;
-            text-align:center;
+            text-align:left;
             font-size:22px;
             font-weight:900;
             color:#164478;
@@ -14344,6 +14453,19 @@ async function printQuestionsPDF(mode = "questions"){
 
   setTimeout(()=>{
     applyQuestionsPrintMode(ACTIVE_PRINT_MODE);
+
+    /*
+      Force Chrome to recalculate the printable layout after all
+      question cards/images are ready. This helps prevent stale page
+      positions and blank sheets in Print Preview.
+    */
+    const printWrap =
+      document.getElementById("modalQuestionsWrap");
+
+    if(printWrap){
+      void printWrap.offsetHeight;
+    }
+
     window.print();
   },500);
 }
