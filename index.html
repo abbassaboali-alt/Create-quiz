@@ -18751,3 +18751,399 @@ function setupPdfA4DragManager(examId){
 })();
 </script>
 
+
+<!-- =========================================================
+     PRUDLE FINAL — SCREEN A4 MATCHES PRINTABLE PDF AREA
+========================================================= -->
+<style id="prudle-screen-a4-pdf-exact-match-final">
+@media screen{
+  #questionsModal #a4PagesCanvas{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:38px !important;
+    width:100% !important;
+    max-width:100% !important;
+    padding:20px 0 45px !important;
+    overflow:visible !important;
+  }
+
+  /* A4 = 210 × 297 mm. Effective PDF content margins:
+     top 17mm, right/left 16mm, bottom 16mm. */
+  #questionsModal .a4-question-page{
+    position:relative !important;
+    flex:0 0 auto !important;
+    width:min(100%,210mm) !important;
+    height:297mm !important;
+    min-height:297mm !important;
+    max-height:297mm !important;
+    margin:0 auto !important;
+    padding:17mm 16mm 16mm !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    background:#fff !important;
+    border:1px solid #666 !important;
+    border-radius:0 !important;
+    box-shadow:0 3px 10px rgba(0,0,0,.18) !important;
+  }
+
+  #questionsModal .a4-page-dropzone{
+    position:relative !important;
+    width:100% !important;
+    height:264mm !important;
+    min-height:264mm !important;
+    max-height:264mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+  }
+
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    display:block !important;
+    position:relative !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 0 3.5mm !important;
+    padding:2.8mm 2mm 3.5mm !important;
+    border:0 !important;
+    border-bottom:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:#fff !important;
+    direction:ltr !important;
+    text-align:left !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-print-title{
+    width:100% !important;
+    margin:0 0 2mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11.5pt !important;
+    font-weight:700 !important;
+    line-height:1.3 !important;
+    direction:ltr !important;
+    text-align:left !important;
+    color:#111 !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-passage-block{
+    width:100% !important;
+    margin:0 0 2.5mm !important;
+    padding:2.5mm 3mm !important;
+    border:1px solid #d7d7d7 !important;
+    border-radius:1.5mm !important;
+    background:#fff !important;
+    color:#111 !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.5pt !important;
+    font-weight:600 !important;
+    line-height:1.35 !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-option{
+    padding:.75mm 1.5mm !important;
+    margin-top:.4mm !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:#fff !important;
+    color:#111 !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:10.3pt !important;
+    font-weight:600 !important;
+    line-height:1.24 !important;
+    direction:ltr !important;
+    text-align:left !important;
+  }
+
+  #questionsModal #a4PagesCanvas .modal-q-card img{
+    display:block !important;
+    width:auto !important;
+    height:auto !important;
+    max-width:140mm !important;
+    max-height:75mm !important;
+    object-fit:contain !important;
+    margin:3mm auto !important;
+    border-radius:1mm !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid{
+    display:grid !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    margin-top:2mm !important;
+    direction:ltr !important;
+    border-top:1px solid #111 !important;
+    border-left:1px solid #111 !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{
+    grid-template-columns:
+      repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical{
+    grid-template-columns:1fr !important;
+    width:75mm !important;
+    max-width:100% !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-cell{
+    min-width:0 !important;
+    min-height:10mm !important;
+    padding:1.2mm .8mm !important;
+    border-right:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:11pt !important;
+    font-weight:500 !important;
+    line-height:1.05 !important;
+    color:#111 !important;
+    background:#fff !important;
+    text-align:center !important;
+    overflow:hidden !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical .print-fill-cell{
+    justify-content:flex-start !important;
+    text-align:left !important;
+    min-height:12mm !important;
+    font-size:14pt !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-only .print-fill-cell.blank{
+    letter-spacing:.45mm !important;
+    font-size:10pt !important;
+    font-weight:500 !important;
+  }
+
+  #questionsModal #a4PagesCanvas .answer-only,
+  #questionsModal #a4PagesCanvas .answer-key-box,
+  #questionsModal #a4PagesCanvas .correct-mark,
+  #questionsModal #a4PagesCanvas .correct-badge{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-only{
+    display:block !important;
+    visibility:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas .correct-answer{
+    background:#fff !important;
+    color:#111 !important;
+    border-color:transparent !important;
+  }
+
+  /* Small checkbox in page margin so it does not cover Q1/Q2/... */
+  #questionsModal .a4-move-select{
+    position:absolute !important;
+    top:2mm !important;
+    left:3mm !important;
+    z-index:40 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:6mm !important;
+    height:6mm !important;
+    min-width:6mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:1px solid #94a3b8 !important;
+    border-radius:1.5mm !important;
+    background:#fff !important;
+    cursor:pointer !important;
+  }
+
+  #questionsModal .a4-move-select span{
+    display:none !important;
+  }
+
+  #questionsModal .a4-move-select input{
+    display:block !important;
+    width:3.5mm !important;
+    height:3.5mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    accent-color:#164478 !important;
+  }
+
+  #questionsModal .a4-question-drag-handle{
+    display:none !important;
+  }
+
+  #questionsModal .a4-page-label{
+    top:3mm !important;
+    right:5mm !important;
+    left:auto !important;
+    padding:1.2mm 2.5mm !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:8pt !important;
+  }
+
+  #questionsModal .a4-page-bottom-line{
+    left:6mm !important;
+    right:6mm !important;
+    bottom:4mm !important;
+  }
+
+  #questionsModal .a4-screen-separator{
+    display:flex !important;
+    flex:0 0 42px !important;
+    width:min(100%,210mm) !important;
+    height:42px !important;
+    margin:-18px auto !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:10px !important;
+    color:#b91c1c !important;
+    font-family:Arial,Helvetica,sans-serif !important;
+    font-size:9pt !important;
+    font-weight:900 !important;
+  }
+}
+</style>
+
+<script id="prudle-a4-auto-push-overflow-final">
+(function(){
+  let running = false;
+
+  function pages(){
+    return [...document.querySelectorAll("#a4PagesCanvas .a4-question-page")];
+  }
+
+  function zone(page){
+    return page?.querySelector(".a4-page-dropzone");
+  }
+
+  function cards(z){
+    return [...z.querySelectorAll(":scope > .modal-q-card[data-question-id]")];
+  }
+
+  function overflowing(z){
+    return z && z.scrollHeight > z.clientHeight + 3;
+  }
+
+  function ensureNext(page){
+    const all = pages();
+    const i = all.indexOf(page);
+    if(i < 0) return null;
+
+    let next = all[i+1];
+
+    if(!next && typeof a4CreatePage === "function"){
+      const canvas = document.getElementById("a4PagesCanvas");
+      next = a4CreatePage(i + 3);
+      canvas?.appendChild(next);
+    }
+
+    return next;
+  }
+
+  async function pushOverflow(saveAfter=false){
+    if(running) return;
+    running = true;
+
+    try{
+      for(let pass=0; pass<50; pass++){
+        let changed = false;
+        const all = pages();
+
+        for(const page of all){
+          const z = zone(page);
+          if(!z) continue;
+
+          let guard = 0;
+
+          while(overflowing(z) && guard < 50){
+            guard++;
+
+            const cs = cards(z);
+
+            /* One giant question cannot be moved forever. */
+            if(cs.length <= 1) break;
+
+            const last = cs[cs.length-1];
+            const nextPage = ensureNext(page);
+            const nextZone = zone(nextPage);
+
+            if(!last || !nextZone) break;
+
+            const firstNext =
+              nextZone.querySelector(":scope > .modal-q-card[data-question-id]");
+
+            if(firstNext){
+              nextZone.insertBefore(last, firstNext);
+            }else{
+              nextZone.appendChild(last);
+            }
+
+            changed = true;
+
+            void z.offsetHeight;
+            void nextZone.offsetHeight;
+          }
+        }
+
+        if(!changed) break;
+      }
+
+      if(typeof a4RefreshPageBadges === "function"){
+        a4RefreshPageBadges();
+      }
+
+      if(typeof a4RenumberQuestions === "function"){
+        a4RenumberQuestions();
+      }
+
+      if(typeof a4RenderPageSeparators === "function"){
+        a4RenderPageSeparators();
+      }
+
+      if(saveAfter && typeof a4SaveManualLayout === "function"){
+        await a4SaveManualLayout(false);
+      }
+
+    }finally{
+      running = false;
+    }
+  }
+
+  window.finalA4PushOverflowForward = pushOverflow;
+
+  const oldSetup = window.setupPdfA4DragManager;
+
+  window.setupPdfA4DragManager = function(examId){
+    if(typeof oldSetup === "function"){
+      oldSetup(examId);
+    }
+
+    setTimeout(()=>pushOverflow(false), 180);
+    setTimeout(()=>pushOverflow(false), 800);
+  };
+
+  const oldSave = window.a4SaveManualLayout;
+
+  window.a4SaveManualLayout = async function(showMessage=false){
+    await pushOverflow(false);
+
+    if(typeof oldSave === "function"){
+      return oldSave(showMessage);
+    }
+  };
+})();
+</script>
+
