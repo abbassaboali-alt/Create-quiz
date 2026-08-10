@@ -19984,3 +19984,231 @@ function setupPdfA4DragManager(examId){
 }
 </style>
 
+
+<!-- =========================================================
+     PRUDLE — A4 DRAG AUTO SCROLL
+========================================================= -->
+<style id="prudle-a4-drag-auto-scroll-style">
+#a4AutoScrollTop,
+#a4AutoScrollBottom{
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:2147483000;
+  width:min(720px,72vw);
+  height:66px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:2px dashed rgba(14,165,233,.65);
+  border-radius:16px;
+  background:rgba(239,246,255,.92);
+  color:#164478;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:13px;
+  font-weight:900;
+  pointer-events:none;
+  backdrop-filter:blur(7px);
+  box-shadow:0 8px 24px rgba(22,68,120,.16);
+}
+#a4AutoScrollTop{top:74px}
+#a4AutoScrollBottom{bottom:26px}
+body.a4-auto-scroll-dragging #a4AutoScrollTop,
+body.a4-auto-scroll-dragging #a4AutoScrollBottom{
+  display:flex;
+}
+#a4AutoScrollTop.active,
+#a4AutoScrollBottom.active{
+  background:rgba(219,234,254,.98);
+  border-color:#0284c7;
+  color:#075985;
+  box-shadow:0 0 0 5px rgba(14,165,233,.12),0 10px 28px rgba(22,68,120,.20);
+}
+#a4AutoScrollTop::before{content:"▲";font-size:18px}
+#a4AutoScrollBottom::before{content:"▼";font-size:18px}
+body.a4-auto-scroll-dragging #questionsModal{user-select:none!important}
+body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
+  opacity:.52!important;
+  outline:3px solid rgba(14,165,233,.35)!important;
+  outline-offset:2px!important;
+}
+@media(max-width:700px){
+  #a4AutoScrollTop,#a4AutoScrollBottom{width:88vw;height:58px;font-size:11px}
+  #a4AutoScrollTop{top:58px}
+  #a4AutoScrollBottom{bottom:18px}
+}
+@media print{
+  #a4AutoScrollTop,#a4AutoScrollBottom{display:none!important;visibility:hidden!important}
+}
+</style>
+
+<script id="prudle-a4-drag-auto-scroll-script">
+(function(){
+  const S={
+    running:false,
+    direction:0,
+    speed:0,
+    raf:0,
+    lastY:0,
+    box:null,
+    top:null,
+    bottom:null
+  };
+
+  function createZones(){
+    if(!document.getElementById("a4AutoScrollTop")){
+      const el=document.createElement("div");
+      el.id="a4AutoScrollTop";
+      el.textContent="Keep dragging here to move to previous A4 pages";
+      document.body.appendChild(el);
+    }
+    if(!document.getElementById("a4AutoScrollBottom")){
+      const el=document.createElement("div");
+      el.id="a4AutoScrollBottom";
+      el.textContent="Keep dragging here to move to next A4 pages";
+      document.body.appendChild(el);
+    }
+    S.top=document.getElementById("a4AutoScrollTop");
+    S.bottom=document.getElementById("a4AutoScrollBottom");
+  }
+
+  function getBox(){
+    const modal=document.getElementById("questionsModal");
+    const box=modal?.querySelector(".modal-box");
+    if(box && box.scrollHeight>box.clientHeight) return box;
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function isDragging(){
+    return !!document.querySelector("#a4PagesCanvas .modal-q-card.a4-dragging");
+  }
+
+  function start(){
+    createZones();
+    S.box=getBox();
+    S.running=true;
+    document.body.classList.add("a4-auto-scroll-dragging");
+    if(!S.raf) S.raf=requestAnimationFrame(frame);
+  }
+
+  function stop(){
+    S.running=false;
+    S.direction=0;
+    S.speed=0;
+    S.lastY=0;
+    document.body.classList.remove("a4-auto-scroll-dragging");
+    S.top?.classList.remove("active");
+    S.bottom?.classList.remove("active");
+    if(S.raf){
+      cancelAnimationFrame(S.raf);
+      S.raf=0;
+    }
+  }
+
+  function bounds(){
+    const box=S.box || getBox();
+    if(
+      box &&
+      box!==document.documentElement &&
+      box!==document.body &&
+      box!==document.scrollingElement
+    ){
+      const r=box.getBoundingClientRect();
+      return {
+        top:Math.max(0,r.top),
+        bottom:Math.min(window.innerHeight,r.bottom)
+      };
+    }
+    return {top:0,bottom:window.innerHeight};
+  }
+
+  function update(y){
+    if(!S.running) start();
+    S.lastY=Number(y||0);
+
+    const b=bounds();
+    const edge=Math.min(150,Math.max(90,(b.bottom-b.top)*.18));
+    const topLimit=b.top+edge;
+    const bottomLimit=b.bottom-edge;
+
+    let dir=0;
+    let strength=0;
+
+    if(y<topLimit){
+      dir=-1;
+      strength=(topLimit-y)/edge;
+    }else if(y>bottomLimit){
+      dir=1;
+      strength=(y-bottomLimit)/edge;
+    }
+
+    strength=Math.max(0,Math.min(1,strength));
+
+    const minSpeed=6;
+    const maxSpeed=34;
+
+    S.direction=dir;
+    S.speed=dir===0 ? 0 : minSpeed+(maxSpeed-minSpeed)*Math.pow(strength,.72);
+
+    S.top?.classList.toggle("active",dir===-1);
+    S.bottom?.classList.toggle("active",dir===1);
+  }
+
+  function doScroll(delta){
+    const box=S.box || getBox();
+    if(!box) return;
+
+    if(
+      box===document.scrollingElement ||
+      box===document.documentElement ||
+      box===document.body
+    ){
+      window.scrollBy(0,delta);
+    }else{
+      box.scrollTop += delta;
+    }
+  }
+
+  function frame(){
+    S.raf=0;
+
+    if(!S.running) return;
+    if(!isDragging()){
+      stop();
+      return;
+    }
+
+    if(S.direction!==0 && S.speed>0){
+      doScroll(S.direction*S.speed);
+    }
+
+    S.raf=requestAnimationFrame(frame);
+  }
+
+  document.addEventListener("dragstart",event=>{
+    const card=event.target?.closest?.(
+      "#a4PagesCanvas .modal-q-card[data-question-id]"
+    );
+    if(card) start();
+  },true);
+
+  document.addEventListener("dragover",event=>{
+    if(!isDragging()) return;
+    update(event.clientY);
+  },true);
+
+  document.addEventListener("drop",()=>{
+    setTimeout(stop,30);
+  },true);
+
+  document.addEventListener("dragend",stop,true);
+
+  document.addEventListener("click",event=>{
+    if(event.target?.closest?.("#questionsModal .modal-header button")){
+      stop();
+    }
+  },true);
+})();
+</script>
+
