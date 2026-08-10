@@ -3353,6 +3353,12 @@ let CURRENT_COURSE_ID = "";
   أثناء هذا الوضع لا نعرض روابط دورات المدربين الآخرين.
 */
 let SIDEBAR_FOCUS_COURSE_ID = "";
+
+/*
+  ✅ سياق مستقل للطباعة:
+  يحفظ الدورة التي فتح منها المدرب الاختبار.
+*/
+let PRINT_CONTEXT_COURSE_ID = "";
 // ✅ عند فتح الاختبار من الشريط: اعرض جميع أسئلة النموذج مثل الشاشة الرئيسية
 let SIDEBAR_SHOW_FULL_EXAM = false;
 let CURRENT_COURSE_NAME = "";
@@ -4611,6 +4617,17 @@ function changeCourseTab(courseId){
   SIDEBAR_FOCUS_COURSE_ID = "";
   SIDEBAR_SHOW_FULL_EXAM = false;
   CURRENT_COURSE_ID = courseId;
+
+  // ✅ أي دورة يختارها المدرب تصبح سياق الطباعة الحالي
+  PRINT_CONTEXT_COURSE_ID =
+    String(courseId || "").trim();
+
+  try{
+    sessionStorage.setItem(
+      "prudlePrintCourseId",
+      PRINT_CONTEXT_COURSE_ID
+    );
+  }catch(_){}
 
   const examId = CURRENT_PREVIEW_EXAM;
 
@@ -14790,168 +14807,331 @@ async function bulkLockQuestions(lockState){
 ========================================================= */
 async function resolvePrintCourseContext(examData = {}){
 
+  const examId =
+    String(
+      CURRENT_PREVIEW_EXAM ||
+      CURRENT_PRINT_EXAM_DATA?.examId ||
+      ""
+    ).trim();
+
   const rawCourses =
     Array.isArray(examData.coursesData)
       ? examData.coursesData
       : [];
 
+  const currentUsername =
+    typeof getCurrentUsername === "function"
+      ? getCurrentUsername()
+      : String(
+          localStorage.getItem("username") || ""
+        )
+        .replace(/\s+/g,"")
+        .trim()
+        .toLowerCase();
+
+  const isAdmin =
+    typeof isAdminUser === "function"
+      ? isAdminUser()
+      : String(
+          localStorage.getItem("role") || ""
+        ).trim().toLowerCase() === "admin";
+
+  let storedPrintCourseId = "";
+
+  try{
+    storedPrintCourseId =
+      String(
+        sessionStorage.getItem(
+          "prudlePrintCourseId"
+        ) || ""
+      ).trim();
+  }catch(_){}
+
   /*
-    Priority:
-    1) Course opened from linked-course sidebar.
-    2) Current active course tab.
-    3) First original exam course as fallback.
+    أولوية اختيار بيانات غلاف الطباعة:
+    1) الدورة المفتوحة من الشريط الجانبي.
+    2) سياق الطباعة المحفوظ.
+    3) الدورة الحالية في التبويب.
+    4) دورة مرتبطة تخص المدرب الحالي.
+    5) الدورة الأصلية كحل أخير فقط.
   */
-  const targetCourseId =
-    String(
-      SIDEBAR_FOCUS_COURSE_ID ||
-      CURRENT_COURSE_ID ||
-      rawCourses[0]?.courseId ||
-      ""
-    ).trim();
+  const explicitIds = [
+    String(SIDEBAR_FOCUS_COURSE_ID || "").trim(),
+    String(PRINT_CONTEXT_COURSE_ID || "").trim(),
+    storedPrintCourseId,
+    String(CURRENT_COURSE_ID || "").trim()
+  ].filter(Boolean);
 
-  let course = null;
+  const linkedIds = new Set();
 
-  // First try the exam's own course metadata.
-  if(targetCourseId){
-    course =
-      rawCourses.find(c =>
-        String(c?.courseId || "").trim() === targetCourseId
-      ) || null;
-  }
+  Object.keys(
+    examData.visibleQuestionsByCourse || {}
+  ).forEach(id=>{
+    id = String(id || "").trim();
+    if(id) linkedIds.add(id);
+  });
+
+  (Array.isArray(examData.courseIds)
+    ? examData.courseIds
+    : []
+  ).forEach(id=>{
+    id = String(id || "").trim();
+    if(id) linkedIds.add(id);
+  });
+
+  rawCourses.forEach(c=>{
+    const id =
+      String(c?.courseId || "").trim();
+    if(id) linkedIds.add(id);
+  });
 
   /*
-    Linked courses may not exist in examData.coursesData.
-    Read the actual Courses document so the linked trainer's
-    course information is printed, not the original trainer's.
+    نضيف جميع الدورات المرتبطة فعليًا عبر coursesUsed.
   */
-  if(targetCourseId){
+  if(examId){
     try{
-      const cDoc =
-        await db.collection("Courses")
-          .doc(targetCourseId)
+      const qSnap =
+        await db.collection("questions")
+          .where("examId","==",examId)
           .get();
 
-      if(cDoc.exists){
-        const c =
-          cDoc.data() || {};
+      qSnap.forEach(doc=>{
+        const q = doc.data() || {};
 
-        course = {
-          ...(course || {}),
-          courseId: targetCourseId,
+        const used =
+          Array.isArray(q.coursesUsed)
+            ? q.coursesUsed
+            : [];
 
-          TrainingCourse:
-            c.TrainingCourse ||
-            c.course ||
-            course?.TrainingCourse ||
-            CURRENT_COURSE_NAME ||
-            "",
+        used.forEach(item=>{
+          const id =
+            String(item?.courseId || "").trim();
+          if(id) linkedIds.add(id);
+        });
 
-          Trainer:
-            c.Trainer ||
-            c.trainer ||
-            course?.Trainer ||
-            CURRENT_TRAINER ||
-            "",
+        const linkedCourseId =
+          String(q.linkedCourseId || "").trim();
 
-          Period:
-            c.Period ||
-            c.period ||
-            course?.Period ||
-            CURRENT_PERIOD ||
-            "",
-
-          Branch:
-            c.Branch ||
-            c.branch ||
-            course?.Branch ||
-            "",
-
-          Program:
-            c.Program ||
-            c.program ||
-            course?.Program ||
-            "",
-
-          Level:
-            c.Level ||
-            c.level ||
-            course?.Level ||
-            ""
-        };
-      }
+        if(linkedCourseId){
+          linkedIds.add(linkedCourseId);
+        }
+      });
     }catch(err){
       console.warn(
-        "Could not read print course context:",
+        "Could not inspect linked question courses:",
         err
       );
     }
   }
 
-  // Global linked-course context fallback.
-  if(!course && targetCourseId){
-    course = {
-      courseId: targetCourseId,
-      TrainingCourse:
-        CURRENT_COURSE_NAME || "",
-      Trainer:
-        CURRENT_TRAINER || "",
-      Period:
-        CURRENT_PERIOD || ""
-    };
+  const courseMap = new Map();
+
+  rawCourses.forEach(c=>{
+    const id =
+      String(c?.courseId || "").trim();
+
+    if(id){
+      courseMap.set(id,{
+        courseId:id,
+        ...c
+      });
+    }
+  });
+
+  const idsToRead = [
+    ...new Set([
+      ...explicitIds,
+      ...linkedIds
+    ])
+  ];
+
+  /*
+    اقرأ بيانات الدورات من Courses حتى تظهر بيانات الدورة الحالية
+    حتى لو لم تكن ضمن coursesData الأصلية للاختبار.
+  */
+  for(const id of idsToRead){
+    try{
+      const cDoc =
+        await db.collection("Courses")
+          .doc(id)
+          .get();
+
+      if(cDoc.exists){
+        courseMap.set(id,{
+          courseId:id,
+          ...cDoc.data()
+        });
+      }
+    }catch(err){
+      console.warn(
+        "Could not read course for print:",
+        id,
+        err
+      );
+    }
   }
 
-  // Final fallback: use ONE original course, not all courses joined together.
-  if(!course && rawCourses.length){
-    course = {
+  function normalizeTrainer(value){
+    return String(value || "")
+      .replace(/\s+/g,"")
+      .trim()
+      .toLowerCase();
+  }
+
+  function trainerOf(course){
+    return String(
+      course?.Trainer ||
+      course?.trainer ||
+      course?.TrainerName ||
+      course?.trainerName ||
+      ""
+    ).trim();
+  }
+
+  let selectedCourse = null;
+
+  /*
+    ✅ أولاً: الدورة التي فُتح منها الاختبار.
+  */
+  for(const id of explicitIds){
+    const c = courseMap.get(id);
+
+    if(c){
+      selectedCourse = c;
+      break;
+    }
+  }
+
+  /*
+    ✅ ثانيًا: إذا ضاع السياق لأي سبب،
+    اختر الدورة المرتبطة التي تخص المدرب المسجل حاليًا.
+  */
+  if(
+    !selectedCourse &&
+    !isAdmin &&
+    currentUsername
+  ){
+    for(const id of linkedIds){
+      const c = courseMap.get(id);
+      if(!c) continue;
+
+      if(
+        normalizeTrainer(
+          trainerOf(c)
+        ) === currentUsername
+      ){
+        selectedCourse = c;
+        break;
+      }
+    }
+  }
+
+  /*
+    ✅ للأدمن: استخدم الدورة الحالية أو أول دورة مرتبطة.
+  */
+  if(!selectedCourse && isAdmin){
+
+    const currentId =
+      String(CURRENT_COURSE_ID || "").trim();
+
+    if(
+      currentId &&
+      courseMap.has(currentId)
+    ){
+      selectedCourse =
+        courseMap.get(currentId);
+    }
+
+    if(!selectedCourse){
+      for(const id of linkedIds){
+        const c = courseMap.get(id);
+        if(c){
+          selectedCourse = c;
+          break;
+        }
+      }
+    }
+  }
+
+  /*
+    حل أخير فقط للدورات القديمة.
+  */
+  if(!selectedCourse && rawCourses.length){
+    selectedCourse = {
+      courseId:
+        String(
+          rawCourses[0]?.courseId || ""
+        ).trim(),
       ...rawCourses[0]
     };
   }
 
-  return {
-    courseId:
-      String(course?.courseId || targetCourseId || "").trim(),
+  if(!selectedCourse){
+    selectedCourse = {
+      courseId:"",
+      TrainingCourse:
+        CURRENT_COURSE_NAME || "-",
+      Trainer:
+        CURRENT_TRAINER || "-",
+      Period:
+        CURRENT_PERIOD || "-"
+    };
+  }
 
-    course:
-      String(
-        course?.TrainingCourse ||
-        course?.course ||
-        "-"
-      ).trim(),
+  const selectedId =
+    String(
+      selectedCourse.courseId || ""
+    ).trim();
+
+  if(selectedId){
+    PRINT_CONTEXT_COURSE_ID =
+      selectedId;
+
+    try{
+      sessionStorage.setItem(
+        "prudlePrintCourseId",
+        selectedId
+      );
+    }catch(_){}
+  }
+
+  return {
+    courseId:selectedId,
+
+    course:String(
+      selectedCourse.TrainingCourse ||
+      selectedCourse.course ||
+      selectedCourse.courseName ||
+      selectedCourse.Level ||
+      "-"
+    ).trim(),
 
     trainer:
-      String(
-        course?.Trainer ||
-        course?.trainer ||
-        "-"
-      ).trim(),
+      trainerOf(selectedCourse) || "-",
 
-    period:
-      String(
-        course?.Period ||
-        course?.period ||
-        "-"
-      ).trim(),
+    period:String(
+      selectedCourse.Period ||
+      selectedCourse.period ||
+      "-"
+    ).trim(),
 
-    branch:
-      String(
-        course?.Branch ||
-        course?.branch ||
-        ""
-      ).trim(),
+    branch:String(
+      selectedCourse.Branch ||
+      selectedCourse.branch ||
+      ""
+    ).trim(),
 
-    program:
-      String(
-        course?.Program ||
-        course?.program ||
-        ""
-      ).trim(),
+    program:String(
+      selectedCourse.Program ||
+      selectedCourse.program ||
+      ""
+    ).trim(),
 
-    level:
-      String(
-        course?.Level ||
-        course?.level ||
-        ""
-      ).trim()
+    level:String(
+      selectedCourse.Level ||
+      selectedCourse.level ||
+      ""
+    ).trim()
   };
 }
 
@@ -15052,6 +15232,28 @@ async function openFullQuestions(examId){
     const examTitle = examData.title || "Questions";
 
     /*
+      ✅ إذا فُتح الاختبار من دورة مرتبطة في الشريط،
+      استخدم هذه الدورة في الغلاف ولا ترجع للدورة الأصلية.
+    */
+    if(
+      String(
+        SIDEBAR_FOCUS_COURSE_ID || ""
+      ).trim()
+    ){
+      PRINT_CONTEXT_COURSE_ID =
+        String(
+          SIDEBAR_FOCUS_COURSE_ID
+        ).trim();
+
+      try{
+        sessionStorage.setItem(
+          "prudlePrintCourseId",
+          PRINT_CONTEXT_COURSE_ID
+        );
+      }catch(_){}
+    }
+
+    /*
       Resolve the course that THIS trainer is currently printing.
       This also supports courses linked later by another trainer.
     */
@@ -15091,6 +15293,11 @@ async function openFullQuestions(examId){
       printDate:
         getSaudiPrintDateTime()
     };
+
+    console.log(
+      "🖨️ PRINT COURSE CONTEXT:",
+      CURRENT_PRINT_EXAM_DATA
+    );
 
     title.innerHTML =
       '<i class="fa-solid fa-list-check"></i> ' +
@@ -17114,6 +17321,16 @@ async function openPublishedExamForEdit(examId, courseId){
       // ✅ نحافظ على دورة المدرب المختارة للسياق والتحكم
       SIDEBAR_FOCUS_COURSE_ID = courseId;
       CURRENT_COURSE_ID = courseId;
+
+      // ✅ هذه الدورة هي التي يجب أن تظهر في غلاف PDF
+      PRINT_CONTEXT_COURSE_ID = courseId;
+
+      try{
+        sessionStorage.setItem(
+          "prudlePrintCourseId",
+          courseId
+        );
+      }catch(_){}
 
       // ✅ لكن عرض الأسئلة نفسه يكون كاملاً مثل الشاشة الرئيسية
       // لا نفلتر أسئلة النموذج حسب coursesUsed عند الفتح من الشريط.
@@ -20666,4 +20883,3 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
   }
 }
 </style>
-
