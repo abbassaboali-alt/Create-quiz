@@ -6655,26 +6655,9 @@ async function saveQuestion(){
       ? oldDoc.data()
       : {};
 
-    if(
-      oldData.locked === true &&
-      !currentAdminOwnsQuestionLock(oldData)
-    ){
-      alert(getQuestionLockedByMessage(oldData));
-      return;
-    }
-
     const data = {
-      locked:
-        oldData.locked === true,
-
-      lockedBy:
-        oldData.lockedBy || "",
-      lockedByName:
-        oldData.lockedByName || "",
-      lockedByKey:
-        oldData.lockedByKey || "",
-      lockedAt:
-        oldData.lockedAt || null,
+locked:
+  oldData.locked === true,
 
       examId: examId,
 
@@ -7007,11 +6990,6 @@ async function editQuestion(id){
     }
 
     const q = doc.data() || {};
-
-    if(!canCurrentAdminModifyQuestion(q)){
-      alert(getQuestionLockedByMessage(q));
-      return;
-    }
 
     EDIT_QUESTION_ID = id;
 
@@ -8091,16 +8069,6 @@ async function removeSelectedLinkedCourse(questionId){
 }
 async function relinkQuestion(questionId){
 
-  const permission =
-    await assertQuestionEditableByCurrentAdmin(
-      questionId,
-      "change linked course"
-    );
-
-  if(!permission.allowed){
-    return;
-  }
-
   const qDoc =
     await db.collection("questions")
       .doc(questionId)
@@ -8261,16 +8229,6 @@ return;
 
 }
 async function confirmRelinkQuestion(questionId){
-
-  const permission =
-    await assertQuestionEditableByCurrentAdmin(
-      questionId,
-      "confirm linked course change"
-    );
-
-  if(!permission.allowed){
-    return;
-  }
 
   const select =
     document.getElementById(
@@ -8449,75 +8407,6 @@ async function saveLinkedCourseSkill(
   groupName,
   selectElement = null
 ){
-
-  try{
-    const activeExamId =
-      String(
-        CURRENT_PREVIEW_EXAM || ""
-      ).trim();
-
-    if(activeExamId){
-      const lockSnap =
-        await db.collection("questions")
-          .where("examId","==",activeExamId)
-          .get();
-
-      const blockedQuestion =
-        lockSnap.docs
-          .map(doc=>({
-            id:doc.id,
-            ...doc.data()
-          }))
-          .find(q=>{
-
-            if(
-              String(q.group || "General").trim() !==
-              String(groupName || "General").trim()
-            ){
-              return false;
-            }
-
-            if(
-              q.locked !== true ||
-              currentAdminOwnsQuestionLock(q)
-            ){
-              return false;
-            }
-
-            const used =
-              Array.isArray(q.coursesUsed)
-                ? q.coursesUsed
-                : [];
-
-            return used.some(item =>
-              String(item?.courseId || "").trim() ===
-              String(courseId || "").trim()
-            );
-          });
-
-      if(blockedQuestion){
-        alert(
-          getQuestionLockedByMessage(
-            blockedQuestion
-          ) +
-          "\n\nBlocked action: change skill."
-        );
-
-        if(selectElement){
-          selectElement.value =
-            selectElement.dataset.oldValue || "";
-        }
-
-        return;
-      }
-    }
-  }catch(lockErr){
-    console.error(
-      "Skill ownership check failed:",
-      lockErr
-    );
-    return;
-  }
 
   const examId =
     CURRENT_PREVIEW_EXAM;
@@ -8885,21 +8774,11 @@ function updateSelectedQuestionDeleteButton(){
     String(card?.dataset.questionLocked || "false") === "true";
 
   if(locked){
-    const ownerName =
-      String(
-        card?.dataset.questionLockedBy ||
-        "Unknown Admin"
-      ).trim();
-
     btn.disabled = true;
     btn.style.background = "#94a3b8";
     btn.style.cursor = "not-allowed";
-    btn.innerHTML =
-      `🔒 Locked by ${ownerName} — Cannot Delete`;
-
-    btn.title =
-      `This question is locked by ${ownerName}. ` +
-      `Only that Admin can unlock it.`;
+    btn.innerHTML = "🔒 Locked — Cannot Delete";
+    btn.title = "This question is locked. Unlock it before deleting.";
   }else{
     btn.disabled = false;
     btn.style.background = "#dc2626";
@@ -9741,8 +9620,8 @@ if(
 // ======================================
 
 const groupHasLockedQuestion =
-  groupHasQuestionLockedByOtherAdmin(
-    groupQuestions
+  groupQuestions.some(q =>
+    q.locked === true
   );
       const currentSkill = groupSkills[groupName] || "";
 const baseSkill =
@@ -10094,10 +9973,7 @@ ${(()=>{
 const linkedGroupHasLockedQuestion =
   groupQuestions.some(q => {
 
-    if(
-      q.locked !== true ||
-      currentAdminOwnsQuestionLock(q)
-    ){
+    if(q.locked !== true){
       return false;
     }
 
@@ -10409,14 +10285,12 @@ ${
 
 questionsList.innerHTML += `
 
-<div class="pro-question-card ${lockedByOtherAdmin ? "locked-by-other-admin" : ""}"
-  draggable="${lockedByOtherAdmin ? "false" : "true"}"
+<div class="pro-question-card"
+  draggable="true"
   data-question-id="${q.id}"
   data-question-order="${Number(q.order || 0)}"
   data-question-number="${questionNumberMap.get(q.id) || ""}"
   data-question-locked="${q.locked === true ? "true" : "false"}"
-  data-question-locked-by="${esc(getQuestionLockOwnerName(q))}"
-  data-question-locked-by-key="${esc(getQuestionLockOwnerKey(q))}"
   onclick="setActiveQuestion('${q.id}')"
 >
 
@@ -10431,46 +10305,6 @@ questionsList.innerHTML += `
       <button type="button" onclick="event.stopPropagation();moveQuestionByStep('${q.id}',-1)" title="Move up">⬆ Up</button>
       <button type="button" onclick="event.stopPropagation();moveQuestionByStep('${q.id}',1)" title="Move down">⬇ Down</button>
       <button type="button" onclick="event.stopPropagation();duplicateQuestion('${q.id}')" title="Copy this question">📄 Copy</button>
-
-      ${
-        USER_ROLE === "admin"
-          ? `
-            <button
-              type="button"
-              class="question-owner-lock-btn ${q.locked === true ? "is-locked" : "is-open"}"
-              onclick="event.stopPropagation();toggleQuestionLock('${q.id}')"
-              ${
-                (
-                  q.locked === true &&
-                  getQuestionLockOwnerKey(q) &&
-                  !currentAdminOwnsQuestionLock(q)
-                )
-                  ? "disabled"
-                  : ""
-              }
-              title="${
-                q.locked === true
-                  ? (
-                      currentAdminOwnsQuestionLock(q)
-                        ? "Unlock your question"
-                        : "Only the Admin who locked this question can unlock it"
-                    )
-                  : "Lock this question"
-              }"
-            >
-              ${
-                q.locked === true
-                  ? (
-                      currentAdminOwnsQuestionLock(q)
-                        ? "🔓 Unlock"
-                        : "🔒 Locked"
-                    )
-                  : "🔒 Lock"
-              }
-            </button>
-          `
-          : ""
-      }
     </div>
 
   </div>
@@ -10502,31 +10336,15 @@ questionsList.innerHTML += `
 
     ${
       q.locked
-      ? `<div class="question-lock-owner-banner">
-          <div class="question-lock-owner-main">
-            🔒 Locked Question
-          </div>
-
-          <div class="question-lock-owner-name">
-            Locked by Admin:
-            <strong>
-              ${esc(getQuestionLockOwnerName(q))}
-            </strong>
-            ${
-              lockedByOtherAdmin
-                ? `<span class="lock-readonly-label">Read Only</span>`
-                : `<span class="lock-owner-label">Your Lock</span>`
-            }
-          </div>
-
-          ${
-            q.lockedAt
-              ? `<div class="question-lock-owner-date">
-                  Lock saved in Firestore
-                </div>`
-              : ""
-          }
-        </div>`
+      ? `<div style="
+          background:#fee2e2;
+          color:#991b1b;
+          border:1px solid #fecaca;
+          padding:10px;
+          border-radius:12px;
+          font-weight:900;
+          margin-bottom:10px;
+        ">□ Locked Question</div>`
       : ""
     }
 
@@ -13274,16 +13092,6 @@ async function normalizeCurrentQuestionOrder(showMessage=true){
 }
 
 async function moveQuestionByStep(questionId, direction){
-  const permission =
-    await assertQuestionEditableByCurrentAdmin(
-      questionId,
-      "change question order"
-    );
-
-  if(!permission.allowed){
-    return;
-  }
-
   const items = await getCurrentExamQuestionsOrdered();
   const index = items.findIndex(q=>q.id===questionId);
   if(index < 0) return;
@@ -13711,16 +13519,6 @@ async function deleteQuestion(id){
 
 async function toggleMediaVisibility(questionId, currentState){
   try{
-    const permission =
-      await assertQuestionEditableByCurrentAdmin(
-        questionId,
-        "change media visibility"
-      );
-
-    if(!permission.allowed){
-      return;
-    }
-
     await db.collection("questions").doc(questionId).update({
       showMedia: !currentState
     });
@@ -13743,15 +13541,6 @@ document.addEventListener("change", (e)=>{
 async function unlinkQuestion(questionId){
 
   try{
-    const permission =
-      await assertQuestionEditableByCurrentAdmin(
-        questionId,
-        "remove course link"
-      );
-
-    if(!permission.allowed){
-      return;
-    }
 
     if(!confirm("Remove this link only?")) return;
 
@@ -14865,23 +14654,11 @@ async function resetLinkedCourseAll(
   alert("✅ Linked course reset completed");
 
 }
+// ======================================
+// ✅ Lock / Unlock Question
+// ======================================
 
-// =========================================================
-// 🔐 ADMIN QUESTION LOCK OWNERSHIP
-// نفس كلمة المرور للقفل والفتح، لكن لا يفتح السؤال إلا الأدمن
-// الذي قام بقفله بنفسه.
-// =========================================================
-
-const ADMIN_QUESTION_LOCK_PASSWORD = "prudle123";
-
-function normalizeAdminLockIdentity(value){
-  return String(value || "")
-    .replace(/\s+/g,"")
-    .trim()
-    .toLowerCase();
-}
-
-function getCurrentAdminLockIdentity(){
+async function toggleQuestionLock(questionId){
 
   const role =
     String(
@@ -14890,173 +14667,25 @@ function getCurrentAdminLockIdentity(){
     .trim()
     .toLowerCase();
 
-  const username =
-    String(
-      localStorage.getItem("username") ||
-      localStorage.getItem("name") ||
-      localStorage.getItem("fullName") ||
-      ""
-    ).trim();
+  // ❌ غير الأدمن ممنوع
+  if(role !== "admin"){
 
-  return {
-    role,
-    name: username || "Admin",
-    key: normalizeAdminLockIdentity(username)
-  };
-}
+    alert("❌ Access Denied");
 
-function getQuestionLockOwnerKey(q = {}){
-  return normalizeAdminLockIdentity(
-    q.lockedByKey ||
-    q.lockedBy ||
-    ""
+    return;
+  }
+
+  // ✅ طلب الباسورد
+  const pass = prompt(
+    "Insert Admin Password"
   );
-}
 
-function getQuestionLockOwnerName(q = {}){
-  return String(
-    q.lockedByName ||
-    q.lockedBy ||
-    "Unknown Admin"
-  ).trim() || "Unknown Admin";
-}
+  // ✅ غيّر الباسورد هنا
+  if(pass !== "prudle123"){
 
-function currentAdminOwnsQuestionLock(q = {}){
-
-  if(q.locked !== true){
-    return false;
-  }
-
-  const current =
-    getCurrentAdminLockIdentity();
-
-  const ownerKey =
-    getQuestionLockOwnerKey(q);
-
-  return Boolean(
-    current.key &&
-    ownerKey &&
-    current.key === ownerKey
-  );
-}
-
-function verifyAdminQuestionLockPassword(){
-
-  const current =
-    getCurrentAdminLockIdentity();
-
-  if(current.role !== "admin"){
-    alert("❌ Access Denied — Admin only");
-    return false;
-  }
-
-  const pass =
-    prompt("Insert Admin Password");
-
-  if(pass === null){
-    return false;
-  }
-
-  if(pass !== ADMIN_QUESTION_LOCK_PASSWORD){
     alert("❌ Wrong Password");
-    return false;
-  }
 
-  return true;
-}
-
-
-
-function canCurrentAdminModifyQuestion(q = {}){
-  if(q.locked !== true){
-    return true;
-  }
-  return currentAdminOwnsQuestionLock(q);
-}
-
-function getQuestionLockedByMessage(q = {}){
-  const ownerName = getQuestionLockOwnerName(q);
-
-  return (
-    "⛔ This question is locked by Admin: " +
-    ownerName +
-    "\n\nOnly " +
-    ownerName +
-    " can modify it."
-  );
-}
-
-async function assertQuestionEditableByCurrentAdmin(
-  questionId,
-  actionLabel = "modify this question"
-){
-  const id = String(questionId || "").trim();
-
-  if(!id){
-    alert("Question not found");
-    return {allowed:false, question:null};
-  }
-
-  const snap =
-    await db.collection("questions")
-      .doc(id)
-      .get();
-
-  if(!snap.exists){
-    alert("Question not found");
-    return {allowed:false, question:null};
-  }
-
-  const q = snap.data() || {};
-
-  if(!canCurrentAdminModifyQuestion(q)){
-    alert(
-      getQuestionLockedByMessage(q) +
-      "\n\nBlocked action: " +
-      actionLabel
-    );
-    return {allowed:false, question:q};
-  }
-
-  return {allowed:true, question:q};
-}
-
-function groupHasQuestionLockedByOtherAdmin(
-  questions = []
-){
-  return (questions || []).some(q =>
-    q?.locked === true &&
-    !currentAdminOwnsQuestionLock(q)
-  );
-}
-
-// ======================================
-// ✅ Lock / Unlock Question
-// ======================================
-
-async function toggleQuestionLock(questionId){
-
-  questionId =
-    String(questionId || "").trim();
-
-  if(!questionId){
-    alert("Question not found");
-    return false;
-  }
-
-  if(!verifyAdminQuestionLockPassword()){
-    return false;
-  }
-
-  const current =
-    getCurrentAdminLockIdentity();
-
-  if(!current.key){
-    alert(
-      "❌ Admin username is missing.\n" +
-      "Please login again before locking questions."
-    );
-    return false;
+    return;
   }
 
   const ref =
@@ -15067,110 +14696,32 @@ async function toggleQuestionLock(questionId){
     await ref.get();
 
   if(!docSnap.exists){
+
     alert("Question not found");
-    return false;
+
+    return;
   }
 
-  const q =
-    docSnap.data() || {};
+  const q = docSnap.data();
 
   const locked =
     q.locked === true;
 
-  // =========================================================
-  // 🔒 LOCK
-  // =========================================================
-  if(!locked){
-
-    await ref.update({
-      locked:true,
-
-      // اسم الأدمن الذي قام بالقفل
-      lockedBy:current.name,
-      lockedByName:current.name,
-
-      // مفتاح ثابت للمقارنة حتى لو اختلفت المسافات أو حالة الأحرف
-      lockedByKey:current.key,
-
-      lockedAt:
-        firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    alert(
-      "🔒 Question Locked\n" +
-      "Locked by: " +
-      current.name
-    );
-
-    await loadQuestions();
-    return true;
-  }
-
-  // =========================================================
-  // 🔓 UNLOCK
-  // لا يستطيع فتحه إلا نفس الأدمن الذي قفله.
-  // =========================================================
-  const ownerKey =
-    getQuestionLockOwnerKey(q);
-
-  const ownerName =
-    getQuestionLockOwnerName(q);
-
-  /*
-    الأقفال القديمة التي أُنشئت قبل نظام lockedBy
-    لا تحتوي اسم مالك. نسمح للأدمن الحالي بفتحها مرة واحدة
-    حتى لا تبقى الأسئلة القديمة مقفلة للأبد.
-  */
-  const legacyLock =
-    !ownerKey;
-
-  if(
-    !legacyLock &&
-    ownerKey !== current.key
-  ){
-    alert(
-      "⛔ You cannot unlock this question.\n\n" +
-      "Locked by Admin: " +
-      ownerName +
-      "\n\nOnly " +
-      ownerName +
-      " can unlock it."
-    );
-
-    return false;
-  }
-
-  if(legacyLock){
-    const ok = confirm(
-      "⚠️ This is an old lock with no Admin name recorded.\n" +
-      "Unlock it now?"
-    );
-
-    if(!ok){
-      return false;
-    }
-  }
-
   await ref.update({
-    locked:false,
-    lockedBy:"",
-    lockedByName:"",
-    lockedByKey:"",
-    lockedAt:null,
 
-    lastUnlockedBy:current.name,
-    lastUnlockedAt:
-      firebase.firestore.FieldValue.serverTimestamp()
+    locked: !locked
+
   });
 
   alert(
-    "🔓 Question Unlocked\n" +
-    "By: " +
-    current.name
+
+    locked
+      ? "✅ Question Unlocked"
+      : "□ Question Locked"
+
   );
 
   await loadQuestions();
-  return true;
 }
 // ======================================
 // ✅ Bulk Lock / Unlock
@@ -15178,155 +14729,75 @@ async function toggleQuestionLock(questionId){
 
 async function bulkLockQuestions(lockState){
 
-  if(!verifyAdminQuestionLockPassword()){
-    return false;
+  // ✅ فقط admin
+  const role =
+    String(
+      localStorage.getItem("role") || ""
+    )
+    .trim()
+    .toLowerCase();
+
+  if(role !== "admin"){
+
+    alert("❌ Access Denied");
+
+    return;
   }
 
-  const current =
-    getCurrentAdminLockIdentity();
+  // ✅ باسورد
+  const pass = prompt(
+    "Insert Admin Password"
+  );
 
-  if(!current.key){
-    alert(
-      "❌ Admin username is missing.\n" +
-      "Please login again."
-    );
-    return false;
+  if(pass !== "prudle123"){
+
+    alert("❌ Wrong Password");
+
+    return;
   }
 
-  /*
-    نستخدم الأسئلة المحددة حاليًا في القائمة.
-    هذا يبقي السلوك الحالي كما هو.
-  */
+  // ✅ الأسئلة المحددة
   const selected = [];
 
   document
-    .querySelectorAll(".questionCheck:checked")
+    .querySelectorAll(
+      ".questionCheck:checked"
+    )
     .forEach(cb=>{
-      selected.push(
-        String(cb.value || "").trim()
-      );
+
+      selected.push(cb.value);
+
     });
 
   if(!selected.length){
+
     alert("Choose questions first");
-    return false;
+
+    return;
   }
 
-  let changed = 0;
-  let skipped = 0;
-  const skippedOwners = new Set();
-
+  // ✅ تحديث جماعي
   for(const id of selected){
 
-    if(!id) continue;
+    await db.collection("questions")
+      .doc(id)
+      .update({
 
-    const ref =
-      db.collection("questions").doc(id);
+        locked: lockState
 
-    const snap =
-      await ref.get();
-
-    if(!snap.exists){
-      skipped++;
-      continue;
-    }
-
-    const q =
-      snap.data() || {};
-
-    // =======================================================
-    // 🔒 BULK LOCK
-    // السؤال المقفل أصلًا لا يتم تغيير مالكه.
-    // =======================================================
-    if(lockState === true){
-
-      if(q.locked === true){
-        skipped++;
-
-        const existingOwner =
-          getQuestionLockOwnerName(q);
-
-        if(existingOwner){
-          skippedOwners.add(existingOwner);
-        }
-
-        continue;
-      }
-
-      await ref.update({
-        locked:true,
-        lockedBy:current.name,
-        lockedByName:current.name,
-        lockedByKey:current.key,
-        lockedAt:
-          firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      changed++;
-      continue;
-    }
-
-    // =======================================================
-    // 🔓 BULK UNLOCK
-    // لا يُفتح إلا ما قام الأدمن الحالي بقفله.
-    // =======================================================
-    if(q.locked !== true){
-      skipped++;
-      continue;
-    }
-
-    const ownerKey =
-      getQuestionLockOwnerKey(q);
-
-    const ownerName =
-      getQuestionLockOwnerName(q);
-
-    const legacyLock =
-      !ownerKey;
-
-    if(
-      !legacyLock &&
-      ownerKey !== current.key
-    ){
-      skipped++;
-      skippedOwners.add(ownerName);
-      continue;
-    }
-
-    await ref.update({
-      locked:false,
-      lockedBy:"",
-      lockedByName:"",
-      lockedByKey:"",
-      lockedAt:null,
-      lastUnlockedBy:current.name,
-      lastUnlockedAt:
-        firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    changed++;
   }
 
-  let message =
+  alert(
+
     lockState
-      ? `🔒 Locked ${changed} question(s) by ${current.name}.`
-      : `🔓 Unlocked ${changed} question(s) by ${current.name}.`;
+      ? "□ Questions Locked"
+      : "□ Questions Unlocked"
 
-  if(skipped){
-    message +=
-      `\n\nSkipped: ${skipped}`;
-
-    if(skippedOwners.size){
-      message +=
-        "\nLocked by other Admin(s): " +
-        [...skippedOwners].join(", ");
-    }
-  }
-
-  alert(message);
+  );
 
   await loadQuestions();
-  return true;
 }
 
 /* =========================================================
@@ -18295,32 +17766,6 @@ function a4DecorateCard(card){
   card.insertBefore(handle,card.firstChild);
 
   card.addEventListener("dragstart",event=>{
-
-    const locked =
-      String(card.dataset.questionLocked || "false") === "true";
-
-    const ownerKey =
-      normalizeAdminLockIdentity(
-        card.dataset.questionLockedByKey || ""
-      );
-
-    const currentKey =
-      getCurrentAdminLockIdentity().key;
-
-    if(
-      locked &&
-      ownerKey &&
-      ownerKey !== currentKey
-    ){
-      event.preventDefault();
-      alert(
-        "⛔ This question is locked by Admin: " +
-        String(card.dataset.questionLockedBy || "Unknown Admin") +
-        "\n\nOnly that Admin can move it."
-      );
-      return;
-    }
-
     A4_DRAGGED_CARD=card;
     card.classList.add("a4-dragging");
     try{
@@ -21438,149 +20883,3 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
   }
 }
 </style>
-
-
-<style id="prudle-admin-owned-question-lock-final">
-
-.question-owner-lock-btn{
-  width:auto !important;
-  margin:0 !important;
-  padding:7px 11px !important;
-  border-radius:10px !important;
-  font-size:12px !important;
-  font-weight:900 !important;
-  white-space:nowrap !important;
-}
-
-.question-owner-lock-btn.is-open{
-  background:#dc2626 !important;
-  color:#fff !important;
-}
-
-.question-owner-lock-btn.is-locked{
-  background:#16a34a !important;
-  color:#fff !important;
-}
-
-.question-owner-lock-btn:disabled{
-  background:#64748b !important;
-  color:#fff !important;
-  opacity:.72 !important;
-  cursor:not-allowed !important;
-  transform:none !important;
-  box-shadow:none !important;
-}
-
-.question-lock-owner-banner{
-  direction:ltr;
-  text-align:left;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-
-  background:#fee2e2;
-  color:#991b1b;
-  border:1px solid #fecaca;
-
-  padding:10px 12px;
-  border-radius:12px;
-  font-weight:900;
-  margin-bottom:10px;
-}
-
-.question-lock-owner-main{
-  padding:5px 9px;
-  border-radius:999px;
-  background:#991b1b;
-  color:#fff;
-}
-
-.question-lock-owner-name{
-  flex:1;
-  min-width:180px;
-}
-
-.question-lock-owner-name strong{
-  color:#7f1d1d;
-}
-
-.question-lock-owner-date{
-  color:#b91c1c;
-  font-size:11px;
-  opacity:.8;
-}
-
-.pro-question-card[data-question-locked="true"]{
-  border-color:#fecaca !important;
-}
-
-</style>
-
-
-<style id="prudle-admin-owner-full-protection">
-
-.pro-question-card.locked-by-other-admin{
-  border:2px solid #ef4444 !important;
-  background:#fffafa !important;
-}
-
-.pro-question-card.locked-by-other-admin
-.pro-question-body{
-  position:relative;
-}
-
-.pro-question-card.locked-by-other-admin
-.pro-question-body input,
-.pro-question-card.locked-by-other-admin
-.pro-question-body textarea,
-.pro-question-card.locked-by-other-admin
-.pro-question-body select,
-.pro-question-card.locked-by-other-admin
-.pro-question-body button{
-  pointer-events:none !important;
-  opacity:.58 !important;
-  cursor:not-allowed !important;
-}
-
-.pro-question-card.locked-by-other-admin
-.pro-question-body::after{
-  content:"🔒 Read Only — Locked by another Admin";
-  position:absolute;
-  left:12px;
-  right:12px;
-  top:8px;
-  z-index:100;
-  padding:7px 10px;
-  border-radius:10px;
-  background:rgba(153,27,27,.93);
-  color:#fff;
-  font-size:11px;
-  font-weight:900;
-  text-align:center;
-  pointer-events:none;
-}
-
-.lock-readonly-label,
-.lock-owner-label{
-  display:inline-flex;
-  align-items:center;
-  margin-left:8px;
-  padding:4px 8px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:900;
-}
-
-.lock-readonly-label{
-  background:#991b1b;
-  color:#fff;
-}
-
-.lock-owner-label{
-  background:#166534;
-  color:#fff;
-}
-
-</style>
-
