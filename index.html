@@ -3299,6 +3299,16 @@ window.addEventListener("message", function(e){
     localStorage.setItem("role", d.role || "");
     localStorage.setItem("loginDate", d.loginDate || "");
 
+    /*
+      Admin lock authentication:
+      The login page should send the SAME password used to sign in as d.password.
+      It is kept in sessionStorage only (cleared when the session/browser tab ends
+      or when logout() clears sessionStorage).
+    */
+    if(d.password){
+      sessionStorage.setItem("prudleAdminPassword", String(d.password));
+    }
+
     if(typeof loadQuestions === "function"){
       loadQuestions();
     }
@@ -10344,7 +10354,14 @@ questionsList.innerHTML += `
           border-radius:12px;
           font-weight:900;
           margin-bottom:10px;
-        ">□ Locked Question</div>`
+          line-height:1.8;
+        ">
+          🔒 Locked Question
+          <br>
+          <span style="font-size:13px">
+            Locked by Admin: ${esc(q.lockedBy || "Unknown")}
+          </span>
+        </div>`
       : ""
     }
 
@@ -14658,147 +14675,248 @@ async function resetLinkedCourseAll(
 // ✅ Lock / Unlock Question
 // ======================================
 
-async function toggleQuestionLock(questionId){
+// ======================================
+// 🔐 Admin Question Lock Ownership
+// ======================================
 
-  const role =
-    String(
-      localStorage.getItem("role") || ""
-    )
+function normalizeAdminIdentity(value){
+  return String(value || "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function getLoggedAdminIdentity(){
+  const role = String(localStorage.getItem("role") || "")
     .trim()
     .toLowerCase();
 
-  // ❌ غير الأدمن ممنوع
-  if(role !== "admin"){
+  const username = String(localStorage.getItem("username") || "").trim();
 
-    alert("❌ Access Denied");
+  return {
+    role,
+    username,
+    normalizedUsername: normalizeAdminIdentity(username)
+  };
+}
 
-    return;
+function verifyLoggedAdminCredentials(){
+  const admin = getLoggedAdminIdentity();
+
+  if(admin.role !== "admin"){
+    alert("❌ Access Denied — Admin only");
+    return null;
   }
 
-  // ✅ طلب الباسورد
-  const pass = prompt(
-    "Insert Admin Password"
+  if(!admin.normalizedUsername){
+    alert("❌ Admin username was not found. Please log in again.");
+    return null;
+  }
+
+  const enteredUsername = prompt(
+    "Enter the same Admin username used to log in",
+    admin.username
   );
 
-  // ✅ غيّر الباسورد هنا
-  if(pass !== "prudle123"){
+  if(enteredUsername === null) return null;
 
-    alert("❌ Wrong Password");
-
-    return;
+  if(normalizeAdminIdentity(enteredUsername) !== admin.normalizedUsername){
+    alert("❌ This is not the currently logged-in Admin account.");
+    return null;
   }
 
-  const ref =
-    db.collection("questions")
-      .doc(questionId);
+  const enteredPassword = prompt(
+    "Enter the same Admin password used to log in"
+  );
 
-  const docSnap =
-    await ref.get();
+  if(enteredPassword === null) return null;
+
+  const loginPassword =
+    String(sessionStorage.getItem("prudleAdminPassword") || "");
+
+  if(!loginPassword){
+    alert(
+      "❌ The login password is not available in this session.\n\n" +
+      "Please update the login page to send d.password with PRUDLE_AUTH, then log in again."
+    );
+    return null;
+  }
+
+  if(String(enteredPassword) !== loginPassword){
+    alert("❌ Wrong Admin password");
+    return null;
+  }
+
+  return admin;
+}
+
+async function toggleQuestionLock(questionId){
+
+  const admin = verifyLoggedAdminCredentials();
+  if(!admin) return;
+
+  const ref = db.collection("questions").doc(questionId);
+  const docSnap = await ref.get();
 
   if(!docSnap.exists){
-
     alert("Question not found");
-
     return;
   }
 
-  const q = docSnap.data();
+  const q = docSnap.data() || {};
+  const locked = q.locked === true;
 
-  const locked =
-    q.locked === true;
+  // -------------------------------------------------
+  // UNLOCK: only the SAME admin who locked the question
+  // -------------------------------------------------
+  if(locked){
+    const owner = normalizeAdminIdentity(q.lockedBy || "");
 
-  await ref.update({
+    if(!owner){
+      alert(
+        "🔒 This is an old locked question with no lock owner recorded.\n" +
+        "It cannot be unlocked with the new ownership rule until an owner is assigned."
+      );
+      return;
+    }
 
-    locked: !locked
+    if(owner !== admin.normalizedUsername){
+      alert(
+        "❌ You cannot unlock this question.\n\n" +
+        "Locked by Admin: " + (q.lockedBy || "Unknown") + "\n" +
+        "Current Admin: " + admin.username
+      );
+      return;
+    }
 
-  });
+    await ref.update({
+      locked: false,
+      unlockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unlockedBy: admin.username
+      // Keep lockedBy / lockedAt as audit history.
+    });
 
-  alert(
+    alert("✅ Question Unlocked by " + admin.username);
+  }
 
-    locked
-      ? "✅ Question Unlocked"
-      : "□ Question Locked"
+  // -------------------------------------------------
+  // LOCK: record the admin owner
+  // -------------------------------------------------
+  else{
+    await ref.update({
+      locked: true,
+      lockedBy: admin.username,
+      lockedByNormalized: admin.normalizedUsername,
+      lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unlockedAt: null,
+      unlockedBy: ""
+    });
 
-  );
+    alert("🔒 Question Locked by " + admin.username);
+  }
 
   await loadQuestions();
 }
+
+
 // ======================================
 // ✅ Bulk Lock / Unlock
 // ======================================
 
 async function bulkLockQuestions(lockState){
 
-  // ✅ فقط admin
-  const role =
-    String(
-      localStorage.getItem("role") || ""
-    )
-    .trim()
-    .toLowerCase();
+  const admin = verifyLoggedAdminCredentials();
+  if(!admin) return;
 
-  if(role !== "admin"){
-
-    alert("❌ Access Denied");
-
-    return;
-  }
-
-  // ✅ باسورد
-  const pass = prompt(
-    "Insert Admin Password"
-  );
-
-  if(pass !== "prudle123"){
-
-    alert("❌ Wrong Password");
-
-    return;
-  }
-
-  // ✅ الأسئلة المحددة
   const selected = [];
 
   document
-    .querySelectorAll(
-      ".questionCheck:checked"
-    )
+    .querySelectorAll(".questionCheck:checked")
     .forEach(cb=>{
-
       selected.push(cb.value);
-
     });
 
   if(!selected.length){
-
     alert("Choose questions first");
-
     return;
   }
 
-  // ✅ تحديث جماعي
+  let changed = 0;
+  let skipped = [];
+
   for(const id of selected){
 
-    await db.collection("questions")
-      .doc(id)
-      .update({
+    const ref = db.collection("questions").doc(id);
+    const docSnap = await ref.get();
 
-        locked: lockState
+    if(!docSnap.exists) continue;
 
+    const q = docSnap.data() || {};
+    const isLocked = q.locked === true;
+
+    // LOCK
+    if(lockState === true){
+
+      if(isLocked){
+        const existingOwner = String(q.lockedBy || "Unknown");
+        skipped.push(`Already locked by ${existingOwner}`);
+        continue;
+      }
+
+      await ref.update({
+        locked: true,
+        lockedBy: admin.username,
+        lockedByNormalized: admin.normalizedUsername,
+        lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        unlockedAt: null,
+        unlockedBy: ""
       });
 
+      changed++;
+      continue;
+    }
+
+    // UNLOCK
+    if(!isLocked){
+      continue;
+    }
+
+    const owner = normalizeAdminIdentity(q.lockedBy || "");
+
+    if(!owner){
+      skipped.push("Old lock without owner");
+      continue;
+    }
+
+    if(owner !== admin.normalizedUsername){
+      skipped.push(`Locked by ${q.lockedBy || "another Admin"}`);
+      continue;
+    }
+
+    await ref.update({
+      locked: false,
+      unlockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unlockedBy: admin.username
+    });
+
+    changed++;
   }
 
-  alert(
-
+  let message =
     lockState
-      ? "□ Questions Locked"
-      : "□ Questions Unlocked"
+      ? `🔒 ${changed} question(s) locked by ${admin.username}`
+      : `✅ ${changed} question(s) unlocked by ${admin.username}`;
 
-  );
+  if(skipped.length){
+    message +=
+      `\n\n⚠️ ${skipped.length} question(s) skipped because they belong to another Admin or already have a lock.`;
+  }
+
+  alert(message);
 
   await loadQuestions();
 }
+
 
 /* =========================================================
    PRINT COURSE CONTEXT
