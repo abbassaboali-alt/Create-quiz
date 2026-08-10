@@ -14782,6 +14782,244 @@ async function bulkLockQuestions(lockState){
 
   await loadQuestions();
 }
+
+/* =========================================================
+   PRINT COURSE CONTEXT
+   The first PDF page must show the course currently being
+   used by the trainer, including linked courses.
+========================================================= */
+async function resolvePrintCourseContext(examData = {}){
+
+  const rawCourses =
+    Array.isArray(examData.coursesData)
+      ? examData.coursesData
+      : [];
+
+  /*
+    Priority:
+    1) Course opened from linked-course sidebar.
+    2) Current active course tab.
+    3) First original exam course as fallback.
+  */
+  const targetCourseId =
+    String(
+      SIDEBAR_FOCUS_COURSE_ID ||
+      CURRENT_COURSE_ID ||
+      rawCourses[0]?.courseId ||
+      ""
+    ).trim();
+
+  let course = null;
+
+  // First try the exam's own course metadata.
+  if(targetCourseId){
+    course =
+      rawCourses.find(c =>
+        String(c?.courseId || "").trim() === targetCourseId
+      ) || null;
+  }
+
+  /*
+    Linked courses may not exist in examData.coursesData.
+    Read the actual Courses document so the linked trainer's
+    course information is printed, not the original trainer's.
+  */
+  if(targetCourseId){
+    try{
+      const cDoc =
+        await db.collection("Courses")
+          .doc(targetCourseId)
+          .get();
+
+      if(cDoc.exists){
+        const c =
+          cDoc.data() || {};
+
+        course = {
+          ...(course || {}),
+          courseId: targetCourseId,
+
+          TrainingCourse:
+            c.TrainingCourse ||
+            c.course ||
+            course?.TrainingCourse ||
+            CURRENT_COURSE_NAME ||
+            "",
+
+          Trainer:
+            c.Trainer ||
+            c.trainer ||
+            course?.Trainer ||
+            CURRENT_TRAINER ||
+            "",
+
+          Period:
+            c.Period ||
+            c.period ||
+            course?.Period ||
+            CURRENT_PERIOD ||
+            "",
+
+          Branch:
+            c.Branch ||
+            c.branch ||
+            course?.Branch ||
+            "",
+
+          Program:
+            c.Program ||
+            c.program ||
+            course?.Program ||
+            "",
+
+          Level:
+            c.Level ||
+            c.level ||
+            course?.Level ||
+            ""
+        };
+      }
+    }catch(err){
+      console.warn(
+        "Could not read print course context:",
+        err
+      );
+    }
+  }
+
+  // Global linked-course context fallback.
+  if(!course && targetCourseId){
+    course = {
+      courseId: targetCourseId,
+      TrainingCourse:
+        CURRENT_COURSE_NAME || "",
+      Trainer:
+        CURRENT_TRAINER || "",
+      Period:
+        CURRENT_PERIOD || ""
+    };
+  }
+
+  // Final fallback: use ONE original course, not all courses joined together.
+  if(!course && rawCourses.length){
+    course = {
+      ...rawCourses[0]
+    };
+  }
+
+  return {
+    courseId:
+      String(course?.courseId || targetCourseId || "").trim(),
+
+    course:
+      String(
+        course?.TrainingCourse ||
+        course?.course ||
+        "-"
+      ).trim(),
+
+    trainer:
+      String(
+        course?.Trainer ||
+        course?.trainer ||
+        "-"
+      ).trim(),
+
+    period:
+      String(
+        course?.Period ||
+        course?.period ||
+        "-"
+      ).trim(),
+
+    branch:
+      String(
+        course?.Branch ||
+        course?.branch ||
+        ""
+      ).trim(),
+
+    program:
+      String(
+        course?.Program ||
+        course?.program ||
+        ""
+      ).trim(),
+
+    level:
+      String(
+        course?.Level ||
+        course?.level ||
+        ""
+      ).trim()
+  };
+}
+
+function getSaudiPrintDateTime(){
+  try{
+    return new Intl.DateTimeFormat(
+      "en-GB",
+      {
+        timeZone:"Asia/Riyadh",
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit",
+        hour:"2-digit",
+        minute:"2-digit",
+        hour12:true
+      }
+    ).format(new Date());
+  }catch(_){
+    return new Date().toLocaleString();
+  }
+}
+
+function refreshPrintCoverContext(){
+
+  const data =
+    CURRENT_PRINT_EXAM_DATA || {};
+
+  const courseEl =
+    document.getElementById(
+      "printCoverCourse"
+    );
+
+  const trainerEl =
+    document.getElementById(
+      "printCoverTrainer"
+    );
+
+  const periodEl =
+    document.getElementById(
+      "printCoverPeriod"
+    );
+
+  const dateEl =
+    document.getElementById(
+      "printCoverDate"
+    );
+
+  if(courseEl){
+    courseEl.textContent =
+      data.course || "-";
+  }
+
+  if(trainerEl){
+    trainerEl.textContent =
+      data.trainer || "-";
+  }
+
+  if(periodEl){
+    periodEl.textContent =
+      data.period || "-";
+  }
+
+  if(dateEl){
+    dateEl.textContent =
+      getSaudiPrintDateTime();
+  }
+}
+
 async function openFullQuestions(examId){
 
   const modal = document.getElementById("questionsModal");
@@ -14813,32 +15051,45 @@ async function openFullQuestions(examId){
 
     const examTitle = examData.title || "Questions";
 
-    const coursesData = Array.isArray(examData.coursesData)
-      ? examData.coursesData
-      : [];
-
-    const courseNames = coursesData
-      .map(c => c.TrainingCourse || "")
-      .filter(Boolean)
-      .join(" / ");
-
-    const trainerNames = coursesData
-      .map(c => c.Trainer || "")
-      .filter(Boolean)
-      .join(" / ");
-
-    const periods = coursesData
-      .map(c => c.Period || "")
-      .filter(Boolean)
-      .join(" / ");
+    /*
+      Resolve the course that THIS trainer is currently printing.
+      This also supports courses linked later by another trainer.
+    */
+    const printCourse =
+      await resolvePrintCourseContext(
+        examData
+      );
 
     CURRENT_PRINT_EXAM_DATA = {
       examId: examId,
       title: examTitle,
-      course: courseNames,
-      trainer: trainerNames,
-      period: periods,
-      duration: Number(examData.duration || 0)
+
+      courseId:
+        printCourse.courseId || "",
+
+      course:
+        printCourse.course || "-",
+
+      trainer:
+        printCourse.trainer || "-",
+
+      period:
+        printCourse.period || "-",
+
+      branch:
+        printCourse.branch || "",
+
+      program:
+        printCourse.program || "",
+
+      level:
+        printCourse.level || "",
+
+      duration:
+        Number(examData.duration || 0),
+
+      printDate:
+        getSaudiPrintDateTime()
     };
 
     title.innerHTML =
@@ -14892,10 +15143,40 @@ async function openFullQuestions(examId){
         <div id="printModeLabel" class="print-mode-label"></div>
 
         <div class="print-header-meta">
-          <div><b>Course:</b> ${esc(courseNames || "-")}</div>
-          <div><b>Trainer:</b> ${esc(trainerNames || "-")}</div>
-          <div><b>Period:</b> ${esc(periods || "-")}</div>
-          <div><b>Total Questions:</b> ${questions.length}</div>
+
+          <div>
+            <b>Course:</b>
+            <span id="printCoverCourse">
+              ${esc(CURRENT_PRINT_EXAM_DATA?.course || "-")}
+            </span>
+          </div>
+
+          <div>
+            <b>Trainer:</b>
+            <span id="printCoverTrainer">
+              ${esc(CURRENT_PRINT_EXAM_DATA?.trainer || "-")}
+            </span>
+          </div>
+
+          <div>
+            <b>Period:</b>
+            <span id="printCoverPeriod">
+              ${esc(CURRENT_PRINT_EXAM_DATA?.period || "-")}
+            </span>
+          </div>
+
+          <div>
+            <b>Total Questions:</b>
+            ${questions.length}
+          </div>
+
+          <div class="print-date-row">
+            <b>Print Date:</b>
+            <span id="printCoverDate">
+              ${esc(getSaudiPrintDateTime())}
+            </span>
+          </div>
+
         </div>
 
         <div class="print-student-info">
@@ -15590,6 +15871,12 @@ async function printQuestionsPDF(mode = "questions"){
 
   const printAnswers = mode === "answers";
   const reviewMode = mode === "review";
+
+  /*
+    Always stamp the cover with the actual print time,
+    and re-apply the currently resolved linked-course data.
+  */
+  refreshPrintCoverContext();
 
   applyQuestionsPrintMode(
     printAnswers
@@ -20357,6 +20644,25 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
     max-height:none !important;
     object-fit:contain !important;
     margin:0 !important;
+  }
+}
+</style>
+
+
+<style id="prudle-linked-course-print-cover-final">
+@media print{
+  #questionsModal .print-header-meta .print-date-row{
+    grid-column:1 / -1 !important;
+    margin-top:1mm !important;
+    padding-top:2mm !important;
+    border-top:1px solid #d1d5db !important;
+    text-align:left !important;
+  }
+}
+
+@media screen{
+  #questionsModal .print-header-meta .print-date-row{
+    grid-column:1 / -1;
   }
 }
 </style>
