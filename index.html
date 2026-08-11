@@ -21268,3 +21268,26 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
   }
 }
 </style>
+
+<style id="prudle-equal-print-page-spacing">
+/* Same top spacing as question page 2 on every question page.
+   Previously page 2 received 10mm @page + 7mm #modalQuestions padding,
+   while later pages received only the 10mm @page margin. */
+@page {
+  size: A4 portrait;
+  margin: 17mm 6mm 6mm !important;
+}
+@page :first {
+  size: A4 portrait;
+  margin: 10mm 6mm 6mm !important;
+}
+@media print {
+  /* Remove the one-time 7mm top padding; the 17mm page margin now repeats on every question page. */
+  #modalQuestions {
+    padding-top: 0 !important;
+  }
+  #modalQuestionsWrap {
+    padding-top: 0 !important;
+  }
+}
+</style>
