@@ -21588,3 +21588,189 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 
 })();
 </script>
+
+
+<!-- =========================================================
+     PRUDLE FINAL — FIT EVERY SAVED A4 PAGE COMPLETELY IN PDF
+     Prevents the bottom of tables/questions from being clipped.
+========================================================= -->
+<style id="prudle-pdf-fit-complete-page-final">
+
+@media print{
+
+  /*
+    The saved screen page is the source of truth.
+    Do NOT crop its contents at the lower edge.
+  */
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    overflow:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    /*
+      Remove the old hard crop.  The page-specific zoom calculated by JS
+      below reduces only pages that need it so every saved question/table
+      remains inside the same physical PDF page.
+    */
+    overflow:visible !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+
+    zoom:var(--prudle-print-fit,1) !important;
+    transform-origin:top left !important;
+  }
+
+  /*
+    Keep connected grids complete.  Never hide the last row/cell.
+  */
+  #questionsModal #a4PagesCanvas .print-fill-grid,
+  #questionsModal #a4PagesCanvas .fill-preview-grid,
+  #questionsModal #a4PagesCanvas table,
+  #questionsModal #a4PagesCanvas tbody,
+  #questionsModal #a4PagesCanvas tr{
+    overflow:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid{
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    The page still stays a fixed printable sheet.  Only its CONTENT is
+    fitted when needed; the saved page boundaries do not change.
+  */
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    height:279mm !important;
+    min-height:279mm !important;
+    max-height:279mm !important;
+  }
+
+  /*
+    Add a little extra safety above the physical bottom edge.
+    This prevents printer/PDF rounding from cutting a 1px border.
+  */
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    padding-bottom:2mm !important;
+    box-sizing:border-box !important;
+  }
+}
+
+</style>
+
+<script id="prudle-pdf-fit-complete-page-final-script">
+(function(){
+
+  function fitSavedA4PagesForPrint(){
+
+    const pages = [
+      ...document.querySelectorAll(
+        "#questionsModal #a4PagesCanvas .a4-question-page"
+      )
+    ];
+
+    pages.forEach(page=>{
+
+      const zone = page.querySelector(".a4-page-dropzone");
+      if(!zone) return;
+
+      /*
+        Measure with screen zoom removed, otherwise repeated print previews
+        could keep shrinking the same page.
+      */
+      zone.style.removeProperty("--prudle-print-fit");
+
+      const cards = [
+        ...zone.querySelectorAll(":scope > .modal-q-card")
+      ];
+
+      if(!cards.length){
+        page.classList.add("a4-print-empty-page");
+        return;
+      }
+
+      page.classList.remove("a4-print-empty-page");
+
+      /*
+        Use actual rendered question content height, not the old fixed
+        drop-zone height.  This includes the final row/border of tables.
+      */
+      let contentBottom = 0;
+      const zoneRect = zone.getBoundingClientRect();
+
+      cards.forEach(card=>{
+        const r = card.getBoundingClientRect();
+        contentBottom = Math.max(
+          contentBottom,
+          r.bottom - zoneRect.top
+        );
+      });
+
+      /*
+        Screen saved A4 content area is approximately 267mm high.
+        Convert that to the current screen pixel ratio using the page's
+        rendered 297mm height, then reserve ~4mm safety at the bottom.
+      */
+      const pageRect = page.getBoundingClientRect();
+      const pxPerMm = pageRect.height > 0
+        ? pageRect.height / 297
+        : 3.7795275591;
+
+      const safeHeightPx = 263 * pxPerMm;
+
+      let fit = 1;
+
+      if(contentBottom > safeHeightPx && contentBottom > 0){
+        fit = safeHeightPx / contentBottom;
+      }
+
+      /*
+        Do not over-shrink.  82% is a hard lower safety limit; if a page
+        truly contains far too much content it will still be visibly
+        complete instead of silently cropped.
+      */
+      fit = Math.max(0.82, Math.min(1, fit));
+
+      zone.style.setProperty(
+        "--prudle-print-fit",
+        fit.toFixed(4)
+      );
+    });
+  }
+
+  window.fitSavedA4PagesForPrint = fitSavedA4PagesForPrint;
+
+  window.addEventListener(
+    "beforeprint",
+    ()=>{
+      fitSavedA4PagesForPrint();
+
+      /*
+        Force one layout pass so Chrome uses the newly fitted dimensions
+        in PDF preview immediately.
+      */
+      const canvas = document.getElementById("a4PagesCanvas");
+      if(canvas) void canvas.offsetHeight;
+    }
+  );
+
+  /*
+    Also calculate immediately before the existing PDF button opens print.
+  */
+  document.addEventListener(
+    "click",
+    event=>{
+      const button = event.target?.closest?.(
+        ".print-questions-btn,.print-answers-btn"
+      );
+
+      if(!button) return;
+
+      fitSavedA4PagesForPrint();
+    },
+    true
+  );
+
+})();
+</script>
