@@ -16768,7 +16768,17 @@ async function loadPublishedQuestionsSidebar(manual = false){
           "(Question without text)"
         ).trim(),
         order:Number(q.order || 0),
-        group:String(q.group || "General").trim(),
+        // Keep the real saved group. Do not force General here,
+        // because questions without a skill should still be identified
+        // by their question type in the student-visibility sidebar.
+        group:String(q.group || "").trim(),
+        skill:String(q.skill || "").trim(),
+        type:String(
+          q.type ||
+          q.questionType ||
+          q.kind ||
+          ""
+        ).trim(),
         raw:q
       };
 
@@ -16861,7 +16871,14 @@ async function loadPublishedQuestionsSidebar(manual = false){
               "(Question without text)"
             ).trim(),
             order:Number(q.order || 0),
-            group:String(q.group || "General").trim()
+            group:String(q.group || "").trim(),
+            skill:String(q.skill || "").trim(),
+            type:String(
+              q.type ||
+              q.questionType ||
+              q.kind ||
+              ""
+            ).trim()
           });
         }
       });
@@ -16880,6 +16897,53 @@ async function loadPublishedQuestionsSidebar(manual = false){
       return BASIC_EXAM_TYPE_LABELS[
         String(value || "").trim()
       ] || "";
+    }
+
+    // Human-readable fallback for questions that have no assigned skill.
+    // This guarantees that every shown question contributes a visible label
+    // such as Multiple Choice, Matching, Fill in the Blanks, etc.
+    function getPublishedQuestionTypeLabel(type){
+      const raw = String(type || "").trim();
+      if(!raw) return "Question";
+
+      const key = raw.toLowerCase().replace(/[\s_-]+/g, "");
+      const labels = {
+        mcq:"Multiple Choice",
+        multiplechoice:"Multiple Choice",
+        truefalse:"True / False",
+        matching:"Matching",
+        match:"Matching",
+        fillblank:"Fill in the Blanks",
+        fillblanks:"Fill in the Blanks",
+        fillintheblank:"Fill in the Blanks",
+        fillintheblanks:"Fill in the Blanks",
+        rearrange:"Rearrange",
+        reorder:"Rearrange",
+        text:"Written Answer",
+        textarea:"Written Answer",
+        writing:"Written Answer",
+        shortanswer:"Short Answer",
+        audio:"Audio Question",
+        listening:"Listening Question",
+        speaking:"Speaking Question",
+        image:"Image Question"
+      };
+
+      if(labels[key]) return labels[key];
+
+      return raw
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, ch => ch.toUpperCase());
+    }
+
+    function isGenericPublishedSkill(value){
+      const v = String(value || "").trim().toLowerCase();
+      return !v ||
+        v === "general" ||
+        v === "no skill" ||
+        v === "none" ||
+        v === "unassigned" ||
+        v === "select skill";
     }
 
     const rows = [];
@@ -16948,7 +17012,9 @@ async function loadPublishedQuestionsSidebar(manual = false){
                   id:item.id,
                   text:item.text,
                   order:item.order,
-                  group:item.group
+                  group:item.group,
+                  skill:item.skill,
+                  type:item.type
                 }));
           }else{
             courseQuestions =
@@ -16993,16 +17059,33 @@ async function loadPublishedQuestionsSidebar(manual = false){
           const questions =
             sourceQuestions
               .map(base=>{
-                const savedSkill =
+                const mappedSkill =
                   String(
                     courseSkillMap?.[base.group] ||
+                    ""
+                  ).trim();
+
+                const originalSkill =
+                  String(
+                    base.skill ||
                     base.group ||
-                    "General"
-                  ).trim() || "General";
+                    ""
+                  ).trim();
+
+                const candidateSkill =
+                  mappedSkill || originalSkill;
+
+                // If there is no meaningful skill assignment (including General),
+                // show the question TYPE instead of hiding it under General.
+                const displayLabel =
+                  isGenericPublishedSkill(candidateSkill)
+                    ? getPublishedQuestionTypeLabel(base.type)
+                    : candidateSkill;
 
                 return {
                   ...base,
-                  skill:savedSkill
+                  skill:displayLabel,
+                  displayLabel
                 };
               })
               .sort((a,b)=>{
@@ -17123,12 +17206,12 @@ async function loadPublishedQuestionsSidebar(manual = false){
       /*
         ✅ الأخضر بالأعلى = كل ما هو Shown للطلاب فقط.
 
-        1) Linked / Skills:
-           General / Grammar / Reading / Vocabulary ...
+        1) Linked / Skills / Question Types:
+           Grammar / Reading / Vocabulary ...
+           وإذا لم توجد مهارة: Multiple Choice / Matching / Fill in the Blanks ...
 
-        2) الاختبارات الأساسية للدورة:
-           Midterm / Final Exam / Listening / Speaking /
-           Quiz & Evaluation
+        2) كل الاختبارات الأساسية للدورة:
+           تظهر باسم الاختبار نفسه مهما كان examCategory
 
         Hidden لا يدخل في أي عداد أخضر.
       */
@@ -17166,13 +17249,15 @@ async function loadPublishedQuestionsSidebar(manual = false){
             );
         });
 
-        // ✅ نوع الاختبار الأساسي
-        if(
-          row.isBaseCourse &&
-          row.basicExamTypeLabel
-        ){
+        // ✅ كل اختبار أساسي يظهر في الملخص الأخضر باسمه،
+        // حتى لو لم يكن examCategory محدداً أو كان نوعاً جديداً.
+        if(row.isBaseCourse){
           const typeLabel =
-            row.basicExamTypeLabel;
+            String(
+              row.examTitle ||
+              row.basicExamTypeLabel ||
+              "Basic Exam"
+            ).trim();
 
           if(
             !grouped[trainerKey][courseKey]
