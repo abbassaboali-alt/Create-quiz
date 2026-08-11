@@ -22593,3 +22593,317 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 
 })();
 </script>
+
+<!-- =========================================================
+ PRUDLE FINAL FIX — SHOW THE COMPLETE SAVED PAGE IN PDF
+ Keeps the SAME layout/order/design as the main A4 interface.
+ If a saved page is a few pixels taller than physical A4,
+ its whole content is scaled uniformly just enough to fit.
+ Nothing is clipped and nothing is moved to another page.
+========================================================= -->
+<style id="prudle-pdf-complete-saved-page-final-20260811">
+
+@page{
+  size:A4 portrait !important;
+  margin:0 !important;
+}
+
+@media print{
+
+  html,
+  body{
+    width:210mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  #questionsModal,
+  #questionsModal .modal-box,
+  #modalQuestions,
+  #modalQuestionsWrap,
+  #a4PagesCanvas{
+    width:210mm !important;
+    max-width:210mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas{
+    display:block !important;
+  }
+
+  /* One saved interface sheet = one physical PDF sheet. */
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    position:relative !important;
+    display:block !important;
+
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    height:297mm !important;
+    min-height:297mm !important;
+    max-height:297mm !important;
+
+    margin:0 !important;
+    padding:16mm 10mm 14mm !important;
+
+    box-sizing:border-box !important;
+    background:#fff !important;
+
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+
+    overflow:hidden !important;
+
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-page + .a4-question-page{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+
+  /*
+    The dropzone remains exactly the same width as the interface.
+    Its entire content is uniformly fitted when necessary.
+  */
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    position:relative !important;
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    box-sizing:border-box !important;
+    overflow:visible !important;
+
+    zoom:var(--prudle-pdf-page-fit,1) !important;
+    transform-origin:top left !important;
+  }
+
+  /* Keep every question exactly in its saved order and page. */
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+    break-before:auto !important;
+    page-break-before:auto !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  #questionsModal #a4PagesCanvas .modal-q-card.print-keep-together{
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  /* Never clip the final row / final border of tables. */
+  #questionsModal #a4PagesCanvas .print-fill-grid,
+  #questionsModal #a4PagesCanvas .print-fill-cell,
+  #questionsModal #a4PagesCanvas table,
+  #questionsModal #a4PagesCanvas tbody,
+  #questionsModal #a4PagesCanvas tr,
+  #questionsModal #a4PagesCanvas td{
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  /* Vertical fill list = same interface design. */
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+    width:min(520px,100%) !important;
+    max-width:100% !important;
+    margin-top:14px !important;
+    padding:0 !important;
+    border:0 !important;
+    background:transparent !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .print-fill-grid.vertical .print-fill-cell{
+    width:100% !important;
+    min-height:58px !important;
+    height:auto !important;
+    padding:12px 16px !important;
+    justify-content:flex-start !important;
+    text-align:left !important;
+    border:1px solid #cbd5e1 !important;
+    border-radius:10px !important;
+    font-size:16px !important;
+    line-height:1.15 !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .question-only .print-fill-grid.vertical .print-fill-cell.blank{
+    font-size:21px !important;
+    letter-spacing:1px !important;
+  }
+
+  /* Screen-only controls never affect PDF height. */
+  #a4DragToolbar,
+  .a4-question-drag-handle,
+  .a4-move-select,
+  .a4-page-label,
+  .a4-page-bottom-line,
+  .a4-screen-separator,
+  .a4-add-page-zone,
+  .a4-overflow-warning,
+  .a4-page-empty,
+  .pdf-compact-toolbar,
+  #questionsModal .print-footer{
+    display:none !important;
+    visibility:hidden !important;
+  }
+}
+
+</style>
+
+<script id="prudle-fit-complete-saved-page-final-20260811">
+(function(){
+
+  function pxPerMm(){
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:absolute;left:-99999px;top:-99999px;width:100mm;height:1mm;";
+    document.body.appendChild(probe);
+    const value = probe.getBoundingClientRect().width / 100;
+    probe.remove();
+    return value || 3.7795275591;
+  }
+
+  function fitCompleteSavedPages(){
+
+    const ppm = pxPerMm();
+
+    /*
+      Physical question content area:
+      297mm page - 16mm top - 14mm bottom = 267mm.
+      Reserve 1.5mm only for Chrome/PDF rounding so the final border
+      is never cut.
+    */
+    const safeHeightPx = 265.5 * ppm;
+
+    document.querySelectorAll(
+      "#questionsModal #a4PagesCanvas .a4-question-page"
+    ).forEach(page=>{
+
+      const zone = page.querySelector(".a4-page-dropzone");
+      if(!zone) return;
+
+      zone.style.removeProperty("--prudle-pdf-page-fit");
+      zone.style.removeProperty("--prudle-print-fit");
+      zone.style.removeProperty("zoom");
+      zone.style.removeProperty("transform");
+
+      const cards = [
+        ...zone.querySelectorAll(
+          ":scope > .modal-q-card[data-question-id]"
+        )
+      ];
+
+      if(!cards.length){
+        page.classList.add("a4-print-empty-page");
+        return;
+      }
+
+      page.classList.remove("a4-print-empty-page");
+
+      /*
+        Use the real bottom edge of the last visible question, including
+        the complete last table/list row.
+      */
+      const zoneTop = zone.getBoundingClientRect().top;
+      let contentBottom = 0;
+
+      cards.forEach(card=>{
+        const r = card.getBoundingClientRect();
+        contentBottom = Math.max(
+          contentBottom,
+          r.bottom - zoneTop
+        );
+      });
+
+      /* Include overflowing descendants such as table borders/images. */
+      contentBottom = Math.max(
+        contentBottom,
+        zone.scrollHeight
+      );
+
+      let fit = 1;
+
+      if(contentBottom > safeHeightPx + 1){
+        fit = safeHeightPx / contentBottom;
+      }
+
+      /*
+        Apply only the minimum reduction required. This preserves exactly
+        the same relative sizes, gaps, table proportions and order.
+      */
+      fit = Math.min(1, Math.max(0.70, fit));
+
+      zone.style.setProperty(
+        "--prudle-pdf-page-fit",
+        fit.toFixed(5)
+      );
+    });
+  }
+
+  window.fitCompleteSavedPages =
+    fitCompleteSavedPages;
+
+  /*
+    Override older code that disabled fitting.
+  */
+  window.fitSavedA4PagesForPrint =
+    fitCompleteSavedPages;
+
+  window.addEventListener(
+    "beforeprint",
+    ()=>{
+      fitCompleteSavedPages();
+      const canvas =
+        document.getElementById("a4PagesCanvas");
+      if(canvas) void canvas.offsetHeight;
+    }
+  );
+
+  document.addEventListener(
+    "click",
+    event=>{
+      const btn = event.target?.closest?.(
+        ".print-questions-btn,.print-answers-btn"
+      );
+      if(!btn) return;
+
+      fitCompleteSavedPages();
+
+      const canvas =
+        document.getElementById("a4PagesCanvas");
+      if(canvas) void canvas.offsetHeight;
+    },
+    true
+  );
+
+})();
+</script>
