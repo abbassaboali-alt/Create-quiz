@@ -22907,3 +22907,637 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 
 })();
 </script>
+<!-- =========================================================
+     PRUDLE ABSOLUTE FINAL PRINT FIX — SCREEN A4 = PDF 100%
+     2026-08-11
+     الهدف:
+     1) كل ورقة A4 الظاهرة في الواجهة = ورقة PDF واحدة بنفس المقاس.
+     2) إلغاء أي zoom/scale تلقائي يصغّر الجدول في PDF.
+     3) الحفاظ على عرض المحتوى 190mm مثل الواجهة (10mm يمين + 10mm يسار).
+     4) عدم قص آخر صف أو حدود الجداول.
+     5) إبقاء توزيع الأسئلة المحفوظ كما هو تمامًا.
+========================================================= -->
+<style id="prudle-absolute-screen-to-pdf-100-final-20260811">
+
+/*
+  لا نعتمد على Margin الخاصة بالطابعة لبناء الصفحة.
+  الورقة نفسها 210×297mm، والـ safe margin موجود داخل الورقة
+  تمامًا كما هو ظاهر في A4 Preview.
+*/
+@page{
+  size:A4 portrait !important;
+  margin:0 !important;
+}
+
+@media print{
+
+  html,
+  body{
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    background:#fff !important;
+    overflow:visible !important;
+
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  /*
+    اطبع الـ modal فقط.
+  */
+  body *{
+    visibility:hidden !important;
+  }
+
+  #questionsModal,
+  #questionsModal *{
+    visibility:visible !important;
+  }
+
+  #questionsModal{
+    position:absolute !important;
+    inset:0 !important;
+
+    display:block !important;
+
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    background:#fff !important;
+    overflow:visible !important;
+
+    transform:none !important;
+    zoom:1 !important;
+  }
+
+  #questionsModal .modal-box,
+  #modalQuestions,
+  #modalQuestionsWrap,
+  #questionsModal #a4PagesCanvas{
+    position:static !important;
+
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+
+    overflow:visible !important;
+
+    transform:none !important;
+    zoom:1 !important;
+
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas{
+    display:block !important;
+  }
+
+  /*
+    =========================================================
+    صفحة الأسئلة:
+    نفس صفحة الواجهة حرفيًا:
+      A4 = 210 × 297 mm
+      padding = 16mm أعلى / 10mm يمين ويسار / 14mm أسفل
+      مساحة الأسئلة الفعلية = 190mm × 267mm
+    =========================================================
+  */
+  #questionsModal #a4PagesCanvas > .a4-question-page{
+    position:relative !important;
+    display:block !important;
+
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    height:297mm !important;
+    min-height:297mm !important;
+    max-height:297mm !important;
+
+    margin:0 !important;
+    padding:16mm 10mm 14mm !important;
+
+    box-sizing:border-box !important;
+    background:#fff !important;
+
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+
+    /*
+      مهم جدًا:
+      لا نستخدم hidden هنا لأنه كان يقص آخر صف/حد من الجدول.
+      بما أن توزيع الصفحة تم في A4 Preview، لا نعيد قص المحتوى.
+    */
+    overflow:visible !important;
+
+    transform:none !important;
+    zoom:1 !important;
+
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  /*
+    صفحة PDF مستقلة لكل صفحة A4 محفوظة.
+  */
+  #questionsModal #a4PagesCanvas > .a4-question-page
+  + .a4-question-page{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+
+  /*
+    الـ dropzone مطابق لمساحة الأسئلة داخل الواجهة.
+    أهم تعديل هنا: إلغاء zoom الذي كان يصغّر الجدول وكل الصفحة
+    في Chrome PDF عند حساب overflow.
+  */
+  #questionsModal #a4PagesCanvas
+  > .a4-question-page
+  > .a4-page-dropzone{
+    position:relative !important;
+    display:block !important;
+
+    width:190mm !important;
+    min-width:190mm !important;
+    max-width:190mm !important;
+
+    height:267mm !important;
+    min-height:267mm !important;
+    max-height:267mm !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    box-sizing:border-box !important;
+
+    overflow:visible !important;
+
+    zoom:1 !important;
+    transform:none !important;
+    transform-origin:top left !important;
+  }
+
+  /*
+    تجاهل جميع متغيرات التصغير القديمة.
+  */
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    --prudle-pdf-page-fit:1 !important;
+    --prudle-print-fit:1 !important;
+  }
+
+  /*
+    السؤال يحتفظ بنفس العرض والتنسيق الظاهر.
+  */
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+
+    margin-left:0 !important;
+    margin-right:0 !important;
+
+    box-sizing:border-box !important;
+
+    transform:none !important;
+    zoom:1 !important;
+
+    /*
+      لا تسمح لمحرك الطباعة بإعادة توزيع أجزاء السؤال
+      بين ورقتين بشكل مختلف عن الواجهة.
+    */
+    break-before:auto !important;
+    page-break-before:auto !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+
+  /*
+    =========================================================
+    FILL IN THE BLANKS — الجدول الأفقي
+    =========================================================
+    يجب أن يأخذ كامل 190mm مثل الواجهة ولا يتقلص.
+  */
+  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{
+    display:grid !important;
+
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+
+    grid-template-columns:
+      repeat(
+        var(--fill-columns,10),
+        minmax(0,1fr)
+      ) !important;
+
+    gap:0 !important;
+
+    margin-top:2mm !important;
+    padding:0 !important;
+
+    border-top:1px solid #111 !important;
+    border-left:1px solid #111 !important;
+
+    background:#fff !important;
+
+    /*
+      visible يمنع اختفاء الحد الأيمن أو السفلي.
+    */
+    overflow:visible !important;
+
+    box-sizing:border-box !important;
+
+    transform:none !important;
+    zoom:1 !important;
+
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .print-fill-grid.horizontal .print-fill-cell{
+    min-width:0 !important;
+    width:auto !important;
+
+    box-sizing:border-box !important;
+
+    border-right:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+
+    overflow:visible !important;
+
+    transform:none !important;
+    zoom:1 !important;
+  }
+
+  /*
+    لا تسمح لأي table قديم أن يتجاوز أو ينكمش بشكل مختلف.
+  */
+  #questionsModal #a4PagesCanvas table{
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+
+    table-layout:fixed !important;
+    border-collapse:collapse !important;
+
+    box-sizing:border-box !important;
+    overflow:visible !important;
+
+    transform:none !important;
+    zoom:1 !important;
+  }
+
+  #questionsModal #a4PagesCanvas table,
+  #questionsModal #a4PagesCanvas tbody,
+  #questionsModal #a4PagesCanvas thead,
+  #questionsModal #a4PagesCanvas tfoot,
+  #questionsModal #a4PagesCanvas tr,
+  #questionsModal #a4PagesCanvas th,
+  #questionsModal #a4PagesCanvas td{
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+
+  /*
+    =========================================================
+    FILL IN THE BLANKS — القائمة الرأسية
+    نفس مقاس الواجهة.
+    =========================================================
+  */
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+
+    gap:10px !important;
+
+    width:min(520px,100%) !important;
+    max-width:100% !important;
+
+    margin-top:14px !important;
+    padding:0 !important;
+
+    border:0 !important;
+    background:transparent !important;
+    overflow:visible !important;
+
+    transform:none !important;
+    zoom:1 !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .print-fill-grid.vertical .print-fill-cell{
+    width:100% !important;
+    min-height:58px !important;
+    height:auto !important;
+
+    padding:12px 16px !important;
+
+    justify-content:flex-start !important;
+    text-align:left !important;
+
+    border:1px solid #cbd5e1 !important;
+    border-radius:10px !important;
+
+    font-size:16px !important;
+    line-height:1.15 !important;
+
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .question-only
+  .print-fill-grid.vertical
+  .print-fill-cell.blank{
+    font-size:21px !important;
+    letter-spacing:1px !important;
+  }
+
+  /*
+    الصور لا تتجاوز مساحة السؤال.
+  */
+  #questionsModal #a4PagesCanvas img{
+    max-width:100% !important;
+    height:auto !important;
+    box-sizing:border-box !important;
+  }
+
+  /*
+    إخفاء أدوات الواجهة فقط بدون أن تستهلك أي مساحة في PDF.
+  */
+  #a4DragToolbar,
+  .pdf-compact-toolbar,
+  .a4-question-drag-handle,
+  .a4-move-select,
+  .a4-page-label,
+  .a4-page-bottom-line,
+  .a4-screen-separator,
+  .a4-add-page-zone,
+  .a4-overflow-warning,
+  .a4-page-empty,
+  #questionsModal .print-footer,
+  #questionsModal .modal-header,
+  #modalPrintToolbar,
+  #modalQuestionSearch,
+  #questionsModal .modal-search-toolbar{
+    display:none !important;
+    visibility:hidden !important;
+
+    width:0 !important;
+    height:0 !important;
+    min-width:0 !important;
+    min-height:0 !important;
+
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+
+    overflow:hidden !important;
+  }
+
+  /*
+    الصفحة الأولى Cover:
+    نترك padding داخلي آمن، ولا نستخدم margin خارجي من @page.
+  */
+  body:not(.print-review) .print-first-page{
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    height:297mm !important;
+    min-height:297mm !important;
+    max-height:297mm !important;
+
+    margin:0 !important;
+    padding:10mm 12mm !important;
+
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+
+    background:#fff !important;
+
+    break-after:page !important;
+    page-break-after:always !important;
+  }
+
+  /*
+    الصفحات الفارغة لا تطبع.
+  */
+  #questionsModal #a4PagesCanvas
+  > .a4-question-page.a4-print-empty-page{
+    display:none !important;
+    visibility:hidden !important;
+
+    width:0 !important;
+    height:0 !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    max-width:0 !important;
+    max-height:0 !important;
+
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+
+    break-before:auto !important;
+    page-break-before:auto !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+}
+
+</style>
+
+<script id="prudle-disable-pdf-auto-shrink-final-20260811">
+(function(){
+
+  /*
+    السبب الرئيسي لعدم التطابق كان أن الأكواد السابقة تحسب overflow
+    ثم تضع zoom أقل من 1 على .a4-page-dropzone.
+    هذا يصغّر السؤال والجدول أفقيًا وعموديًا في PDF رغم أن الواجهة صحيحة.
+
+    هنا نلغي التصغير نهائيًا قبل الطباعة.
+  */
+  function forceExactA4PrintScale(){
+
+    document.querySelectorAll(
+      "#questionsModal #a4PagesCanvas .a4-page-dropzone"
+    ).forEach(zone=>{
+
+      zone.style.setProperty(
+        "--prudle-pdf-page-fit",
+        "1",
+        "important"
+      );
+
+      zone.style.setProperty(
+        "--prudle-print-fit",
+        "1",
+        "important"
+      );
+
+      zone.style.setProperty(
+        "zoom",
+        "1",
+        "important"
+      );
+
+      zone.style.setProperty(
+        "transform",
+        "none",
+        "important"
+      );
+    });
+
+    document.querySelectorAll(
+      "#questionsModal #a4PagesCanvas .a4-question-page"
+    ).forEach(page=>{
+      page.style.setProperty(
+        "zoom",
+        "1",
+        "important"
+      );
+      page.style.setProperty(
+        "transform",
+        "none",
+        "important"
+      );
+    });
+
+    const canvas =
+      document.getElementById("a4PagesCanvas");
+
+    if(canvas){
+      canvas.style.setProperty(
+        "zoom",
+        "1",
+        "important"
+      );
+      canvas.style.setProperty(
+        "transform",
+        "none",
+        "important"
+      );
+
+      /*
+        إجبار Chrome على إعادة حساب التخطيط
+        قبل فتح نافذة Print/PDF.
+      */
+      void canvas.offsetWidth;
+      void canvas.offsetHeight;
+    }
+  }
+
+  window.forceExactA4PrintScale =
+    forceExactA4PrintScale;
+
+  /*
+    نجعل أي استدعاء لاحق للدالة القديمة لا يصغّر الصفحة.
+  */
+  window.fitSavedA4PagesForPrint =
+    forceExactA4PrintScale;
+
+  window.fitCompleteSavedPages =
+    forceExactA4PrintScale;
+
+  window.addEventListener(
+    "beforeprint",
+    ()=>{
+      forceExactA4PrintScale();
+    }
+  );
+
+  /*
+    Capture phase حتى يتم تنفيذ الإصلاح قبل onclick القديم.
+  */
+  document.addEventListener(
+    "click",
+    event=>{
+
+      const button =
+        event.target?.closest?.(
+          ".print-questions-btn,.print-answers-btn"
+        );
+
+      if(!button) return;
+
+      forceExactA4PrintScale();
+
+    },
+    true
+  );
+
+  /*
+    نغلف printQuestionsPDF مرة أخيرة.
+    Save Layout يبقى كما هو: يحفظ نفس الصفحة والترتيب الظاهر.
+  */
+  const previousPrint =
+    window.printQuestionsPDF;
+
+  if(typeof previousPrint === "function"){
+
+    window.printQuestionsPDF =
+      async function(mode="questions"){
+
+        /*
+          احفظ نفس التوزيع الحالي أولًا بدون نقل تلقائي.
+        */
+        if(
+          typeof window.saveVisibleA4LayoutExact ===
+          "function"
+        ){
+          await window.saveVisibleA4LayoutExact(false);
+        }
+
+        /*
+          بعد أي عمليات save/refresh أعد ضبط المقاس إلى 100%.
+        */
+        forceExactA4PrintScale();
+
+        /*
+          انتظر إطارين حتى يثبت الـ layout قبل window.print().
+        */
+        await new Promise(resolve=>
+          requestAnimationFrame(()=>
+            requestAnimationFrame(resolve)
+          )
+        );
+
+        forceExactA4PrintScale();
+
+        return previousPrint(mode);
+      };
+  }
+
+})();
+</script>
