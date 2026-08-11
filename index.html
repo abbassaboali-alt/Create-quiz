@@ -14405,7 +14405,121 @@ window.addEventListener("DOMContentLoaded",()=>{
 }
 </style>
 
-\n\n<!-- =========================================================\n     PRUDLE FINAL FIX — SAVED A4 PREVIEW = PDF OUTPUT\n     Keeps every saved page boundary, outer page edge, table border,\n     and question width visible in Chrome PDF.\n========================================================= -->\n<style id="prudle-saved-a4-to-pdf-final">\n@media print{\n  /* The A4 manager is the pagination authority. */\n  #questionsModal #a4PagesCanvas{\n    display:block !important;\n    width:100% !important;\n    max-width:100% !important;\n    margin:0 !important;\n    padding:0 !important;\n    overflow:visible !important;\n  }\n\n  /* One SAVED screen sheet = one PDF sheet.\n     The border is intentionally inset inside the printable area so\n     Chrome/PDF never clips the left/right/top/bottom edge. */\n  #questionsModal #a4PagesCanvas .a4-question-page{\n    position:relative !important;\n    display:block !important;\n    width:100% !important;\n    max-width:100% !important;\n    min-height:0 !important;\n    height:auto !important;\n    margin:0 !important;\n    padding:10mm 10mm 10mm !important;\n    box-sizing:border-box !important;\n    background:#fff !important;\n    border:1.2px solid #4b5563 !important;\n    border-radius:0 !important;\n    box-shadow:none !important;\n    overflow:visible !important;\n    break-inside:avoid-page !important;\n    page-break-inside:avoid !important;\n  }\n\n  #questionsModal #a4PagesCanvas .a4-question-page + .a4-question-page{\n    break-before:page !important;\n    page-break-before:always !important;\n  }\n\n  #questionsModal #a4PagesCanvas .a4-page-dropzone{\n    display:block !important;\n    width:100% !important;\n    max-width:100% !important;\n    min-width:0 !important;\n    min-height:0 !important;\n    height:auto !important;\n    margin:0 !important;\n    padding:0 !important;\n    overflow:visible !important;\n    box-sizing:border-box !important;\n  }\n\n  /* Never allow tables/grids to lose the far edge in PDF. */\n  #questionsModal #a4PagesCanvas .print-fill-grid,\n  #questionsModal #a4PagesCanvas .print-match-word-bank,\n  #questionsModal #a4PagesCanvas .print-match-image-table,\n  #questionsModal #a4PagesCanvas table{\n    width:100% !important;\n    max-width:100% !important;\n    min-width:0 !important;\n    box-sizing:border-box !important;\n  }\n\n  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{\n    overflow:visible !important;\n    border-top:1px solid #111 !important;\n    border-left:1px solid #111 !important;\n    border-right:0 !important;\n    border-bottom:0 !important;\n  }\n\n  #questionsModal #a4PagesCanvas .print-fill-cell{\n    min-width:0 !important;\n    box-sizing:border-box !important;\n    border-right:1px solid #111 !important;\n    border-bottom:1px solid #111 !important;\n  }\n\n  /* Drag/UI helpers are screen-only and must not consume PDF space. */\n  #questionsModal #a4PagesCanvas .a4-question-drag-handle,\n  #questionsModal #a4PagesCanvas .a4-move-select,\n  #questionsModal #a4PagesCanvas .a4-page-label,\n  #questionsModal #a4PagesCanvas .a4-page-bottom-line,\n  #questionsModal #a4PagesCanvas .a4-overflow-warning,\n  #questionsModal #a4PagesCanvas .a4-page-empty,\n  #questionsModal #a4PagesCanvas .a4-screen-separator,\n  #questionsModal #a4PagesCanvas .a4-add-page-zone{\n    display:none !important;\n    visibility:hidden !important;\n  }\n}\n</style>\n\n<script id="prudle-save-layout-before-pdf-final">\n/* Save Layout and every PDF button share the same authoritative DOM order. */\ndocument.addEventListener("click", async function(event){\n  const btn = event.target?.closest?.(\n    "#a4SaveLayoutBtn,.print-questions-btn,.print-answers-btn"\n  );\n  if(!btn || btn.id === "a4SaveLayoutBtn") return;\n\n  if(typeof a4SaveManualLayout === "function"){\n    try{ await a4SaveManualLayout(false); }catch(err){\n      console.error("Pre-PDF A4 save failed:",err);\n    }\n  }\n}, true);\n</script>\n</body>
+
+
+<!-- =========================================================
+     PRUDLE FINAL FIX — SAVED A4 PREVIEW = PDF OUTPUT
+     Keeps every saved page boundary, outer page edge, table border,
+     and question width visible in Chrome PDF.
+========================================================= -->
+<style id="prudle-saved-a4-to-pdf-final">
+@media print{
+  /* The A4 manager is the pagination authority. */
+  #questionsModal #a4PagesCanvas{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:visible !important;
+  }
+
+  /* One SAVED screen sheet = one PDF sheet.
+     The border is intentionally inset inside the printable area so
+     Chrome/PDF never clips the left/right/top/bottom edge. */
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    position:relative !important;
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-height:0 !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:10mm 10mm 10mm !important;
+    box-sizing:border-box !important;
+    background:#fff !important;
+    border:1.2px solid #4b5563 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-page + .a4-question-page{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  /* Never allow tables/grids to lose the far edge in PDF. */
+  #questionsModal #a4PagesCanvas .print-fill-grid,
+  #questionsModal #a4PagesCanvas .print-match-word-bank,
+  #questionsModal #a4PagesCanvas .print-match-image-table,
+  #questionsModal #a4PagesCanvas table{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{
+    overflow:visible !important;
+    border-top:1px solid #111 !important;
+    border-left:1px solid #111 !important;
+    border-right:0 !important;
+    border-bottom:0 !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-cell{
+    min-width:0 !important;
+    box-sizing:border-box !important;
+    border-right:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+  }
+
+  /* Drag/UI helpers are screen-only and must not consume PDF space. */
+  #questionsModal #a4PagesCanvas .a4-question-drag-handle,
+  #questionsModal #a4PagesCanvas .a4-move-select,
+  #questionsModal #a4PagesCanvas .a4-page-label,
+  #questionsModal #a4PagesCanvas .a4-page-bottom-line,
+  #questionsModal #a4PagesCanvas .a4-overflow-warning,
+  #questionsModal #a4PagesCanvas .a4-page-empty,
+  #questionsModal #a4PagesCanvas .a4-screen-separator,
+  #questionsModal #a4PagesCanvas .a4-add-page-zone{
+    display:none !important;
+    visibility:hidden !important;
+  }
+}
+</style>
+
+<script id="prudle-save-layout-before-pdf-final">
+/* Save Layout and every PDF button share the same authoritative DOM order. */
+document.addEventListener("click", async function(event){
+  const btn = event.target?.closest?.(
+    "#a4SaveLayoutBtn,.print-questions-btn,.print-answers-btn"
+  );
+  if(!btn || btn.id === "a4SaveLayoutBtn") return;
+
+  if(typeof a4SaveManualLayout === "function"){
+    try{ await a4SaveManualLayout(false); }catch(err){
+      console.error("Pre-PDF A4 save failed:",err);
+    }
+  }
+}, true);
+</script>\n</body>
 </html>
 <script>
 
@@ -21860,3 +21974,45 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 
 }
 </style>
+
+<script id="prudle-remove-literal-newline-garbage-final">
+(function(){
+
+  function removeLiteralNewlineGarbage(root=document.body){
+    if(!root) return;
+
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT
+    );
+
+    const nodes = [];
+    while(walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach(node=>{
+      const value = String(node.nodeValue || "");
+
+      /*
+        Remove only text nodes made entirely from whitespace plus literal
+        backslash-n/backslash-r sequences. Real question text is untouched.
+      */
+      if(/^(?:\s|\\n|\\r)+$/.test(value) && /\\[nr]/.test(value)){
+        node.nodeValue = "";
+      }
+    });
+  }
+
+  window.removeLiteralNewlineGarbage = removeLiteralNewlineGarbage;
+
+  document.addEventListener("DOMContentLoaded",()=>{
+    removeLiteralNewlineGarbage();
+  });
+
+  window.addEventListener("beforeprint",()=>{
+    removeLiteralNewlineGarbage(
+      document.getElementById("questionsModal") || document.body
+    );
+  });
+
+})();
+</script>
