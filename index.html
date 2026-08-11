@@ -21429,3 +21429,162 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 }
 
 </style>
+
+<!-- =========================================================
+     PRUDLE PDF FINAL FIX — NO BOTTOM LINE / NO BLANK PAGES
+     2026-08-11
+========================================================= -->
+<style id="prudle-pdf-no-bottom-line-no-empty-pages-final">
+
+@media print{
+
+  /* 1) Remove the horizontal line at the bottom of every PDF sheet. */
+  body:not(.print-review) .print-first-page{
+    border-bottom:0 !important;
+    box-shadow:none !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    border-bottom:0 !important;
+    box-shadow:none !important;
+
+    /*
+      Keep the physical sheet a fraction shorter than the printable area.
+      This avoids Chrome rounding the last pixel/mm onto another blank page.
+    */
+    height:279mm !important;
+    min-height:279mm !important;
+    max-height:279mm !important;
+
+    /*
+      IMPORTANT:
+      Do not force a page AFTER every sheet.
+      A forced break-after on a full-height element can create an empty page.
+    */
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  /* Create the page break only BEFORE the next real question page. */
+  #questionsModal #a4PagesCanvas .a4-question-page + .a4-question-page{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+
+  /* Hide any page that has no actual question card. */
+  #questionsModal #a4PagesCanvas .a4-question-page.a4-print-empty-page{
+    display:none !important;
+    visibility:hidden !important;
+    height:0 !important;
+    min-height:0 !important;
+    max-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    break-before:auto !important;
+    page-break-before:auto !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  /*
+    The footer is outside the saved A4 pages.
+    Printing it after a full sheet can create a final blank page.
+  */
+  #questionsModal .print-footer{
+    display:none !important;
+    visibility:hidden !important;
+    height:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    overflow:hidden !important;
+  }
+
+  /* Screen-only page-break decorations never participate in printing. */
+  #questionsModal .a4-page-bottom-line,
+  #questionsModal .a4-screen-separator,
+  #questionsModal .a4-page-label,
+  #questionsModal .a4-add-page-zone,
+  #questionsModal .a4-page-empty,
+  #questionsModal .a4-overflow-warning{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  /*
+    Avoid accidental literal spacer/text nodes producing a final sheet.
+    The wrapper has no printable padding/margin of its own.
+  */
+  #modalQuestionsWrap,
+  #a4PagesCanvas{
+    margin-bottom:0 !important;
+    padding-bottom:0 !important;
+  }
+}
+
+</style>
+
+<script id="prudle-mark-empty-a4-pages-before-print-final">
+(function(){
+
+  function markEmptyA4PrintPages(){
+    const pages = [
+      ...document.querySelectorAll(
+        "#questionsModal #a4PagesCanvas .a4-question-page"
+      )
+    ];
+
+    pages.forEach(page=>{
+      const hasQuestion = Boolean(
+        page.querySelector(
+          ".modal-q-card[data-question-id], .modal-q-card"
+        )
+      );
+
+      page.classList.toggle(
+        "a4-print-empty-page",
+        !hasQuestion
+      );
+    });
+
+    /*
+      Remove accidental literal "\n" text printed near the footer area.
+      Only clean pure escaped-newline text nodes; question content is untouched.
+    */
+    const wrap = document.getElementById("modalQuestionsWrap");
+    if(wrap){
+      [...wrap.childNodes].forEach(node=>{
+        if(
+          node.nodeType === Node.TEXT_NODE &&
+          /^[\s\\n\\r]+$/.test(String(node.textContent || ""))
+        ){
+          node.textContent = "";
+        }
+      });
+    }
+  }
+
+  window.markEmptyA4PrintPages = markEmptyA4PrintPages;
+
+  window.addEventListener(
+    "beforeprint",
+    markEmptyA4PrintPages
+  );
+
+  document.addEventListener(
+    "click",
+    function(event){
+      const btn = event.target?.closest?.(
+        ".print-questions-btn,.print-answers-btn"
+      );
+      if(!btn) return;
+
+      markEmptyA4PrintPages();
+    },
+    true
+  );
+
+})();
+</script>
