@@ -22273,3 +22273,323 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 
 })();
 </script>
+
+<!-- =========================================================
+ PRUDLE FINAL — PDF MUST MATCH MAIN A4 INTERFACE EXACTLY
+ 2026-08-11
+ ========================================================= -->
+<style id="prudle-pdf-match-main-interface-exact-final">
+
+@page{
+  size:A4 portrait !important;
+  margin:0 !important;
+}
+
+@media print{
+
+  html,body{
+    width:210mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  /*
+    IMPORTANT:
+    The A4 cards shown in the main interface are already the page design.
+    Printing must not rebuild or reflow them with a different geometry.
+  */
+  #questionsModal,
+  #questionsModal .modal-box,
+  #modalQuestions,
+  #modalQuestionsWrap,
+  #a4PagesCanvas{
+    width:210mm !important;
+    max-width:210mm !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas{
+    display:block !important;
+  }
+
+  /* EXACT A4 sheet dimensions from the main interface. */
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    position:relative !important;
+    display:block !important;
+
+    width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    height:297mm !important;
+    min-height:297mm !important;
+    max-height:297mm !important;
+
+    margin:0 !important;
+
+    /* SAME screen padding: 16mm 10mm 14mm */
+    padding:16mm 10mm 14mm !important;
+
+    box-sizing:border-box !important;
+    background:#fff !important;
+
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+
+    overflow:hidden !important;
+
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-page + .a4-question-page{
+    break-before:page !important;
+    page-break-before:always !important;
+  }
+
+  /* SAME usable content height as screen A4 preview. */
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    position:relative !important;
+    display:block !important;
+
+    width:100% !important;
+    max-width:100% !important;
+
+    height:267mm !important;
+    min-height:267mm !important;
+    max-height:267mm !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+
+    /* NEVER auto-resize the PDF content. */
+    zoom:1 !important;
+    transform:none !important;
+    scale:1 !important;
+  }
+
+  /* EXACT same question-card layout used on screen. */
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    position:relative !important;
+    display:block !important;
+
+    width:100% !important;
+    max-width:100% !important;
+
+    margin:0 0 var(--pdf-card-gap) !important;
+    padding:
+      var(--pdf-card-pad-top)
+      2mm
+      var(--pdf-card-pad-bottom)
+      !important;
+
+    border:0 !important;
+    border-bottom:0 !important;
+    border-radius:0 !important;
+    background:#fff !important;
+    box-shadow:none !important;
+
+    direction:ltr !important;
+    text-align:left !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+
+    break-before:auto !important;
+    page-break-before:auto !important;
+    break-after:auto !important;
+    page-break-after:auto !important;
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  #questionsModal #a4PagesCanvas .modal-q-card.print-keep-together{
+    break-inside:auto !important;
+    page-break-inside:auto !important;
+  }
+
+  /*
+    Preserve exactly the same live Text size / Before-After spacing
+    variables currently used by the interface.
+  */
+  #questionsModal #a4PagesCanvas .question-print-title{
+    margin-bottom:var(--pdf-title-gap) !important;
+    font-size:var(--pdf-q-title-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-passage-block{
+    margin-bottom:var(--pdf-passage-gap) !important;
+    font-size:var(--pdf-passage-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .question-option{
+    margin-top:var(--pdf-option-gap) !important;
+    font-size:var(--pdf-option-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .modal-q-card > div:not(.a4-question-drag-handle):not(.a4-move-select):first-of-type > div{
+    font-size:var(--pdf-meta-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid{
+    margin-top:var(--pdf-fill-gap) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-cell{
+    font-size:var(--pdf-fill-size) !important;
+  }
+
+  body:not(.print-answers)
+  #questionsModal #a4PagesCanvas
+  .question-only .print-fill-cell.blank{
+    font-size:var(--pdf-fill-blank-size) !important;
+  }
+
+  #questionsModal #a4PagesCanvas .text-answer-lines{
+    gap:var(--pdf-line-gap) !important;
+  }
+
+  /*
+    Vertical fill-in list: exactly like the interface, not the older PDF
+    75mm / 14pt design.
+  */
+  #questionsModal #a4PagesCanvas .print-fill-grid.vertical{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+    width:min(520px,100%) !important;
+    max-width:100% !important;
+    margin-top:14px !important;
+    padding:0 !important;
+    border:0 !important;
+    background:transparent !important;
+    overflow:visible !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .print-fill-grid.vertical .print-fill-cell{
+    width:100% !important;
+    min-height:58px !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:12px 16px !important;
+
+    justify-content:flex-start !important;
+    text-align:left !important;
+
+    border:1px solid #cbd5e1 !important;
+    border-radius:10px !important;
+
+    font-size:16px !important;
+    line-height:1.15 !important;
+    letter-spacing:normal !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .question-only .print-fill-grid.vertical .print-fill-cell.blank{
+    font-size:21px !important;
+    letter-spacing:1px !important;
+  }
+
+  /*
+    Horizontal fill table: same connected cells as the interface.
+  */
+  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{
+    display:grid !important;
+    grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr)) !important;
+    gap:0 !important;
+    width:100% !important;
+    border-top:1px solid #111827 !important;
+    border-left:1px solid #111827 !important;
+    background:#fff !important;
+    overflow:hidden !important;
+  }
+
+  #questionsModal #a4PagesCanvas
+  .print-fill-grid.horizontal .print-fill-cell{
+    min-height:48px !important;
+    padding:5px 4px !important;
+    border-right:1px solid #111827 !important;
+    border-bottom:1px solid #111827 !important;
+    border-radius:0 !important;
+    font-size:16px !important;
+  }
+
+  /*
+    Hide only interface controls.  Do not change the geometry of questions.
+  */
+  #a4DragToolbar,
+  .a4-question-drag-handle,
+  .a4-move-select,
+  .a4-page-label,
+  .a4-page-bottom-line,
+  .a4-screen-separator,
+  .a4-add-page-zone,
+  .a4-overflow-warning,
+  .a4-page-empty,
+  .pdf-compact-toolbar{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  /* Never print accidental trailing footer/spacer. */
+  #questionsModal .print-footer{
+    display:none !important;
+    visibility:hidden !important;
+    height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+}
+
+</style>
+
+<script id="prudle-disable-pdf-auto-fit-final">
+(function(){
+
+  /*
+    Older code auto-shrinks pages before print.
+    That makes PDF differ from the main interface.
+    Disable that behavior completely.
+  */
+  window.fitSavedA4PagesForPrint = function(){};
+
+  function lockCurrentPdfGeometry(){
+    const modal = document.getElementById("questionsModal");
+    if(!modal) return;
+
+    document.querySelectorAll(
+      "#a4PagesCanvas .a4-page-dropzone"
+    ).forEach(zone=>{
+      zone.style.removeProperty("zoom");
+      zone.style.removeProperty("transform");
+      zone.style.removeProperty("--prudle-print-fit");
+    });
+
+    void modal.offsetHeight;
+  }
+
+  window.addEventListener("beforeprint",lockCurrentPdfGeometry);
+
+  document.addEventListener("click",function(e){
+    const btn = e.target?.closest?.(
+      ".print-questions-btn,.print-answers-btn"
+    );
+    if(!btn) return;
+    lockCurrentPdfGeometry();
+  },true);
+
+})();
+</script>
