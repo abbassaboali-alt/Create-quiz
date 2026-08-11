@@ -14405,6 +14405,32 @@ window.addEventListener("DOMContentLoaded",()=>{
 }
 </style>
 
+
+
+<!-- FINAL FIX: equal top spacing on every printed/PDF page -->
+<style id="prudle-equal-page-top-spacing-final">
+@page{
+  size:A4 portrait;
+  margin:16mm 6mm 8mm !important;
+}
+
+@media print{
+  /* The @page top margin repeats on EVERY PDF page.
+     Keep the questions wrapper from adding a different first-page offset. */
+  #modalQuestions{
+    padding-top:0 !important;
+  }
+
+  #modalQuestionsWrap{
+    padding-top:0 !important;
+  }
+
+  /* Preserve a small safe gap before the first question card on each flow. */
+  #modalQuestionsWrap .modal-q-card{
+    scroll-margin-top:0 !important;
+  }
+}
+</style>
 </body>
 </html>
 <script>
