@@ -21249,3 +21249,183 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
   }
 }
 </style>
+
+<!-- =========================================================
+     PRUDLE FINAL PRINT SAFE MARGINS
+     - Keeps saved A4 layout aligned with the screen preview
+     - Adds a printer-safe outer margin so all page edges/tables appear
+     - Preserves the same effective question area used on screen:
+       screen content = 190mm wide × 267mm high
+========================================================= -->
+<style id="prudle-final-print-safe-margins-20260811">
+
+@page{
+  size:A4 portrait;
+  margin:8mm !important;
+}
+
+@media print{
+
+  html,
+  body{
+    margin:0 !important;
+    padding:0 !important;
+    width:auto !important;
+    height:auto !important;
+    overflow:visible !important;
+    background:#fff !important;
+  }
+
+  /* The modal itself must not add a second outer margin. */
+  #questionsModal,
+  #questionsModal .modal-box,
+  #modalQuestions,
+  #modalQuestionsWrap{
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+
+  /*
+    Printable A4 area after @page margins:
+      210 - 16 = 194mm wide
+      297 - 16 = 281mm high
+
+    2mm left/right inner padding => 190mm question width
+    7mm top/bottom inner padding => 267mm question height
+
+    This matches the on-screen A4 preview question area.
+  */
+  #questionsModal #a4PagesCanvas{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-page{
+    display:block !important;
+    position:relative !important;
+
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+
+    height:281mm !important;
+    min-height:281mm !important;
+    max-height:281mm !important;
+
+    margin:0 !important;
+    padding:7mm 2mm !important;
+
+    box-sizing:border-box !important;
+
+    /* Visible safely inside the physical printable area. */
+    border:1.2px solid #555 !important;
+    border-radius:2mm !important;
+    box-shadow:none !important;
+    background:#fff !important;
+
+    overflow:hidden !important;
+
+    break-after:page !important;
+    page-break-after:always !important;
+    break-inside:avoid-page !important;
+    page-break-inside:avoid !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-question-page:last-child{
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+
+  #questionsModal #a4PagesCanvas .a4-page-dropzone{
+    display:block !important;
+    position:relative !important;
+
+    width:100% !important;
+    max-width:100% !important;
+
+    height:267mm !important;
+    min-height:267mm !important;
+    max-height:267mm !important;
+
+    margin:0 !important;
+    padding:0 !important;
+
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+  }
+
+  /* Keep every question inside the safe printable width. */
+  #questionsModal #a4PagesCanvas .modal-q-card{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+
+  /* Protect connected tables and their four outside edges. */
+  #questionsModal #a4PagesCanvas .print-fill-grid,
+  #questionsModal #a4PagesCanvas table{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-grid.horizontal{
+    border-top:1px solid #111 !important;
+    border-left:1px solid #111 !important;
+    overflow:hidden !important;
+  }
+
+  #questionsModal #a4PagesCanvas .print-fill-cell{
+    box-sizing:border-box !important;
+    border-right:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+  }
+
+  /* Never let an image extend beyond the safe printable area. */
+  #questionsModal #a4PagesCanvas img{
+    max-width:100% !important;
+  }
+
+  /* Screen-only controls must never cover the PDF page. */
+  #a4DragToolbar,
+  .a4-question-drag-handle,
+  .a4-move-select,
+  .a4-page-label,
+  .a4-page-bottom-line,
+  .a4-screen-separator,
+  .a4-add-page-zone,
+  .a4-overflow-warning,
+  .a4-page-empty{
+    display:none !important;
+    visibility:hidden !important;
+  }
+
+  /*
+    Cover page: keep its existing design but place its border
+    inside the same safe 8mm printer margin.
+  */
+  body:not(.print-review) .print-first-page{
+    width:100% !important;
+    max-width:100% !important;
+    min-height:281mm !important;
+    height:281mm !important;
+    max-height:281mm !important;
+    margin:0 !important;
+    padding:10mm 8mm 9mm !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    border:1.5px solid #4b4b4b !important;
+    border-radius:4mm !important;
+  }
+}
+
+</style>
