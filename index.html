@@ -22016,3 +22016,260 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 
 })();
 </script>
+
+<!-- =========================================================
+ PRUDLE FINAL — SAVE/PRINT EXACTLY WHAT IS VISIBLE ON A4
+ - No automatic movement during Save Layout
+ - Save Layout stores the current visible page + order exactly
+ - PDF uses the same current DOM layout
+========================================================= -->
+<script id="prudle-save-visible-layout-exact-final">
+(function(){
+
+  function exactPages(){
+    return [
+      ...document.querySelectorAll(
+        "#a4PagesCanvas .a4-question-page"
+      )
+    ];
+  }
+
+  function exactCards(page){
+    return [
+      ...page.querySelectorAll(
+        ".a4-page-dropzone > .modal-q-card[data-question-id]"
+      )
+    ];
+  }
+
+  async function saveVisibleA4LayoutExact(showMessage=false){
+
+    const pages = exactPages();
+
+    if(!pages.length){
+      if(showMessage){
+        alert("افتح معاينة الأسئلة أولًا");
+      }
+      return false;
+    }
+
+    /*
+      IMPORTANT:
+      Do not call finalA4PushOverflowForward() here.
+      Save exactly what the user currently sees.
+    */
+    if(typeof a4RenumberQuestions === "function"){
+      a4RenumberQuestions();
+    }
+
+    if(typeof a4RefreshPageBadges === "function"){
+      a4RefreshPageBadges();
+    }
+
+    const batch = db.batch();
+    let order = 1;
+    let updates = 0;
+
+    pages.forEach((page,index)=>{
+
+      const pdfPage = index + 2;
+
+      page.dataset.pdfPage =
+        String(pdfPage);
+
+      exactCards(page).forEach(card=>{
+
+        const id =
+          String(
+            card.dataset.questionId || ""
+          ).trim();
+
+        if(!id) return;
+
+        card.dataset.pdfPage =
+          String(pdfPage);
+
+        batch.update(
+          db.collection("questions").doc(id),
+          {
+            pdfPage: pdfPage,
+            order: order++,
+            pdfLayoutUpdatedAt:
+              firebase.firestore.FieldValue.serverTimestamp()
+          }
+        );
+
+        updates++;
+      });
+    });
+
+    if(!updates){
+      return false;
+    }
+
+    try{
+      await batch.commit();
+
+      if(showMessage){
+        alert("✅ تم حفظ نفس ترتيب وتوزيع الصفحات الظاهر في الواجهة");
+      }
+
+      return true;
+
+    }catch(err){
+
+      console.error(
+        "saveVisibleA4LayoutExact error:",
+        err
+      );
+
+      alert(
+        "❌ تعذر حفظ تنسيق الصفحات\n" +
+        String(err.message || err)
+      );
+
+      return false;
+    }
+  }
+
+  /*
+    This override is deliberately LAST.
+    It prevents older wrappers from moving questions before saving.
+  */
+  window.a4SaveManualLayout =
+    saveVisibleA4LayoutExact;
+
+  window.saveVisibleA4LayoutExact =
+    saveVisibleA4LayoutExact;
+
+  /*
+    Rebind Save Layout so it always uses the exact-visible save.
+  */
+  function rebindSaveButton(){
+
+    const btn =
+      document.getElementById(
+        "a4SaveLayoutBtn"
+      );
+
+    if(!btn) return;
+
+    if(
+      btn.dataset.exactSaveBound ===
+      "1"
+    ){
+      return;
+    }
+
+    const clone =
+      btn.cloneNode(true);
+
+    clone.dataset.exactSaveBound =
+      "1";
+
+    btn.replaceWith(clone);
+
+    clone.addEventListener(
+      "click",
+      async ()=>{
+        await saveVisibleA4LayoutExact(
+          true
+        );
+      }
+    );
+  }
+
+  const observer =
+    new MutationObserver(()=>{
+      rebindSaveButton();
+    });
+
+  window.addEventListener(
+    "DOMContentLoaded",
+    ()=>{
+      observer.observe(
+        document.body,
+        {
+          childList:true,
+          subtree:true
+        }
+      );
+
+      rebindSaveButton();
+    }
+  );
+
+  /*
+    Before PDF:
+    1) preserve exact current page/order
+    2) DO NOT auto-push questions to another page
+    3) keep current CSS variables used by the screen preview
+  */
+  const originalPrintQuestionsPDF =
+    window.printQuestionsPDF;
+
+  if(
+    typeof originalPrintQuestionsPDF ===
+    "function"
+  ){
+    window.printQuestionsPDF =
+      async function(mode="questions"){
+
+        await saveVisibleA4LayoutExact(
+          false
+        );
+
+        const modal =
+          document.getElementById(
+            "questionsModal"
+          );
+
+        if(modal){
+          /*
+            Force the browser to retain the current custom properties
+            used by Text size / Before-After space controls.
+          */
+          const css =
+            getComputedStyle(modal);
+
+          [
+            "--pdf-q-title-size",
+            "--pdf-option-size",
+            "--pdf-passage-size",
+            "--pdf-meta-size",
+            "--pdf-fill-size",
+            "--pdf-fill-blank-size",
+            "--pdf-card-gap",
+            "--pdf-card-pad-top",
+            "--pdf-card-pad-bottom",
+            "--pdf-title-gap",
+            "--pdf-passage-gap",
+            "--pdf-option-gap",
+            "--pdf-fill-gap",
+            "--pdf-line-gap"
+          ].forEach(name=>{
+
+            const value =
+              css.getPropertyValue(
+                name
+              ).trim();
+
+            if(value){
+              modal.style.setProperty(
+                name,
+                value
+              );
+            }
+          });
+
+          void modal.offsetHeight;
+        }
+
+        return originalPrintQuestionsPDF(
+          mode
+        );
+      };
+  }
+
+})();
+</script>
