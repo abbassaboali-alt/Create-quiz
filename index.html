@@ -14436,7 +14436,7 @@ window.addEventListener("DOMContentLoaded",()=>{
 
 
 // ✅ إعادة الاختبار لطالب واحد للدورة المرتبطة
-async function resetLinkedCourseOne(
+async function resetLinkedCourseOneLegacy(
   questionId,
   courseId
 ){
@@ -14634,6 +14634,88 @@ async function resetLinkedCourseOne(
   alert(
     "✅ Student can do the exam again for this linked course only"
   );
+
+}
+
+// ✅ إعادة الاختبار لطالب واحد في الدورة المرتبطة
+// نفس آلية الزر العاملة في الكود الثاني:
+// iqama -> student document ID -> result لنفس الاختبار والدورة فقط
+async function resetLinkedCourseOne(
+  questionId,
+  courseId
+){
+
+  const iqama =
+    String(prompt("Insert Student ID") || "").trim();
+
+  if(!iqama) return;
+
+  courseId = String(courseId || "").trim();
+
+  if(!courseId){
+    alert("Choose linked course first");
+    return;
+  }
+
+  try{
+
+    const qDoc = await db.collection("questions")
+      .doc(questionId)
+      .get();
+
+    if(!qDoc.exists){
+      alert("Question not found");
+      return;
+    }
+
+    const q = qDoc.data() || {};
+    const examId = String(q.examId || "").trim();
+
+    if(!examId){
+      alert("Exam not found");
+      return;
+    }
+
+    // البحث عن الطالب برقم الهوية، مثل الكود الثاني تماماً
+    const studentSnap = await db.collection("students")
+      .where("iqama","==",iqama)
+      .get();
+
+    if(studentSnap.empty){
+      alert("Student not found");
+      return;
+    }
+
+    const studentId = studentSnap.docs[0].id;
+
+    // حذف نتيجة الطالب لنفس الاختبار والدورة المرتبطة المحددة فقط
+    const resultSnap = await db.collection("results")
+      .where("studentId","==",studentId)
+      .where("examId","==",examId)
+      .where("courseId","==",courseId)
+      .get();
+
+    if(resultSnap.empty){
+      alert("No result for this course");
+      return;
+    }
+
+    const batch = db.batch();
+
+    resultSnap.docs.forEach(doc=>{
+      batch.delete(
+        db.collection("results").doc(doc.id)
+      );
+    });
+
+    await batch.commit();
+
+    alert("✅ Student can do exam again");
+
+  }catch(error){
+    console.error("RESET LINKED STUDENT ERROR:", error);
+    alert("❌ Could not reset this student. Please try again.");
+  }
 
 }
 
