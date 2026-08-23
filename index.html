@@ -315,6 +315,20 @@ select{
 .exam-card:active{
   transform:translateY(-4px) scale(.98);
 }
+
+/* الكويز المحدد حاليًا، سواء من القائمة أو من الشريط الجانبي */
+.exam-card.exam-card-selected{
+  border-color:#164478 !important;
+  background:linear-gradient(180deg,#eef5ff,#ffffff) !important;
+  box-shadow:
+    0 0 0 5px rgba(22,68,120,.16),
+    0 18px 38px rgba(22,68,120,.18) !important;
+}
+
+.exam-card.exam-card-selected:hover{
+  border-color:#164478 !important;
+  background:linear-gradient(180deg,#eef5ff,#ffffff) !important;
+}
 @media (max-width:700px){
   .exam-card:hover{
     transform:translateY(-6px) scale(1.01);
@@ -4651,6 +4665,8 @@ function changeCourseTab(courseId){
     .forEach(card=>{
       card.style.borderColor = "#dbeafe";
       card.style.background = "#fff";
+      card.classList.remove("exam-card-selected");
+      card.removeAttribute("aria-current");
     });
 
   const activeCard = document.querySelector(
@@ -4660,6 +4676,8 @@ function changeCourseTab(courseId){
   if(activeCard){
     activeCard.style.borderColor = "#164478";
     activeCard.style.background = "#eef5ff";
+    activeCard.classList.add("exam-card-selected");
+    activeCard.setAttribute("aria-current","true");
   }
 
   // ✅ تغيير الاختبار الحالي
@@ -17783,6 +17801,35 @@ async function openPublishedExamForEdit(examId, courseId){
 
     if(!examId) return;
 
+    /*
+      تأكد أن بطاقة نفس الكويز موجودة في قائمة الكويزات الرئيسية.
+      إذا كان البحث يخفيها، نمسح البحث ونعيد بناء القائمة كاملة
+      قبل فتح الاختبار حتى يتم تحديد البطاقة الصحيحة بصريًا.
+    */
+    const examExistsInMainList =
+      Array.isArray(EXAMS_DROPDOWN) &&
+      EXAMS_DROPDOWN.some(item =>
+        String(item?.id || "").trim() === examId
+      );
+
+    if(
+      !examExistsInMainList &&
+      typeof loadExams === "function"
+    ){
+      await loadExams();
+    }
+
+    const previewSearch =
+      document.getElementById("previewExamSearch");
+
+    if(previewSearch){
+      previewSearch.value = "";
+    }
+
+    if(typeof filterExamDropdown === "function"){
+      filterExamDropdown("");
+    }
+
     // اختيار الدورة الصحيحة قبل فتح الاختبار
     if(courseId){
       // ✅ نحافظ على دورة المدرب المختارة للسياق والتحكم
@@ -17825,20 +17872,31 @@ async function openPublishedExamForEdit(examId, courseId){
     */
     await openExamTab(examId, false);
 
-    // التمرير تلقائيًا إلى منطقة تعديل الأسئلة
+    /*
+      بعد فتح الاختبار، حدد بطاقته في القائمة الرئيسية
+      وانتقل إليها تلقائيًا مثل الاختيار اليدوي من الصورة الثانية.
+    */
     setTimeout(()=>{
+      const selectedCard = document.querySelector(
+        `.exam-card[data-id="${examId}"]`
+      );
+
+      if(selectedCard){
+        selectedCard.classList.add("exam-card-selected");
+        selectedCard.setAttribute("aria-current","true");
+      }
+
       const target =
-        document.getElementById("questionsList") ||
-        document.getElementById("courseTabs") ||
+        selectedCard ||
         document.getElementById("examPreviewBox");
 
       if(target){
         target.scrollIntoView({
           behavior:"smooth",
-          block:"start"
+          block:"center"
         });
       }
-    },120);
+    },160);
 
   }catch(error){
     console.error("OPEN PUBLISHED EXAM ERROR:", error);
