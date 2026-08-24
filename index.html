@@ -163,11 +163,19 @@ button:hover{opacity:.96}
   margin-top:10px;
 }
 .media-box img,
-.media-box video{
+.media-box video,
+.media-box iframe{
   max-width:100%;
   width:100%;
   border-radius:12px;
   border:1px solid #e5e7eb;
+}
+.media-box iframe{
+  display:block;
+  aspect-ratio:16 / 9;
+  height:auto;
+  min-height:220px;
+  background:#000;
 }
 .media-box audio{
   width:100%;
@@ -1682,6 +1690,7 @@ button:hover{
   }
 
   .modal-q-card video,
+  .modal-q-card iframe,
   .modal-q-card audio,
   .modal-q-card button,
   .modal-q-card input,
@@ -1937,6 +1946,7 @@ button:hover{
 .copy-bank-match-row img{width:90px;height:70px;object-fit:contain;border-radius:9px;background:#fff;border:1px solid #e5e7eb}
 .copy-bank-media{margin-top:11px}
 .copy-bank-media img,.copy-bank-media video{display:block;max-width:100%;max-height:260px;object-fit:contain;border-radius:13px;border:1px solid #dce5ef;background:#fff}
+.copy-bank-media iframe{display:block;width:100%;aspect-ratio:16 / 9;min-height:220px;border:1px solid #dce5ef;border-radius:13px;background:#000}
 .copy-bank-media audio{width:100%}
 .copy-bank-footer{
   position:relative;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;
@@ -3654,19 +3664,96 @@ function getOptions(){
     .filter(v => v);
 }
 
-function renderMedia(mediaType, mediaUrl){
+/*
+  YouTube links (including Shorts) are web pages, not direct video files.
+  They must be displayed with the YouTube embed player instead of <video>.
+*/
+function getYouTubeVideoId(rawUrl){
+  const value = String(rawUrl || "").trim();
+  if(!value) return "";
+
+  try{
+    const prepared = /^https?:\/\//i.test(value)
+      ? value
+      : `https://${value}`;
+
+    const url = new URL(prepared);
+    const host = url.hostname
+      .toLowerCase()
+      .replace(/^www\./, "");
+
+    let videoId = "";
+
+    if(host === "youtu.be"){
+      videoId = url.pathname
+        .split("/")
+        .filter(Boolean)[0] || "";
+    }
+    else if(
+      host === "youtube.com" ||
+      host.endsWith(".youtube.com") ||
+      host === "youtube-nocookie.com" ||
+      host.endsWith(".youtube-nocookie.com")
+    ){
+      if(url.pathname === "/watch"){
+        videoId = url.searchParams.get("v") || "";
+      }else{
+        const match = url.pathname.match(
+          /^\/(?:shorts|embed|live)\/([^/?#]+)/i
+        );
+        videoId = match?.[1] || "";
+      }
+    }
+
+    return /^[A-Za-z0-9_-]{11}$/.test(videoId)
+      ? videoId
+      : "";
+  }catch(error){
+    return "";
+  }
+}
+
+function getYouTubeEmbedUrl(rawUrl){
+  const videoId = getYouTubeVideoId(rawUrl);
+
+  return videoId
+    ? `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`
+    : "";
+}
+
+function renderMedia(mediaType, mediaUrl, wrapperClass = "media-box"){
   if(!mediaUrl || mediaType === "none") return "";
 
+  const safeUrl = esc(mediaUrl);
+  const safeWrapperClass = esc(wrapperClass);
+
   if(mediaType === "image"){
-    return `<div class="media-box"><img src="${mediaUrl}" alt="image"></div>`;
+    return `<div class="${safeWrapperClass}"><img src="${safeUrl}" alt="image"></div>`;
   }
 
   if(mediaType === "video"){
-    return `<div class="media-box"><video controls src="${mediaUrl}"></video></div>`;
+    const youtubeEmbedUrl = getYouTubeEmbedUrl(mediaUrl);
+
+    if(youtubeEmbedUrl){
+      return `
+        <div class="${safeWrapperClass}">
+          <iframe
+            src="${esc(youtubeEmbedUrl)}"
+            title="YouTube video player"
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+          </iframe>
+        </div>
+      `;
+    }
+
+    return `<div class="${safeWrapperClass}"><video controls playsinline preload="metadata" src="${safeUrl}"></video></div>`;
   }
 
   if(mediaType === "audio"){
-    return `<div class="media-box"><audio controls src="${mediaUrl}"></audio></div>`;
+    return `<div class="${safeWrapperClass}"><audio controls preload="metadata" src="${safeUrl}"></audio></div>`;
   }
 
   return "";
@@ -6614,6 +6701,11 @@ async function saveQuestion(){
     mediaUrl
       ? media
       : "none";
+
+  /* A pasted YouTube / Shorts link is always video media. */
+  if(getYouTubeVideoId(mediaUrl)){
+    finalMediaType = "video";
+  }
 
   if(fileObj){
 
@@ -13259,13 +13351,7 @@ function renderCopyQuestionDetails(q){
   }
 
   if(q.showMedia !== false && q.mediaUrl){
-    if(q.mediaType === "image"){
-      html += `<div class="copy-bank-media"><img src="${esc(q.mediaUrl)}" alt="Question image"></div>`;
-    }else if(q.mediaType === "video"){
-      html += `<div class="copy-bank-media"><video controls src="${esc(q.mediaUrl)}"></video></div>`;
-    }else if(q.mediaType === "audio"){
-      html += `<div class="copy-bank-media"><audio controls src="${esc(q.mediaUrl)}"></audio></div>`;
-    }
+    html += renderMedia(q.mediaType, q.mediaUrl, "copy-bank-media");
   }
 
   if(q.type === "mcq"){
@@ -16048,46 +16134,8 @@ async function openFullQuestions(examId){
 
           ${
             q.mediaUrl && q.mediaType !== "none"
-            ? `
-              <div style="
-                direction:ltr;
-                margin:14px 0;
-                background:#f8fafc;
-                border:2px solid #dbeafe;
-                border-radius:18px;
-                padding:14px;
-              ">
-                ${
-                  q.mediaType === "image"
-                  ? `<img src="${q.mediaUrl}" style="
-                      width:100%;
-                      max-height:360px;
-                      object-fit:contain;
-                      border-radius:14px;
-                      border:1px solid #e5e7eb;
-                    ">`
-                  : ""
-                }
-
-                ${
-                  q.mediaType === "video"
-                  ? `<video controls src="${q.mediaUrl}" style="
-                      width:100%;
-                      max-height:420px;
-                      border-radius:14px;
-                      border:1px solid #e5e7eb;
-                    "></video>`
-                  : ""
-                }
-
-                ${
-                  q.mediaType === "audio"
-                  ? `<audio controls src="${q.mediaUrl}" style="width:100%;"></audio>`
-                  : ""
-                }
-              </div>
-            `
-            : ""
+              ? renderMedia(q.mediaType, q.mediaUrl)
+              : ""
           }
 
 
