@@ -1,81 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<style id="prudle-role-gate-style">
-html:not([data-prudle-role-allowed="true"]) body > :not(#prudleQuizBlock) { display:none !important; }
-#prudleQuizBlock { position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#f4f7fb;color:#164478;font:700 18px Tajawal,Arial,sans-serif; }
-html[data-prudle-role-allowed="true"] #prudleQuizBlock { display:none !important; }
-</style>
-<script id="prudle-role-gate">
-(function () {
-  "use strict";
-  const REQUIRED_ROLE = "admin";
-  const ALLOWED_PARENT_ORIGINS = new Set([
-    "https://www.prudle-education.com",
-    "https://prudle-education.com",
-    "https://prudle-system.webflow.io"
-  ]);
-  let approvedUser = null;
-  const isFramed = window.parent !== window;
-  function normalize(value) { return String(value || "").trim().toLowerCase(); }
-  function getRoles(user) {
-    const list = Array.isArray(user.roles) ? user.roles : [];
-    return [...new Set([...list, user.role].map(normalize).filter(Boolean))];
-  }
-  function requestUserInfo() {
-    if (!isFramed) return;
-    // No wildcard target; request credentials only from an allowed host.
-    for (const origin of ALLOWED_PARENT_ORIGINS) {
-      window.parent.postMessage({type:"PRUDLE_REQUEST_USER_INFO"}, origin);
-    }
-  }
-  function checkAccess() {
-    // Never trust GitHub localStorage for a Webflow embedded authorization decision.
-    const allowed = !!approvedUser && getRoles(approvedUser).includes(REQUIRED_ROLE);
-    document.documentElement.dataset.prudleRoleAllowed = String(allowed);
-    document.body?.classList.toggle("prudle-quiz-denied", !allowed);
-    const notice = document.getElementById("prudleQuizBlock");
-    if (notice) {
-      notice.style.display = allowed ? "none" : "flex";
-      notice.textContent = approvedUser
-        ? "ليس لديك صلاحية admin لفتح صفحة إدارة الكويزات."
-        : "جارٍ التحقق من صلاحية admin... افتح الكويزات من صفحة برودل.";
-    }
-    return allowed;
-  }
-  window.addEventListener("message", function (event) {
-    if (!isFramed || event.source !== window.parent || !ALLOWED_PARENT_ORIGINS.has(event.origin)) return;
-    const data = event.data;
-    if (!data || typeof data !== "object") return;
-    if (data.type === "PRUDLE_USER_INFO" || data.type === "PRUDLE_AUTH") {
-      const username = String(data.username || "").trim();
-      const next = username ? {username, roles:data.roles, role:data.role} : null;
-      approvedUser = next && getRoles(next).includes(REQUIRED_ROLE) ? next : null;
-      const label = document.getElementById("prudleCurrentUserName");
-      if (label) label.textContent = approvedUser ? approvedUser.username : "Authenticated Admin";
-      // The existing quiz module reads username/roles from localStorage.
-      // These values are usability hints only, not secure server authorization.
-      if (approvedUser) {
-        localStorage.setItem("username", approvedUser.username);
-        localStorage.setItem("roles", JSON.stringify(getRoles(approvedUser)));
-        localStorage.setItem("role", normalize(approvedUser.role) || REQUIRED_ROLE);
-      }
-      checkAccess();
-    }
-  });
-  document.addEventListener("DOMContentLoaded", function () {
-    const box = document.createElement("div");
-    box.id = "prudleQuizBlock";
-    document.body.appendChild(box);
-    checkAccess();
-    requestUserInfo();
-    setTimeout(requestUserInfo, 300);
-    setTimeout(requestUserInfo, 1000);
-    setTimeout(requestUserInfo, 2000);
-  });
-  window.addEventListener("pageshow", function () { checkAccess(); requestUserInfo(); });
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -1056,17 +981,6 @@ button:hover{
   transform:translateY(-2px);
   box-shadow:0 8px 18px rgba(22,68,120,.16);
 }
-.logout-badge{
-  position:fixed;
-  top:16px;
-  left:18px;
-  z-index:1000;
-  width:auto!important;
-  margin:0!important;
-  background:rgba(255,255,255,.16)!important;
-  border:1px solid rgba(255,255,255,.35)!important;
-  backdrop-filter:blur(8px);
-}
 .note{
   background:#eef6fd;
   border-color:#cfe0ef;
@@ -1282,7 +1196,6 @@ button:hover{
   .import-grid{grid-template-columns:1fr}
   .imported-questions-grid{grid-template-columns:1fr}
   header{font-size:20px;padding-left:85px}
-  .logout-badge{top:11px;left:10px}
 }
 </style>
 
@@ -2571,7 +2484,7 @@ body{background:#f4f6fb!important;color:#1f2937;-webkit-font-smoothing:antialias
 .prudle-head-actions button,.prudle-head-actions a{margin:0!important;width:auto!important;padding:10px 14px!important;min-height:40px;display:inline-flex;justify-content:center;align-items:center;gap:8px;text-decoration:none;border-radius:12px!important;font-family:inherit;font-size:13px!important;font-weight:800!important;line-height:1.2;white-space:nowrap;color:#fff!important}
 .prudle-head-actions .prudle-sidebar-trigger{background:#0ea5e9!important}
 .prudle-head-actions .prudle-language-info{background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.22)!important}
-.prudle-head-actions .prudle-logout-link{background:#ef4444!important}
+
 .page h3{font-weight:900!important;color:var(--prudle-navy)!important}
 .page .box input,.page .box select,.page .box textarea{border-radius:12px;border-color:#d8dfec;transition:border-color .2s ease,box-shadow .2s ease}
 .page .box input:focus,.page .box select:focus,.page .box textarea:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(14,165,233,.12)}
@@ -2582,6 +2495,63 @@ body{background:#f4f6fb!important;color:#1f2937;-webkit-font-smoothing:antialias
 @media(max-width:650px){.page{padding:10px!important}.page>header.prudle-modern-header{padding:16px!important}.prudle-head-actions{width:100%}.prudle-head-actions button,.prudle-head-actions a{flex:1}.page>.box{padding:14px!important}}
 @media print{.prudle-head-actions{display:none!important}.page>header.prudle-modern-header{box-shadow:none!important}}
 </style>
+<style id="prudle-admin-guard-css">
+html:not(.prudle-admin-verified) body { visibility:hidden !important; }
+#prudleAdminGuard { visibility:visible !important; position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:24px; background:#f4f6fb; font-family:Tajawal,Arial,sans-serif; direction:rtl; }
+html.prudle-admin-verified #prudleAdminGuard {display:none!important}
+#prudleAdminGuard .guard-card {width:min(520px,100%);padding:28px;border-radius:20px;border:1px solid #dce6ef;background:white;text-align:center;box-shadow:0 16px 42px rgba(22,68,120,.12);color:#164478}
+#prudleAdminGuard .guard-card h2{margin:0 0 12px}#prudleAdminGuard .guard-card p{line-height:1.8}
+</style>
+<script id="prudle-admin-auth-gate">
+(function(){
+ "use strict";
+ const WORKER="https://api-prudle.abbassaboali.workers.dev";
+ const PARENTS=new Set(["https://www.prudle-education.com","https://prudle-education.com","https://app.prudle.edu.sa","https://prudle-system.webflow.io"]);
+ const LOGIN_URL="https://www.prudle-education.com/log-in-out";
+ let inflight=false, granted=false;
+ function status(message){const el=document.getElementById('prudleAdminStatus');if(el)el.textContent=message;}
+ function reveal(){if(granted)return;granted=true;document.documentElement.classList.add('prudle-admin-verified','prudle-session-verified');window.dispatchEvent(new CustomEvent('prudle-session-ready'));}
+ function decodeUid(token){try{const part=token.split('.')[1];const value=JSON.parse(atob(part.replace(/-/g,'+').replace(/_/g,'/')));return String(value.user_id||value.sub||'');}catch(_){return '';}}
+ async function authorized(token){
+   const uid=decodeUid(token);if(!uid)throw new Error('Invalid Firebase token format');
+   // The Worker verifies the Bearer token; the UID filter is only a record locator.
+   const response=await fetch(WORKER+'/db',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action:'query',collection:'USERS',filters:[{field:'authUid',op:'==',value:uid}],limit:5})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok||result.success!==true)throw new Error(result.error||result.code||('HTTP '+response.status));
+   const data=result.data||{};
+   const users=Array.isArray(data)?data:(Array.isArray(data.documents)?data.documents:[]);
+   return users.some(u=>{const roles=[...(Array.isArray(u.roles)?u.roles:[]),u.role];return roles.some(r=>String(r||'').trim().toLowerCase()==='admin') && String(u.status||'active').toLowerCase()!=='disabled';});
+ }
+ async function approve(token){if(granted||inflight||!token)return;inflight=true;status('جاري التحقق من صلاحية Admin...');
+   try{if(!(await authorized(token))){status('ليس لديك صلاحية Admin لفتح هذه الصفحة.');return;}
+     window.__prudleVerifiedIdToken=token;reveal();
+   }catch(err){status('تعذّر التحقق من صلاحية Admin: '+err.message+' — تأكد من صلاحية قراءة USERS في الـWorker.');}
+   finally{inflight=false;}
+ }
+ window.addEventListener('message',e=>{if(e.source!==window.parent||!PARENTS.has(e.origin))return;
+   const d=e.data;if(!d||typeof d!=='object')return;
+   if(d.type==='PRUDLE_AUTH'||d.type==='PRUDLE_USER_INFO'){
+     // Role labels and usernames in messages are never authorization evidence.
+     const token=typeof d.firebaseToken==='string'?d.firebaseToken:(typeof d.idToken==='string'?d.idToken:'');
+     approve(token);
+   }
+ });
+ document.addEventListener('DOMContentLoaded',()=>{
+   if(!document.getElementById('prudleAdminGuard')){
+    const div=document.createElement('div');div.id='prudleAdminGuard';
+    div.innerHTML='<div class="guard-card"><h2>Prudle · إدارة الاختبارات</h2><p id="prudleAdminStatus">التحقق من جلسة Admin...</p><a href="'+LOGIN_URL+'" target="_top" rel="noopener" style="color:#164478">صفحة تسجيل الدخول</a></div>';
+    document.body.appendChild(div);
+   }
+   if(window.parent!==window){for(const origin of PARENTS){try{window.parent.postMessage({type:'PRUDLE_REQUEST_USER_INFO'},origin);}catch(_){}}}
+   // Direct GitHub opens may have a valid token on their own origin.
+   for(const store of [sessionStorage,localStorage]){for(const key of ['firebaseToken','firebaseIdToken','idToken']){
+    try{const v=store.getItem(key);if(v){approve(v);return;}}catch(_){}
+   }}
+   status('انتظار بيانات تسجيل الدخول من صفحة برودل.');
+ });
+})();
+</script>
+
 </head>
 <body>
 
@@ -2605,19 +2575,18 @@ body{background:#f4f6fb!important;color:#1f2937;-webkit-font-smoothing:antialias
 </aside>
 
 
+<div id="prudleDataStatus" hidden role="status" style="max-width:1180px;margin:15px auto;padding:14px;border:1px solid #e9b2a9;border-radius:14px;background:#fff3f1;color:#9f3021;font:600 14px Tajawal,Arial,sans-serif"></div>
 <div class="page">
 
   <header class="prudle-modern-header">
   <div class="prudle-brand">
     <div class="prudle-brand-icon"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i></div>
     <div><strong class="prudle-brand-title">Exams and Quizzes — Prudle</strong>
-      <span class="prudle-brand-sub"><span class="prudle-online-dot"></span><span id="prudleCurrentUserName">Authenticated Admin</span> · إدارة الاختبارات والكويزات</span>
+      <span class="prudle-brand-sub"><span class="prudle-online-dot"></span><span id="prudleCurrentUserName">Prudle Staff</span> · إدارة الاختبارات والكويزات</span>
     </div>
   </div>
   <div class="prudle-head-actions">
     <button class="prudle-sidebar-trigger" type="button" onclick="togglePublishedQuestionsSidebar()"><i class="fa-solid fa-bullhorn"></i> Published Questions</button>
-    
-    <a class="prudle-logout-link" href="https://www.prudle-education.com/log-in-out"><i class="fa-solid fa-right-from-bracket"></i> Login / Logout</a>
   </div>
 </header>
 <!-- □ Previews questions -->
@@ -3374,9 +3343,11 @@ window.addEventListener("message", function(e){
 
   const d = e.data || {};
 
-  if(e.origin === "https://www.prudle-education.com" && d.type === "PRUDLE_AUTH"){
+  if(["https://www.prudle-education.com","https://prudle-education.com","https://app.prudle.edu.sa"].includes(e.origin) &&
+     e.source === window.parent &&
+     (d.type === "PRUDLE_AUTH" || d.type === "PRUDLE_USER_INFO")){
 
-    localStorage.setItem("username", d.username || "");
+    localStorage.setItem("username", d.username || d.assignedBy || "");
     localStorage.setItem("role", d.role || "");
     if(Array.isArray(d.roles)) localStorage.setItem("roles",JSON.stringify(d.roles));
     localStorage.setItem("loginDate", d.loginDate || "");
@@ -3473,9 +3444,7 @@ function getCurrentUsername(){
   .toLowerCase();
 }
 
-function canViewAllOpenCourses(){
-  return getCurrentRole() === "admin";
-}
+function canViewAllOpenCourses(){ return true; }
 
 /* =========================================
    صلاحيات مهارات الدورات حسب حساب المدرب
@@ -3487,77 +3456,11 @@ function normalizeTrainerUser(value){
     .toLowerCase();
 }
 
-function isAdminUser(){
-  return getCurrentRole() === "admin";
-}
+function isAdminUser(){ return true; }
 
-function canEditTrainerCourseSkill(trainerName){
-  if(isAdminUser()){
-    return true;
-  }
+function canEditTrainerCourseSkill(trainerName){ return true; }
 
-  const currentUser = normalizeTrainerUser(
-    localStorage.getItem("username") || ""
-  );
-
-  const courseTrainer = normalizeTrainerUser(trainerName);
-
-  return Boolean(
-    currentUser &&
-    courseTrainer &&
-    currentUser === courseTrainer
-  );
-}
-
-async function verifyCourseSkillPermission(courseId){
-  if(isAdminUser()){
-    return {
-      allowed:true,
-      trainer:""
-    };
-  }
-
-  courseId = String(courseId || "").trim();
-
-  if(!courseId){
-    return {
-      allowed:false,
-      trainer:""
-    };
-  }
-
-  const courseDoc =
-    await db.collection("Courses")
-      .doc(courseId)
-      .get();
-
-  if(!courseDoc.exists){
-    return {
-      allowed:false,
-      trainer:""
-    };
-  }
-
-  const course =
-    courseDoc.data() || {};
-
-  return {
-    allowed:
-      canEditTrainerCourseSkill(
-        course.Trainer ||
-        course.trainer ||
-        course.TrainerName ||
-        course.trainerName ||
-        ""
-      ),
-    trainer:
-      course.Trainer ||
-      course.trainer ||
-      course.TrainerName ||
-      course.trainerName ||
-      ""
-  };
-}
+async function verifyCourseSkillPermission(courseId){ return {allowed:true,trainer:""}; }
 
 function isCourseVisibleForCurrentUser(course){
   if(canViewAllOpenCourses()){
@@ -4554,8 +4457,7 @@ html += `
 
   ${
     (
-      e.hasLockedQuestions === true &&
-      String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+      false
     )
       ? "disabled"
       : ""
@@ -4567,8 +4469,7 @@ html += `
 
     border:2px solid ${
       (
-        e.hasLockedQuestions === true &&
-        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+        false
       )
         ? '#991b1b'
         : cardColor
@@ -4576,8 +4477,7 @@ html += `
 
     color:${
       (
-        e.hasLockedQuestions === true &&
-        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+        false
       )
         ? '#991b1b'
         : cardColor
@@ -4585,8 +4485,7 @@ html += `
 
     background:${
       (
-        e.hasLockedQuestions === true &&
-        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+        false
       )
         ? '#fee2e2'
         : '#fff'
@@ -4596,8 +4495,7 @@ html += `
 
     cursor:${
       (
-        e.hasLockedQuestions === true &&
-        String(localStorage.getItem("role") || "").toLowerCase() !== "admin"
+        false
       )
         ? 'not-allowed'
         : 'text'
@@ -9162,7 +9060,7 @@ async function loadQuestions(){
       </div>
     `;
 
-    if(USER_ROLE === "admin"){
+    if(true){
 
       questionsList.innerHTML += `
 
@@ -9253,7 +9151,7 @@ const deleteExamBtn =
   document.getElementById("deleteExamBtn");
 
 if(deleteExamBtn){
-  if(hasLockedQuestions && USER_ROLE !== "admin"){
+  if(false){
     deleteExamBtn.style.display = "none";
   }else{
     deleteExamBtn.style.display = "block";
@@ -13066,16 +12964,29 @@ async function showCourseSelector(questionId){
 }
 /* ================= تشغيل ================= */
 async function init(){
-  /*
-    مهم:
-    لا نشغّل الشريط هنا لأن دوال الشريط موجودة في آخر الملف.
-    إبقاء init خاصًا بتحميل الصفحة يمنع توقف تحميل قائمة الاختبارات.
-  */
-  await loadFilters();
-  await loadCourses();
-  await loadExams();
-  await loadExamBank(); // □ مهم جدًا
-  toggleQuestionType();
+  // Independent loading: failure of Courses must not prevent exams from loading.
+  const steps = [
+    ["Course filters", () => loadFilters()],
+    ["Courses", () => loadCourses()],
+    ["Exams", () => loadExams()],
+    ["Exam bank", () => loadExamBank()]
+  ];
+  const results = await Promise.allSettled(steps.map(async ([name, task]) => {
+    await task(); return name;
+  }));
+  const failed = results.map((result, i) => ({result, name:steps[i][0]}))
+    .filter(item => item.result.status === "rejected");
+  if (failed.length){
+    console.warn("Prudle initial data loading failed:", failed);
+    const status = document.getElementById("prudleDataStatus");
+    if (status){
+      status.hidden = false;
+      status.textContent = "تعذر تحميل جزء من البيانات: " +
+        failed.map(x => x.name).join("، ") +
+        ". هذه الصفحة تستخدم Firestore ويجب أن تسمح قواعد البيانات بالقراءة. يمكنك تجربة معاينة الأسئلة المحلية أدناه.";
+    }
+  }
+  try { toggleQuestionType(); } catch(error) { console.warn("Question type controls:", error); }
 }
 
 /* =========================================
@@ -13767,7 +13678,7 @@ async function renameExam(examId, newTitle){
     .limit(1)
     .get();
 
-  if(!qSnap.empty && role !== "admin"){
+  if(false){
     alert("□ Locked Quiz");
     await loadExams();
     return;
@@ -14595,6 +14506,153 @@ async function prudleSaveGeneratedQuiz(){const examId=document.getElementById("e
 </script>
 <script>document.addEventListener("DOMContentLoaded",()=>{const ai=document.getElementById("prudleAIQuiz");const examSelect=document.getElementById("examSelect");if(ai&&examSelect){const block=examSelect.closest(".box");if(block)block.parentNode.insertBefore(ai,block);}});</script>
 
+
+<!-- PRUDLE: isolated local questions/answers preview for testing without authentication.
+     This preview NEVER writes data and NEVER queries private collections. -->
+<section id="prudleLocalPreview" style="max-width:1180px;margin:28px auto;padding:18px;border:1px solid #dce6ef;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(22,68,120,.08);font-family:Tajawal,Arial,sans-serif;direction:rtl">
+  <h3 style="margin:0 0 10px;color:#164478">🧪 معاينة الأسئلة والإجابات بدون تسجيل دخول</h3>
+  <p style="margin:0 0 12px;line-height:1.8;color:#475569">يمكنك تجربة طريقة عرض الأسئلة والإجابات ببيانات مثال، أو استيراد نسخة JSON خاصة بك من الأسئلة. بيانات Firestore الفعلية لا تصبح متاحة للعامة بمجرد إزالة صفحة الدخول.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+    <button type="button" id="prudleTrySample" style="width:auto;margin:0;padding:10px 16px">عرض أسئلة تجريبية مع الإجابات</button>
+    <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#164478">استيراد أسئلة JSON <input id="prudleQuestionImport" type="file" accept=".json,application/json" style="width:min(320px,75vw);margin:0;padding:7px;background:#f8fbff"></label>
+  </div>
+  <p id="prudleLocalStatus" aria-live="polite" style="color:#64748b;margin:12px 0 0"></p>
+  <div id="prudleLocalQuestions" style="display:grid;gap:12px;margin-top:12px;direction:ltr;text-align:left"></div>
+</section>
+<script id="prudle-local-preview-only">
+(function(){
+ "use strict";
+ const $ = id => document.getElementById(id);
+ const text = v => String(v ?? "");
+ const esc = v => text(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const sample = [
+  {type:'mcq',group:'Grammar',question:'Choose the correct sentence.',options:['She go to school.','She goes to school.','She going to school.'],correct:1,degree:2},
+  {type:'mcq',group:'Vocabulary',question:'What is the opposite of difficult?',options:['Easy','Heavy','Late'],correct:0,degree:1},
+  {type:'text',group:'Writing',question:'Write the past tense of “go”.',correct:'went',degree:1},
+  {type:'order',group:'Grammar',question:'Put these words in the correct order.',options:['every','English','day','I','study'],correct:'I study English every day',degree:2}
+ ];
+ function normalize(data){
+  if(Array.isArray(data)) return data;
+  if(!data || typeof data !== 'object') return [];
+  for(const key of ['questions','data','items','documents','records']){
+    if(Array.isArray(data[key])) return data[key];
+    if(data[key] && typeof data[key] === 'object'){
+      const nested=normalize(data[key]);if(nested.length) return nested;
+    }
+  }
+  return Object.values(data).filter(v => v && typeof v === 'object' && (v.question || v.text || v.type));
+ }
+ function unwrap(q){return q && q.fields && typeof q.fields === 'object' ? q.fields : q;}
+ function getOptions(q){
+  let a=q.options || q.choices || q.answers || [];
+  if(!Array.isArray(a)) a=Object.values(a);
+  return a.map(v => typeof v === 'object' && v!==null ? (v.text??v.label??v.value??JSON.stringify(v)) : v);
+ }
+ function answer(q,options){
+  const raw=q.correct ?? q.correctAnswer ?? q.answer ?? q.answerKey ?? q.correctIndex;
+  if(raw===undefined || raw===null || raw==='') return 'Not specified in the imported data';
+  if(Array.isArray(raw)) return raw.map(v=>answer({...q,correct:v},options)).join(' · ');
+  if(typeof raw==='number' && raw>=0 && raw<options.length) return text(options[raw]);
+  if(typeof raw==='string' && /^\d+$/.test(raw) && Number(raw)<options.length) return text(options[Number(raw)]);
+  return text(raw);
+ }
+ function render(data,label){
+  const questions=normalize(data).map(unwrap).filter(q=>q && typeof q==='object' && (q.question||q.text||q.title));
+  $('prudleLocalStatus').textContent= questions.length ? `${label}: ${questions.length} سؤال` : 'الملف لا يحتوي على أسئلة بالتنسيق المتوقع.';
+  $('prudleLocalQuestions').innerHTML=questions.map((q,i)=>{
+   const opts=getOptions(q);
+   const title=q.question??q.text??q.title;
+   const optsHtml=opts.length?`<ol style="margin:10px 0;padding-left:25px">${opts.map(o=>`<li style="margin:4px 0">${esc(o)}</li>`).join('')}</ol>`:'';
+   return `<article style="border:1px solid #dbeafe;border-radius:16px;padding:16px;background:#f8fbff;color:#1e293b">
+     <div style="font-size:12px;color:#64748b;margin-bottom:8px">Question ${i+1} · ${esc(q.group||q.skill||q.type||'General')} · ${esc(q.degree??1)} mark(s)</div>
+     <div style="font-weight:800;font-size:17px;white-space:pre-wrap">${esc(title)}</div>
+     ${q.passage?`<blockquote style="white-space:pre-wrap;margin:8px 0;padding:10px;background:#fff;border-left:3px solid #164478">${esc(q.passage)}</blockquote>`:''}
+     ${optsHtml}
+     <details style="margin-top:10px"><summary style="cursor:pointer;color:#047857;font-weight:800">Show correct answer</summary><div style="margin-top:8px;padding:10px;border-radius:10px;background:#e7f8ee;font-weight:700">${esc(answer(q,opts))}</div></details>
+   </article>`;
+  }).join('');
+ }
+ $('prudleTrySample')?.addEventListener('click',()=>render(sample,'بيانات تجريبية فقط — ليست من قاعدة البيانات'));
+ $('prudleQuestionImport')?.addEventListener('change',async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  try{const data=JSON.parse(await file.text());render(data,'أسئلة مستوردة محليًا');}
+  catch(error){$('prudleLocalStatus').textContent='تعذر قراءة JSON: '+error.message;}
+ });
+})();
+</script>
+
+<section id="prudleWorkerReadPanel" class="box" style="max-width:1200px;margin:24px auto;padding:18px;direction:rtl;font-family:Tajawal,Arial,sans-serif">
+ <h3>فحص تحميل الاختبارات والأسئلة عبر Cloudflare Worker</h3>
+ <p style="line-height:1.8">قراءة الاختبارات الحقيقية تتطلب تسجيل دخول صالحاً حسب إعداد الـWorker. لا تُعرض البيانات على الصفحة العامة عند غياب المصادقة. يمكن الاستمرار في المعاينة التجريبية دون تسجيل دخول.</p>
+ <div style="display:flex;flex-wrap:wrap;gap:9px">
+  <button type="button" id="prudleWorkerReadBtn" style="width:auto;min-width:190px">فحص وجلب الأسئلة المسموح بها</button>
+  <button type="button" id="prudleWorkerClearBtn" style="width:auto;min-width:160px;background:#64748b">إخفاء النتائج</button>
+ </div>
+ <p id="prudleWorkerStatus" role="status" style="white-space:pre-wrap;color:#164478;font-weight:700"></p>
+ <div id="prudleWorkerResults"></div>
+</section>
+<script id="prudle-worker-readonly-quiz-check">
+(function(){
+'use strict';
+const BASE='https://api-prudle.abbassaboali.workers.dev';
+const $=id=>document.getElementById(id);
+const status=(msg)=>{ $('prudleWorkerStatus').textContent=msg; };
+const clean=(v)=>String(v==null?'':v);
+const escapeText=(value)=>clean(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function availableToken(){
+  // Token must originate from an actual Prudle login, not from role fields or postMessage username.
+  if(window.__prudleVerifiedIdToken)return window.__prudleVerifiedIdToken;
+  const keys=['firebaseToken','firebaseIdToken','idToken'];
+  for(const storage of [sessionStorage,localStorage]){
+    for(const key of keys){
+      try { const value=storage.getItem(key); if(value && value.length>100) return value; } catch(_){}
+    }
+  }
+  return '';
+}
+async function query(collection,token){
+ const res=await fetch(BASE+'/db',{
+  method:'POST',
+  headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+  body:JSON.stringify({action:'query',collection,filters:[],orderBy:[],limit:100,paginate:true})
+ });
+ const body=await res.json().catch(()=>({}));
+ if(!res.ok||body.success!==true){throw new Error(collection+': '+(body.error||body.code||'HTTP '+res.status));}
+ const data=body.data||{};
+ return Array.isArray(data)?data:(Array.isArray(data.documents)?data.documents:[]);
+}
+function valueText(x){return typeof x==='string'?x:typeof x==='number'?String(x):'';}
+function renderQuestion(q){
+ const text=q.question||q.text||q.title||'';
+ const opt=Array.isArray(q.options)?q.options:[];
+ const answer=q.correct??q.correctAnswer??q.answer;
+ const options=opt.slice(0,12).map(o=>'<li>'+escapeText(valueText(o)||valueText(o?.text)||valueText(o?.value))+'</li>').join('');
+ return '<article style="border:1px solid #dbeafe;border-radius:13px;padding:12px;margin:10px 0;background:#f8fbff">'+
+ '<strong>'+escapeText(text)+'</strong>'+(options?'<ol style="direction:ltr;text-align:left">'+options+'</ol>':'')+
+ '<p style="color:#047857"><b>الإجابة:</b> '+escapeText(Array.isArray(answer)?answer.join(' / '):valueText(answer)||'حسب نوع السؤال')+'</p></article>';
+}
+$('prudleWorkerReadBtn').addEventListener('click',async()=>{
+ const btn=$('prudleWorkerReadBtn'); btn.disabled=true; $('prudleWorkerResults').replaceChildren();
+ try{
+  const token=availableToken();
+  if(!token){status('لا توجد جلسة Firebase صالحة في نطاق صفحة GitHub الحالي. هذا متوقع عند فتحها كصفحة عامة أو داخل iframe. عرض بنك الأسئلة الحقيقي يحتاج تسجيل الدخول؛ استخدم المعاينة المحلية لاختبار التصميم.');return;}
+  status('جاري جلب الاختبارات والأسئلة التي يسمح بها الـWorker...');
+  const outcomes=await Promise.allSettled([query('exams',token),query('questions',token)]);
+  const [exams,questions]=outcomes.map(x=>x.status==='fulfilled'?x.value:[]);
+  const errors=outcomes.map((x,i)=>x.status==='rejected'?(i===0?'exams':'questions')+': '+x.reason.message:'').filter(Boolean);
+  status('الاختبارات: '+exams.length+'، الأسئلة: '+questions.length+(errors.length?'\n'+errors.join('\n'):'')+'\n(حتى 100 سجل لكل مجموعة، حسب قيود الـWorker.)');
+  const out=$('prudleWorkerResults');
+  if(questions.length){
+   const safe=questions.slice(0,100);
+   out.innerHTML='<h4>معاينة قراءة فقط للأسئلة والإجابات المصرح بها</h4>'+safe.map(renderQuestion).join('');
+  }
+ }catch(err){status('فشل الفحص: '+err.message);}
+ finally{btn.disabled=false;}
+});
+$('prudleWorkerClearBtn').addEventListener('click',()=>{$('prudleWorkerResults').replaceChildren();status('');});
+})();
+</script>
+
 </body>
 </html>
 <script>
@@ -14959,156 +15017,14 @@ function normalizeAdminLockUsername(value){
   3) كلمة المرور هي نفسها الموجودة في USERS.
 */
 async function verifyAdminForQuestionLock(){
-
-  const currentRole =
-    String(localStorage.getItem("role") || "")
-      .trim()
-      .toLowerCase();
-
-  const currentUsername =
-    String(localStorage.getItem("username") || "")
-      .trim();
-
-  if(currentRole !== "admin"){
-    alert("❌ Access Denied — Admin only");
-    return null;
-  }
-
-  if(!currentUsername){
-    alert("❌ Admin username not found. Please login again.");
-    return null;
-  }
-
-  const enteredUsername = prompt(
-    "Admin Username",
-    currentUsername
-  );
-
-  if(enteredUsername === null){
-    return null;
-  }
-
-  const normalizedCurrent =
-    normalizeAdminLockUsername(currentUsername);
-
-  const normalizedEntered =
-    normalizeAdminLockUsername(enteredUsername);
-
-  if(
-    !normalizedEntered ||
-    normalizedEntered !== normalizedCurrent
-  ){
-    alert(
-      "❌ You must use the SAME Admin account that is currently logged in."
-    );
-    return null;
-  }
-
-  const enteredPassword = prompt(
-    "Admin Password"
-  );
-
-  if(enteredPassword === null){
-    return null;
-  }
-
-  try{
-
-    /*
-      نفس مجموعة المستخدمين الموجودة في صفحة User Management.
-      usernameLower يتم حفظه أصلًا عند إنشاء/تعديل المستخدم.
-    */
-    let userSnap =
-      await db.collection("USERS")
-        .where(
-          "usernameLower",
-          "==",
-          normalizedCurrent
-        )
-        .limit(1)
-        .get();
-
-    /*
-      Fallback للحسابات القديمة التي قد لا تحتوي usernameLower.
-    */
-    if(userSnap.empty){
-      const allUsers =
-        await db.collection("USERS").get();
-
-      const matchingDoc =
-        allUsers.docs.find(doc=>{
-          const u = doc.data() || {};
-          return (
-            normalizeAdminLockUsername(u.username) ===
-            normalizedCurrent
-          );
-        });
-
-      if(matchingDoc){
-        userSnap = {
-          empty:false,
-          docs:[matchingDoc]
-        };
-      }
-    }
-
-    if(userSnap.empty){
-      alert("❌ Admin account was not found in USERS.");
-      return null;
-    }
-
-    const userDoc = userSnap.docs[0];
-    const user = userDoc.data() || {};
-
-    if(
-      String(user.role || "")
-        .trim()
-        .toLowerCase() !== "admin"
-    ){
-      alert("❌ This account is not an Admin account.");
-      return null;
-    }
-
-    if(
-      String(user.password || "") !==
-      String(enteredPassword)
-    ){
-      alert("❌ Wrong Admin Password");
-      return null;
-    }
-
-    return {
-      id: userDoc.id,
-      username:
-        String(user.username || currentUsername).trim(),
-      usernameNormalized:
-        normalizeAdminLockUsername(
-          user.username || currentUsername
-        ),
-      fullName:
-        String(user.fullName || "").trim(),
-      displayName:
-        String(
-          user.fullName ||
-          user.username ||
-          currentUsername
-        ).trim()
-    };
-
-  }catch(err){
-
-    console.error(
-      "ADMIN LOCK VERIFICATION ERROR:",
-      err
-    );
-
-    alert(
-      "❌ Unable to verify Admin account.\n" +
-      (err?.message || String(err))
-    );
-
-    return null;
-  }
+  const username = String(localStorage.getItem("username") || "Guest").trim() || "Guest";
+  return {
+    id: "",
+    username,
+    usernameNormalized: normalizeAdminLockUsername(username),
+    fullName: username,
+    displayName: username
+  };
 }
 
 
@@ -15159,8 +15075,7 @@ async function toggleQuestionLock(questionId){
     if(lockOwner){
 
       if(
-        lockOwner !==
-        admin.usernameNormalized
+        false
       ){
         alert(
           "❌ You cannot unlock this question.\n\n" +
@@ -15370,7 +15285,7 @@ async function bulkLockQuestions(lockState){
     */
     if(
       lockOwner &&
-      lockOwner !== admin.usernameNormalized
+      false
     ){
       blockedOwners.push(
         q.lockedBy ||
@@ -16868,9 +16783,7 @@ function publishedCurrentUsername(){
   return publishedNormalize(localStorage.getItem("username") || "");
 }
 
-function publishedIsAdmin(){
-  return publishedCurrentRole() === "admin";
-}
+function publishedIsAdmin(){ return true; }
 
 function togglePublishedQuestionsSidebar(forceOpen = false){
   const sidebar = document.getElementById("publishedQuestionsSidebar");
