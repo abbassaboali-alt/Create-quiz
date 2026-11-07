@@ -4707,3 +4707,14 @@ body.a4-auto-scroll-dragging #questionsModal .modal-q-card.a4-dragging{
 #prudleAIResults .prudle-audio-speed select{width:auto!important;margin:0 0 0 6px!important;padding:8px!important}
 @media(max-width:600px){#prudleAIResults .prudle-official-page{margin:9px 0;padding:14px 12px;border-radius:9px}#prudleAIResults .prudle-official-question{gap:7px}#prudleAIResults .prudle-official-option{font-size:12px}}
 @media print{.prudle-official-print-toolbar{display:none!important}#prudleAIResults .prudle-official-page{box-shadow:none;border:0;margin:0;max-width:none;break-after:page}}
+
+/* V4: avoid forced section page breaks in on-screen Admin preview */
+#prudleAIResults .prudle-official-page{break-after:auto!important;page-break-after:auto!important;margin-top:8px!important;margin-bottom:8px!important;padding-top:12px!important;padding-bottom:12px!important}
+@media print{#prudleAIResults .prudle-official-page{break-after:auto!important;page-break-after:auto!important;break-before:auto!important;page-break-before:auto!important}}
+
+/* Prudle Official Exam V5 blue visual preview */
+#prudleAIResults .prudle-official-page{border:1px solid #b9d6f8;border-radius:15px;background:#fff;box-shadow:0 3px 16px #15477e18;padding:16px;margin:12px 0;break-inside:avoid-page}
+#prudleAIResults .prudle-official-paper-head{color:#164478;font-weight:900;border-bottom:2px solid #bed6f1;padding-bottom:8px}
+#prudleAIResults .prudle-official-section-title{background:linear-gradient(90deg,#174782,#2972bf)!important;color:#fff!important;padding:9px 14px;border-radius:10px;font-weight:900;margin:10px 0}
+#prudleAIResults .prudle-official-question{border:1px solid #d7e4f3;border-radius:10px;padding:9px;margin:8px 0;break-inside:avoid-page}
+#prudleAIResults .prudle-official-option{border:1px solid #c5dbf4;border-radius:8px;padding:6px;margin:4px 0;background:#f8fbff}
